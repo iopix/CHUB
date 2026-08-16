@@ -167,8 +167,9 @@ export default function Home() {
 
   return (
     <div style={styles.container}>
+      {/* Header */}
       <header style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
           <div style={styles.statusDot} />
           <h1 style={styles.title}>SukaChub AI</h1>
         </div>
@@ -179,11 +180,11 @@ export default function Home() {
           style={styles.voiceSelect}
         >
           <option value="spruce">Spruce (Bulepotan)</option>
-          <option value="breeze">Breeze (Genzet)</option>
           <option value="arbor">Arbor (Pakcik)</option>
         </select>
       </header>
 
+      {/* Chat Area */}
       <div style={styles.chatBox}>
         {messages.map((msg, index) => (
           <div
@@ -217,7 +218,9 @@ export default function Home() {
                   </button>
                 )}
               </div>
-              <div style={{ whitespace: 'pre-wrap', lineHeight: '1.5' }}>{msg.content}</div>
+              <div style={{ whitespace: 'pre-wrap', lineHeight: '1.45', wordBreak: 'break-word' }}>
+                {msg.content}
+              </div>
             </div>
           </div>
         ))}
@@ -232,6 +235,7 @@ export default function Home() {
         <div ref={chatEndRef} />
       </div>
 
+      {/* Suggestion Chips */}
       <div style={styles.suggestions}>
         {['Peluk aku dong', 'Bisa cium gak', 'Ceritain hal manis'].map((text, i) => (
           <button key={i} onClick={() => handleSend(text)} style={styles.chipButton}>
@@ -243,6 +247,7 @@ export default function Home() {
         </button>
       </div>
 
+      {/* Input Bar */}
       <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
         <button
           type="button"
@@ -261,7 +266,7 @@ export default function Home() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={isListening ? 'Mendengarkan...' : 'Ketik atau gunakan mic...'}
+          placeholder={isListening ? 'Mendengarkan...' : 'Ketik pesan...'}
           style={styles.input}
         />
 
@@ -277,63 +282,71 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100vh',
+    height: '100dvh', // Responsif penuh sesuai viewport HP
+    width: '100%',
+    maxWidth: '600px',
+    margin: '0 auto',
     backgroundColor: '#09090b',
     color: '#e4e4e7',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
-    maxWidth: '800px',
-    margin: '0 auto',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     boxShadow: '0 0 50px rgba(0,0,0,0.8)',
+    overflow: 'hidden',
   },
   header: {
-    padding: '14px 20px',
+    padding: '12px 16px',
     borderBottom: '1px solid #27272a',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: 'rgba(18, 18, 20, 0.8)',
+    background: 'rgba(18, 18, 20, 0.95)',
     backdropFilter: 'blur(10px)',
+    zIndex: 10,
   },
   statusDot: {
-    width: '10px',
-    height: '10px',
+    width: '9px',
+    height: '9px',
     borderRadius: '50%',
     backgroundColor: '#f97316',
     boxShadow: '0 0 8px #f97316',
+    flexShrink: 0,
   },
   title: {
-    fontSize: '1.1rem',
+    fontSize: '1rem',
     fontWeight: '600',
     margin: 0,
-    letterSpacing: '0.5px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   voiceSelect: {
     backgroundColor: '#18181b',
     color: '#e4e4e7',
     border: '1px solid #3f3f46',
     borderRadius: '8px',
-    padding: '6px 10px',
-    fontSize: '0.85rem',
+    padding: '6px 8px',
+    fontSize: '0.8rem',
     outline: 'none',
     cursor: 'pointer',
+    maxWidth: '150px',
   },
   chatBox: {
     flex: 1,
     overflowY: 'auto',
-    padding: '20px',
+    padding: '16px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '12px',
+    WebkitOverflowScrolling: 'touch',
   },
   messageWrapper: {
     display: 'flex',
     width: '100%',
   },
   bubble: {
-    maxWidth: '80%',
-    padding: '12px 16px',
+    maxWidth: '88%', // Lebar bubble disesuaikan untuk layar sempit HP
+    padding: '10px 14px',
     borderRadius: '16px',
-    fontSize: '0.95rem',
+    fontSize: '0.9rem',
   },
   userBubble: {
     backgroundColor: '#2563eb',
@@ -351,9 +364,10 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '4px',
+    gap: '8px',
   },
   roleLabel: {
-    fontSize: '0.75rem',
+    fontSize: '0.7rem',
     opacity: 0.6,
     fontWeight: 'bold',
   },
@@ -361,17 +375,20 @@ const styles = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '2px 4px',
+    padding: '4px',
     display: 'flex',
     alignItems: 'center',
-    transition: 'color 0.2s ease',
+    touchAction: 'manipulation',
   },
   suggestions: {
     display: 'flex',
     gap: '8px',
-    padding: '0 20px 10px 20px',
+    padding: '8px 16px',
     overflowX: 'auto',
     alignItems: 'center',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
+    WebkitOverflowScrolling: 'touch',
   },
   chipButton: {
     backgroundColor: '#18181b',
@@ -379,34 +396,36 @@ const styles = {
     color: '#a1a1aa',
     padding: '6px 12px',
     borderRadius: '20px',
-    fontSize: '0.8rem',
+    fontSize: '0.78rem',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   clearChipButton: {
     backgroundColor: '#ef4444',
     border: 'none',
     color: '#ffffff',
-    padding: '6px 14px',
+    padding: '6px 12px',
     borderRadius: '20px',
-    fontSize: '0.8rem',
+    fontSize: '0.78rem',
     fontWeight: '600',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
+    flexShrink: 0,
     marginLeft: 'auto',
   },
   inputContainer: {
     display: 'flex',
     alignItems: 'center',
-    padding: '16px 20px',
-    gap: '10px',
+    padding: '12px 16px calc(12px + env(safe-area-inset-bottom)) 16px', // Dukungan notch & gesture bar iPhone
+    gap: '8px',
     borderTop: '1px solid #27272a',
     backgroundColor: '#09090b',
   },
   iconMicButton: {
-    width: '44px',
-    height: '44px',
+    width: '42px',
+    height: '42px',
     borderRadius: '50%',
     border: 'none',
     display: 'flex',
@@ -415,28 +434,31 @@ const styles = {
     cursor: 'pointer',
     color: '#fff',
     flexShrink: 0,
-    transition: 'all 0.2s ease',
+    touchAction: 'manipulation',
   },
   input: {
     flex: 1,
     backgroundColor: '#18181b',
     border: '1px solid #27272a',
     borderRadius: '12px',
-    padding: '12px 16px',
+    padding: '10px 14px',
     color: '#fff',
     outline: 'none',
-    fontSize: '0.95rem',
+    fontSize: '16px', // Mencegah iOS melakukan auto-zoom saat diketik
+    minWidth: 0,
   },
   sendButton: {
     backgroundColor: '#f97316',
     color: '#fff',
     border: 'none',
     borderRadius: '12px',
-    padding: '0 20px',
-    height: '44px',
+    padding: '0 16px',
+    height: '42px',
     fontWeight: '600',
+    fontSize: '0.9rem',
     cursor: 'pointer',
+    flexShrink: 0,
     boxShadow: '0 2px 8px rgba(249, 115, 22, 0.4)',
-    transition: 'all 0.2s ease',
+    touchAction: 'manipulation',
   },
 };

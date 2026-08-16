@@ -11,7 +11,7 @@ export async function POST(req) {
     }
 
     if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: 'GROQ_API_KEY belum terpasang di .env.local' }, { status: 500 });
+      return NextResponse.json({ error: 'GROQ_API_KEY belum terpasang di .env.local atau Environment Variables deployment.' }, { status: 500 });
     }
 
     // Kalkulasi Waktu WIB (UTC+7) Presisi

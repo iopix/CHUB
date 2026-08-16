@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
 const VOICE_MAP = {
-  breeze: 'en-US-BrianMultilingualNeural',   // Breeze: Cowok santai & friendly
-  spruce: 'en-US-AndrewMultilingualNeural',  // Spruce: Cowok kalem, tegas, & wibawa
-  arbor: 'ms-MY-OsmanNeural',               // Arbor: Cowok berat, ngebass, & dalam
+  spruce: 'en-US-AndrewMultilingualNeural',  // Spruce (Bulepotan)
+  arbor: 'ms-MY-OsmanNeural',               // Arbor (Pakcik)
 };
 
 export async function POST(req) {
