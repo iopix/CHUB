@@ -5,10 +5,49 @@ export const maxDuration = 30;
 export async function POST(req) {
   try {
     const data = await req.formData();
-    const prompt = data.get('prompt') || 'a bird';
+    const prompt = data.get('prompt') || 'a transformed image';
+    const imageFile = data.get('image');
+    const hfToken = process.env.HF_TOKEN;
+
     const seed = Math.floor(Math.random() * 900000) + 100000;
 
-    const fullPrompt = `${prompt}, highly detailed, high quality, 8k resolution`;
+    // 1. Jika pengguna upload gambar acuan (Image-to-Image)
+    if (imageFile && imageFile.size > 0 && hfToken && hfToken.trim() !== '') {
+      try {
+        const arrayBuffer = await imageFile.arrayBuffer();
+        const base64InputImage = Buffer.from(arrayBuffer).toString('base64');
+
+        const response = await fetch(
+          "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
+          {
+            headers: {
+              Authorization: `Bearer ${hfToken}`,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify({
+              inputs: base64InputImage,
+              parameters: {
+                prompt: `${prompt}, high quality, 8k resolution`,
+                strength: 0.7,
+                seed: seed
+              }
+            }),
+          }
+        );
+
+        if (response.ok) {
+          const resBuffer = await response.arrayBuffer();
+          const base64Result = Buffer.from(resBuffer).toString('base64');
+          return NextResponse.json({ image: `data:image/jpeg;base64,${base64Result}` });
+        }
+      } catch (e) {
+        console.log("HF Img2Img Error:", e.message);
+      }
+    }
+
+    // 2. Fast Generator Fallback (Text-to-Image)
+    const fullPrompt = `${prompt}, highly detailed, 8k resolution`;
     const encodedPrompt = encodeURIComponent(fullPrompt);
     const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=512&height=512&nologo=true`;
 
@@ -26,11 +65,9 @@ export async function POST(req) {
       );
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    const dataUrl = `data:image/jpeg;base64,${base64}`;
-
-    return NextResponse.json({ image: dataUrl });
+    const resArrayBuffer = await response.arrayBuffer();
+    const base64Output = Buffer.from(resArrayBuffer).toString('base64');
+    return NextResponse.json({ image: `data:image/jpeg;base64,${base64Output}` });
 
   } catch (err) {
     return NextResponse.json({ error: `Server Error: ${err.message}` }, { status: 500 });
