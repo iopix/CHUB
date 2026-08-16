@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
-const VOICE_MAP = {
-  spruce: 'en-US-AndrewMultilingualNeural',  // Spruce (Bulepotan)
-  arbor: 'ms-MY-OsmanNeural',               // Arbor (Pakcik)
+// Konfigurasi Suara: Spruce dibuat Garang & Macho, Arbor tetap Mature & Wibawa
+const VOICE_CONFIG = {
+  spruce: { voice: 'id-ID-ArdiNeural', pitch: '-35Hz', rate: '+0%' }, // Spruce: Garang, Macho & Dominan
+  arbor: { voice: 'id-ID-ArdiNeural', pitch: '-20Hz', rate: '-10%' }, // Arbor: Mature & Wibawa (Pakcik)
 };
 
 export async function POST(req) {
@@ -19,11 +20,14 @@ export async function POST(req) {
     }
 
     const tts = new MsEdgeTTS();
-    const voiceId = VOICE_MAP[voice] || VOICE_MAP.spruce;
+    const config = VOICE_CONFIG[voice] || VOICE_CONFIG.spruce;
 
-    await tts.setMetadata(voiceId, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+    await tts.setMetadata(config.voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
 
-    const { audioStream } = await tts.toStream(cleanText);
+    const { audioStream } = await tts.toStream(cleanText, {
+      pitch: config.pitch,
+      rate: config.rate,
+    });
 
     const chunks = [];
     for await (const chunk of audioStream) {

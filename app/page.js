@@ -39,7 +39,7 @@ export default function Home() {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    const initialGreeting = 'Halo sayang, sini mendekat sama aku. Aku kangen banget dan pengen peluk cowok gantengku yang gemoy ini.';
+    const initialGreeting = 'Halo sayang, sini mendekat sama aku. Aku kangen banget dan pengen peluk cowok gantengku yang gemoy.';
     setMessages([{ role: 'assistant', content: initialGreeting }]);
   }, []);
 
@@ -61,7 +61,7 @@ export default function Home() {
 
   const handleClearChat = () => {
     stopAudio();
-    const initialGreeting = 'Halo sayang, sini mendekat sama aku. Aku kangen banget dan pengen peluk cowok gantengku yang gemoy ini.';
+    const initialGreeting = 'Halo sayang, sini mendekat sama aku. Aku kangen banget dan pengen peluk cowok gantengku yang gemoy.';
     setMessages([{ role: 'assistant', content: initialGreeting }]);
   };
 
@@ -155,7 +155,7 @@ export default function Home() {
         setMessages(updatedMessages);
         speakText(data.reply, updatedMessages.length - 1);
       } else {
-        const errorMsg = `Error: ${data.error || 'Gagal tersambung ke server Groq.'}`;
+        const errorMsg = `Error: ${data.error || 'Gagal tersambung ke server Groq. Pastikan GROQ_API_KEY terpasang di environment variables.'}`;
         setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
       }
     } catch (err) {
@@ -179,8 +179,8 @@ export default function Home() {
           onChange={(e) => setSelectedVoice(e.target.value)}
           style={styles.voiceSelect}
         >
-          <option value="spruce">Spruce (Bulepotan)</option>
-          <option value="arbor">Arbor (Pakcik)</option>
+          <option value="spruce">Deep</option>
+          <option value="arbor">Man</option>
         </select>
       </header>
 
@@ -282,7 +282,7 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100dvh', // Responsif penuh sesuai viewport HP
+    height: '100dvh',
     width: '100%',
     maxWidth: '600px',
     margin: '0 auto',
@@ -327,7 +327,7 @@ const styles = {
     fontSize: '0.8rem',
     outline: 'none',
     cursor: 'pointer',
-    maxWidth: '150px',
+    maxWidth: '160px',
   },
   chatBox: {
     flex: 1,
@@ -343,7 +343,7 @@ const styles = {
     width: '100%',
   },
   bubble: {
-    maxWidth: '88%', // Lebar bubble disesuaikan untuk layar sempit HP
+    maxWidth: '88%',
     padding: '10px 14px',
     borderRadius: '16px',
     fontSize: '0.9rem',
@@ -418,7 +418,7 @@ const styles = {
   inputContainer: {
     display: 'flex',
     alignItems: 'center',
-    padding: '12px 16px calc(12px + env(safe-area-inset-bottom)) 16px', // Dukungan notch & gesture bar iPhone
+    padding: '12px 16px calc(12px + env(safe-area-inset-bottom)) 16px',
     gap: '8px',
     borderTop: '1px solid #27272a',
     backgroundColor: '#09090b',
@@ -444,7 +444,7 @@ const styles = {
     padding: '10px 14px',
     color: '#fff',
     outline: 'none',
-    fontSize: '16px', // Mencegah iOS melakukan auto-zoom saat diketik
+    fontSize: '16px',
     minWidth: 0,
   },
   sendButton: {
