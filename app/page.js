@@ -6,12 +6,10 @@ export default function Home() {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [prompt, setPrompt] = useState('');
-  const [enhancePrompt, setEnhancePrompt] = useState(true);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Clean up Object URL untuk mencegah memory leak
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
@@ -22,27 +20,16 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setErrorMsg('Harap pilih file gambar yang valid (JPEG, PNG, WebP).');
-      return;
-    }
-
     if (preview) URL.revokeObjectURL(preview);
     setImage(file);
     setPreview(URL.createObjectURL(file));
     setErrorMsg('');
   };
 
-  const removeImage = () => {
-    if (preview) URL.revokeObjectURL(preview);
-    setImage(null);
-    setPreview(null);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!prompt.trim() && !image) {
-      setErrorMsg('Pilih gambar acuan atau isi deskripsi prompt terlebih dahulu.');
+    if (!image) {
+      setErrorMsg('Harap unggah gambar acuan terlebih dahulu.');
       return;
     }
 
@@ -51,9 +38,8 @@ export default function Home() {
     setResult(null);
 
     const formData = new FormData();
-    if (image) formData.append('image', image);
-    formData.append('prompt', prompt.trim());
-    formData.append('enhance', enhancePrompt.toString());
+    formData.append('image', image);
+    formData.append('prompt', prompt);
 
     try {
       const res = await fetch('/api/transform', {
@@ -62,122 +48,112 @@ export default function Home() {
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Terjadi kesalahan pada server.');
-      }
+      if (!res.ok) throw new Error(data.error || 'Gagal memproses gambar.');
 
       setResult(data.image);
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal menghubungkan ke server.');
+      setErrorMsg(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ padding: '30px 20px', fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', maxWidth: '650px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '8px', color: '#111' }}>AI Image Generator & Editor</h1>
-      <p style={{ color: '#666', marginBottom: '25px', fontSize: '15px' }}>
-        Upload gambar acuan dan masukkan deskripsi perubahan yang kamu inginkan.
-      </p>
+    <main style={{ backgroundColor: '#0b0f17', minHeight: '100vh', color: '#e2e8f0', fontFamily: 'system-ui, sans-serif', padding: '24px' }}>
+      
+      {/* Header Space */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', fontSize: '14px' }}>
+        <span style={{ fontWeight: 'bold', fontSize: '18px', color: '#fff' }}>shootstuff/flux-img2img-uncensored</span>
+        <span style={{ backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', color: '#94a3b8' }}>♥ 131</span>
+        <span style={{ backgroundColor: '#0284c7', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontSize: '12px' }}>Agents</span>
+        <span style={{ color: '#22c55e', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>● Running</span>
+      </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '25px', borderRadius: '16px', border: '1px solid #e5e5e5' }}>
-        
-        {/* Upload Input */}
-        <div style={{ width: '100%', textAlign: 'left' }}>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px', color: '#333' }}>
-            1. Upload Gambar Acuan (Opsional):
-          </label>
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={handleImageChange}
-            style={{ 
-              width: '100%', 
-              padding: '10px', 
-              backgroundColor: '#fff', 
-              border: '1px dashed #0070f3', 
-              borderRadius: '8px',
-              cursor: 'pointer'
-            }}
-          />
-          {preview && (
-            <div style={{ marginTop: '10px', textAlign: 'center' }}>
-              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Preview Gambar Upload:</p>
-              <img src={preview} alt="Preview" style={{ maxHeight: '140px', borderRadius: '8px', border: '1px solid #ddd' }} />
-              <br />
-              <button 
-                type="button" 
-                onClick={removeImage}
-                style={{ marginTop: '8px', background: '#ff4d4f', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-              >
-                Hapus Gambar
-              </button>
+      <form onSubmit={handleSubmit}>
+        {/* Layout 2 Kolom Persis Gradio */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '1200px', margin: '0 auto' }}>
+          
+          {/* Panel Kiri: Input Gambar & Prompt */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            {/* Image Dropzone */}
+            <div style={{ border: '1px dashed #334155', borderRadius: '8px', backgroundColor: '#161e2e', padding: '40px 20px', textAlign: 'center', position: 'relative', minHeight: '260px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageChange}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+              />
+
+              {preview ? (
+                <img src={preview} alt="Input" style={{ maxHeight: '240px', maxWidth: '100%', borderRadius: '6px', objectFit: 'contain' }} />
+              ) : (
+                <>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ marginBottom: '12px' }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <p style={{ margin: 0, fontWeight: 'bold', fontSize: '15px', color: '#f1f5f9' }}>Letakkan Gambar di Sini</p>
+                  <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>- atau -</p>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#38bdf8' }}>Klik untuk Mengunggah</p>
+                </>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Prompt Input */}
-        <div style={{ width: '100%', textAlign: 'left' }}>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px', color: '#333' }}>
-            2. Perintah / Prompt Gambar:
-          </label>
-          <input 
-            type="text" 
-            placeholder="Contoh: pemandangan kota masa depan cyberpunk, warna neon..." 
-            value={prompt} 
-            onChange={(e) => setPrompt(e.target.value)}
-            style={{ width: '100%', padding: '12px 16px', fontSize: '15px', borderRadius: '8px', border: '1px solid #ccc', outline: 'none', boxSizing: 'border-box' }}
-          />
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', fontSize: '13px', color: '#555', cursor: 'pointer' }}>
-            <input 
-              type="checkbox" 
-              checked={enhancePrompt} 
-              onChange={(e) => setEnhancePrompt(e.target.checked)} 
-            />
-            Optimalkan detail prompt secara otomatis (Auto-Enhance)
-          </label>
-        </div>
+            {/* Input Prompt */}
+            <div style={{ backgroundColor: '#161e2e', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Prompt
+              </label>
+              <textarea 
+                rows={3}
+                placeholder="Masukkan deskripsi perubahan..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#fff', padding: '10px', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+              />
+            </div>
 
-        {/* Submit Button */}
-        <button 
-          type="submit" 
-          disabled={loading} 
-          style={{ 
-            width: '100%',
-            padding: '14px', 
-            fontSize: '16px', 
-            cursor: loading ? 'not-allowed' : 'pointer', 
-            backgroundColor: loading ? '#888' : '#0070f3', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: '10px', 
-            fontWeight: 'bold'
-          }}
-        >
-          {loading ? 'Memproses Gambar AI...' : 'Generate / Ubah Gambar'}
-        </button>
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{ padding: '12px', backgroundColor: loading ? '#334155' : '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}
+            >
+              {loading ? 'Memproses...' : 'Generate Image'}
+            </button>
+          </div>
+
+          {/* Panel Kanan: Output Gambar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ border: '1px solid #1e293b', borderRadius: '8px', backgroundColor: '#161e2e', height: '100%', minHeight: '360px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ borderBottom: '1px solid #1e293b', padding: '8px 14px', fontSize: '13px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🖼️ output</span>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+                {result ? (
+                  <img src={result} alt="Output" style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '6px', objectFit: 'contain' }} />
+                ) : (
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                )}
+              </div>
+            </div>
+
+            <button type="button" disabled style={{ padding: '10px', backgroundColor: '#1e293b', color: '#64748b', border: 'none', borderRadius: '6px', cursor: 'not-allowed' }}>
+              🔗 Share via Link
+            </button>
+          </div>
+
+        </div>
       </form>
 
-      {/* Error Output */}
       {errorMsg && (
-        <div style={{ color: '#d32f2f', margin: '20px 0', padding: '14px', border: '1px solid #ef5350', borderRadius: '10px', backgroundColor: '#ffebee', fontSize: '14px' }}>
-          <strong>Error:</strong> {errorMsg}
-        </div>
-      )}
-
-      {/* Result Output */}
-      {result && (
-        <div style={{ marginTop: '30px' }}>
-          <h2 style={{ fontSize: '1.4rem', marginBottom: '15px', color: '#222' }}>Hasil Gambar AI:</h2>
-          <div style={{ border: '1px solid #e1e1e1', borderRadius: '14px', padding: '15px', backgroundColor: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.08)', display: 'inline-block' }}>
-            <img 
-              src={result} 
-              alt="Hasil AI" 
-              style={{ maxWidth: '480px', width: '100%', height: 'auto', borderRadius: '10px', display: 'block' }} 
-            />
-          </div>
+        <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#450a0a', border: '1px solid #991b1b', borderRadius: '6px', color: '#fca5a5', textAlign: 'center' }}>
+          {errorMsg}
         </div>
       )}
     </main>
