@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
+
+function enhancePromptText(userPrompt) {
+  const qualityBoosters = "highly detailed, 8k resolution, professional photography, cinematic lighting, sharp focus";
+  if (!userPrompt) return qualityBoosters;
+  return `${userPrompt.trim()}, ${qualityBoosters}`;
+}
 
 export async function POST(req) {
   try {
     const data = await req.formData();
-    const prompt = data.get('prompt') || 'a transformed image';
+    const rawPrompt = data.get('prompt') || '';
+    const shouldEnhance = data.get('enhance') === 'true';
     const imageFile = data.get('image');
     const hfToken = process.env.HF_TOKEN;
 
-    const seed = Math.floor(Math.random() * 900000) + 100000;
+    const finalPrompt = shouldEnhance ? enhancePromptText(rawPrompt) : rawPrompt;
+    const seed = Math.floor(Math.random() * 1000000);
 
-    // 1. Jika pengguna upload gambar acuan (Image-to-Image)
+    // 1. Handling Image-to-Image (Hugging Face)
     if (imageFile && imageFile.size > 0 && hfToken && hfToken.trim() !== '') {
       try {
         const arrayBuffer = await imageFile.arrayBuffer();
@@ -28,10 +36,11 @@ export async function POST(req) {
             body: JSON.stringify({
               inputs: base64InputImage,
               parameters: {
-                prompt: `${prompt}, high quality, 8k resolution`,
-                strength: 0.7,
-                seed: seed
-              }
+                prompt: finalPrompt,
+                negative_prompt: "blurry, low resolution, distorted, extra limbs, bad anatomy",
+                strength: 0.65,
+                seed: seed,
+              },
             }),
           }
         );
@@ -42,14 +51,13 @@ export async function POST(req) {
           return NextResponse.json({ image: `data:image/jpeg;base64,${base64Result}` });
         }
       } catch (e) {
-        console.log("HF Img2Img Error:", e.message);
+        console.error("HF Img2Img Error:", e.message);
       }
     }
 
-    // 2. Fast Generator Fallback (Text-to-Image)
-    const fullPrompt = `${prompt}, highly detailed, 8k resolution`;
-    const encodedPrompt = encodeURIComponent(fullPrompt);
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=512&height=512&nologo=true`;
+    // 2. Text-to-Image High Performance Fallback (Pollinations dengan Engine FLUX)
+    const encodedPrompt = encodeURIComponent(finalPrompt);
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=1024&height=1024&model=flux&nologo=true`;
 
     const response = await fetch(url, {
       headers: {
