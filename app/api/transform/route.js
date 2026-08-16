@@ -1,55 +1,65 @@
 import { NextResponse } from 'next/server';
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 
-async function fetchSingleImage(prompt, seed) {
-  const response = await fetch(
-    "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.HF_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: { seed: seed }
-      }),
+async function generateImage(prompt, seed, hfToken) {
+  const fullPrompt = `${prompt}, high quality, 8k resolution`;
+
+  // 1. Coba Hugging Face FLUX.1-schnell (Proses cepat ~2 detik)
+  if (hfToken) {
+    try {
+      const response = await fetch(
+        "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
+        {
+          headers: {
+            Authorization: `Bearer ${hfToken}`,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+          body: JSON.stringify({
+            inputs: fullPrompt,
+            parameters: { seed: seed }
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const resBuffer = await response.arrayBuffer();
+        const base64Image = Buffer.from(resBuffer).toString('base64');
+        return `data:image/jpeg;base64,${base64Image}`;
+      }
+    } catch (e) {
+      console.log("HF Error, beralih ke engine cadangan:", e.message);
     }
-  );
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`HF Error (${response.status}): ${errText}`);
   }
 
-  const resBuffer = await response.arrayBuffer();
-  const base64Image = Buffer.from(resBuffer).toString('base64');
-  return `data:image/jpeg;base64,${base64Image}`;
+  // 2. Engine AI Cadangan (Pollinations AI - Sangat Cepat & Bebas Timeout)
+  const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?seed=${seed}&width=512&height=512&nologo=true&model=flux`;
+  const res = await fetch(pollUrl);
+  if (!res.ok) throw new Error("Gagal memproses gambar");
+  
+  const buffer = await res.arrayBuffer();
+  const base64 = Buffer.from(buffer).toString('base64');
+  return `data:image/jpeg;base64,${base64}`;
 }
 
 export async function POST(req) {
   try {
-    if (!process.env.HF_TOKEN) {
-      return NextResponse.json({ error: 'HF_TOKEN belum terpasang di Vercel' }, { status: 500 });
-    }
-
     const data = await req.formData();
-    const prompt = data.get('prompt') || 'cyberpunk style, high quality, 4k';
+    const prompt = data.get('prompt') || 'pink and blue style';
+    const hfToken = process.env.HF_TOKEN;
 
-    // Membuat 2 seed acak agar menghasilkan 2 gambar berbeda
     const seed1 = Math.floor(Math.random() * 1000000);
     const seed2 = Math.floor(Math.random() * 1000000);
 
-    // Menjalankan 2 pemanggilan API secara paralel bersamaan
+    // Jalankan 2 pemanggilan gambar secara cepat & paralel
     const [img1, img2] = await Promise.all([
-      fetchSingleImage(prompt, seed1),
-      fetchSingleImage(prompt, seed2)
+      generateImage(prompt, seed1, hfToken),
+      generateImage(prompt, seed2, hfToken)
     ]);
 
     return NextResponse.json({ images: [img1, img2] });
-
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: `Gagal membuat gambar: ${err.message}` }, { status: 500 });
   }
 }
