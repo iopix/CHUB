@@ -61,7 +61,7 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0b0f17', minHeight: '100vh', color: '#e2e8f0', fontFamily: 'system-ui, sans-serif', padding: '24px' }}>
       
-      {/* Header Space */}
+      {/* Header Bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', fontSize: '14px' }}>
         <span style={{ fontWeight: 'bold', fontSize: '18px', color: '#fff' }}>shootstuff/flux-img2img-uncensored</span>
         <span style={{ backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', color: '#94a3b8' }}>♥ 131</span>
@@ -70,13 +70,12 @@ export default function Home() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Layout 2 Kolom Persis Gradio */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '1200px', margin: '0 auto' }}>
           
-          {/* Panel Kiri: Input Gambar & Prompt */}
+          {/* Panel Input */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
-            {/* Image Dropzone */}
+            {/* Box Upload Gambar */}
             <div style={{ border: '1px dashed #334155', borderRadius: '8px', backgroundColor: '#161e2e', padding: '40px 20px', textAlign: 'center', position: 'relative', minHeight: '260px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
               <input 
                 type="file" 
@@ -101,14 +100,14 @@ export default function Home() {
               )}
             </div>
 
-            {/* Input Prompt */}
+            {/* Input Text Prompt */}
             <div style={{ backgroundColor: '#161e2e', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Prompt
+                PROMPT
               </label>
               <textarea 
                 rows={3}
-                placeholder="Masukkan deskripsi perubahan..."
+                placeholder="Masukkan deskripsi perintah gambar..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#fff', padding: '10px', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
@@ -118,13 +117,13 @@ export default function Home() {
             <button 
               type="submit" 
               disabled={loading}
-              style={{ padding: '12px', backgroundColor: loading ? '#334155' : '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}
+              style={{ padding: '12px', backgroundColor: loading ? '#334155' : '#0284c7', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}
             >
-              {loading ? 'Memproses...' : 'Generate Image'}
+              {loading ? 'Memproses Gambar...' : 'Generate Image'}
             </button>
           </div>
 
-          {/* Panel Kanan: Output Gambar */}
+          {/* Panel Output */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ border: '1px solid #1e293b', borderRadius: '8px', backgroundColor: '#161e2e', height: '100%', minHeight: '360px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ borderBottom: '1px solid #1e293b', padding: '8px 14px', fontSize: '13px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -151,6 +150,7 @@ export default function Home() {
         </div>
       </form>
 
+      {/* Tampilan Error */}
       {errorMsg && (
         <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#450a0a', border: '1px solid #991b1b', borderRadius: '6px', color: '#fca5a5', textAlign: 'center' }}>
           {errorMsg}
