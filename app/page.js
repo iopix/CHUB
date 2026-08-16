@@ -5,32 +5,41 @@ export default function Home() {
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!image) return;
     setLoading(true);
+    setErrorMsg('');
+    setResult(null);
 
     const formData = new FormData();
     formData.append('image', image);
 
-    const res = await fetch('/api/transform', {
-      method: 'POST',
-      body: formData,
-    });
+    try {
+      const res = await fetch('/api/transform', {
+        method: 'POST',
+        body: formData,
+      });
 
-    if (res.ok) {
-      const blob = await res.blob();
-      setResult(URL.createObjectURL(blob));
-    } else {
-      alert('Gagal memproses gambar');
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Terjadi kesalahan sistem');
+      }
+
+      setResult(data.image);
+    } catch (err) {
+      setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'sans-serif', textAlign: 'center' }}>
-      <h1>AI Image to Image Generator</h1>
+    <main style={{ padding: '40px', fontFamily: 'sans-serif', textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
+      <h1>AI Image to Image</h1>
       <form onSubmit={handleSubmit} style={{ margin: '20px 0' }}>
         <input 
           type="file" 
@@ -44,10 +53,16 @@ export default function Home() {
         </button>
       </form>
 
+      {errorMsg && (
+        <div style={{ color: 'red', margin: '20px 0', padding: '12px', border: '1px solid red', borderRadius: '6px', backgroundColor: '#fff0f0' }}>
+          <strong>Error:</strong> {errorMsg}
+        </div>
+      )}
+
       {result && (
         <div style={{ marginTop: '20px' }}>
           <h3>Hasil:</h3>
-          <img src={result} alt="Hasil AI" style={{ maxWidth: '400px', borderRadius: '8px' }} />
+          <img src={result} alt="Hasil AI" style={{ maxWidth: '100%', borderRadius: '8px' }} />
         </div>
       )}
     </main>
