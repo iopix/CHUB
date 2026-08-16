@@ -1,43 +1,38 @@
 import { NextResponse } from 'next/server';
+import { Client, handle_file } from "@gradio/client";
 
 export const maxDuration = 60;
 
 export async function POST(req) {
   try {
     const data = await req.formData();
-    const prompt = data.get('prompt') || 'high quality detailed image';
-    const seed = Math.floor(Math.random() * 999999);
+    const prompt = data.get('prompt') || '';
+    const imageFile = data.get('image');
 
-    // Encode prompt agar aman dimasukkan ke URL
-    const encodedPrompt = encodeURIComponent(prompt.trim());
+    if (!imageFile) return NextResponse.json({ error: 'Gambar tidak ditemukan' }, { status: 400 });
+
+    // Ubah file ke buffer, lalu ke blob
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const imageBlob = new Blob([arrayBuffer], { type: imageFile.type });
+
+    // Koneksi ke Space
+    const client = await Client.connect("shootstuff/flux-img2img-uncensored");
+
+    // Kirim gambar (pakai handle_file) dan prompt
+    // Endpoint biasanya "/predict" atau "/process"
+    const result = await client.predict("/predict", [
+      handle_file(imageBlob), // Ini wajib ada biar gambar lo terkirim
+      prompt,                 // Prompt lo
+      0.5                     // Strength (bikin 0.3-0.6 biar gak berubah total)
+    ]);
+
+    // Ambil hasil
+    const outputUrl = result.data[0].url || result.data[0];
     
-    // URL API Pollinations FLUX (Bebas Queue & Tanpa Rate Limit)
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${seed}&width=1024&height=1024&model=flux&nologo=true`;
-
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "image/*"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Server Pollinations sibuk (${response.status})`);
-    }
-
-    // Ubah hasil gambar ke format Base64 untuk dikirim balik ke frontend
-    const arrayBuffer = await response.arrayBuffer();
-    const base64Output = Buffer.from(arrayBuffer).toString('base64');
-    
-    return NextResponse.json({ 
-      image: `data:image/jpeg;base64,${base64Output}` 
-    });
+    return NextResponse.json({ image: outputUrl });
 
   } catch (err) {
-    console.error("Pollinations Error:", err);
-    return NextResponse.json(
-      { error: `Gagal memproses gambar: ${err.message}` }, 
-      { status: 500 }
-    );
+    console.error("Backend Error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
