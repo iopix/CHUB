@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Client } from "@gradio/client";
+import { Client, handle_file } from "@gradio/client";
 
 export const maxDuration = 60;
 
@@ -19,9 +19,9 @@ export async function POST(req) {
     // Hubungkan ke Space Hugging Face
     const client = await Client.connect("shootstuff/flux-img2img-uncensored");
 
-    // Pemanggilan endpoint Gradio menggunakan positional array argument [image, prompt]
+    // Wajib gunakan handle_file(imageBlob) agar file terunggah dengan benar
     const result = await client.predict(0, [
-      imageBlob,
+      handle_file(imageBlob),
       prompt
     ]);
 
@@ -42,7 +42,7 @@ export async function POST(req) {
   } catch (err) {
     console.error("API Error:", err);
     return NextResponse.json(
-      { error: `Gagal memproses ke Space (kemungkinan antrean penuh/timeout): ${err.message}` },
+      { error: `Gagal memproses ke Space: ${err.message}` },
       { status: 500 }
     );
   }
