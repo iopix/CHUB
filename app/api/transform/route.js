@@ -1,34 +1,34 @@
 import { NextResponse } from 'next/server';
-import { Client, handle_file } from "@gradio/client";
+import { HfInference } from '@huggingface/inference';
 
-export const maxDuration = 60;
+// Vercel/Local bakal otomatis baca HF_TOKEN dari .env.local atau Vercel Env Vars
+const hf = new HfInference(process.env.HF_TOKEN);
 
 export async function POST(req) {
   try {
     const data = await req.formData();
-    const prompt = data.get('prompt') || '';
+    const prompt = data.get('prompt') || 'a beautiful portrait';
     const imageFile = data.get('image');
-
-    if (!imageFile) return NextResponse.json({ error: 'Gambar tidak ditemukan' }, { status: 400 });
+    
+    if (!imageFile) return NextResponse.json({ error: 'Upload gambar dulu!' }, { status: 400 });
 
     const arrayBuffer = await imageFile.arrayBuffer();
-    const imageBlob = new Blob([arrayBuffer], { type: imageFile.type });
 
-    const client = await Client.connect("shootstuff/flux-img2img-uncensored");
+    // Pake model yang stabil dan enteng
+    const response = await hf.imageToImage({
+      model: 'stabilityai/stable-diffusion-xl-base-1.0',
+      inputs: Buffer.from(arrayBuffer),
+      parameters: {
+        prompt: prompt,
+        strength: 0.6 
+      }
+    });
 
-    // GANTI KE "/process" SESUAI ERROR YANG MUNCUL
-    const result = await client.predict("/process", [
-      handle_file(imageBlob), 
-      prompt,
-      0.5 
-    ]);
-
-    const outputUrl = result.data[0].url || result.data[0];
-    
-    return NextResponse.json({ image: outputUrl });
+    const base64 = Buffer.from(await response.arrayBuffer()).toString('base64');
+    return NextResponse.json({ image: `data:image/jpeg;base64,${base64}` });
 
   } catch (err) {
-    console.error("Backend Error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("HF API Error:", err);
+    return NextResponse.json({ error: "Server AI sibuk: " + err.message }, { status: 500 });
   }
 }
