@@ -47,8 +47,18 @@ export default function Home() {
         body: formData,
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal memproses gambar.');
+      // Parsing aman: Ambil text dulu baru parse JSON untuk cegah crash 'Unexpected token'
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error('Server Vercel Timeout / Antrean Space Hugging Face sedang padat. Silakan coba klik Generate lagi.');
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal memproses gambar.');
+      }
 
       setResult(data.image);
     } catch (err) {
@@ -119,7 +129,7 @@ export default function Home() {
               disabled={loading}
               style={{ padding: '12px', backgroundColor: loading ? '#334155' : '#0284c7', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}
             >
-              {loading ? 'Memproses Gambar...' : 'Generate Image'}
+              {loading ? 'Memproses Gambar AI...' : 'Generate Image'}
             </button>
           </div>
 
