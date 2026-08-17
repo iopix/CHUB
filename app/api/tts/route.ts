@@ -1,19 +1,36 @@
 import { NextResponse } from 'next/server';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
-// Konfigurasi Suara: Spruce dibuat Garang & Macho, Arbor tetap Mature & Wibawa
 const VOICE_CONFIG = {
-  spruce: { voice: 'id-ID-ArdiNeural', pitch: '-35Hz', rate: '+0%' }, // Spruce: Garang, Macho & Dominan
-  arbor: { voice: 'id-ID-ArdiNeural', pitch: '-20Hz', rate: '-10%' }, // Arbor: Mature & Wibawa (Pakcik)
+  spruce: { 
+    voice: 'id-ID-ArdiNeural', 
+    pitch: '-34Hz',
+    rate: '-10%',
+    volume: '+50%'
+  },
+  arbor: { 
+    voice: 'id-ID-ArdiNeural', 
+    pitch: '-20Hz',
+    rate: '+1%',
+    volume: '+30%'
+  },
 };
+
+function enhanceEmotionalText(text) {
+  if (!text) return '';
+  return text
+    .replace(/\[Error:.*?\]/g, '')
+    .replace(/\.\.\./g, '... ')
+    .replace(/!+/g, '! ')
+    .replace(/\?+/g, '? ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export async function POST(req) {
   try {
     const { text, voice = 'spruce' } = await req.json();
-
-    const cleanText = text
-      ? text.replace(/\[Error:.*?\]/g, '').trim()
-      : '';
+    const cleanText = enhanceEmotionalText(text);
 
     if (!cleanText) {
       return NextResponse.json({ error: 'Teks kosong' }, { status: 400 });
@@ -27,19 +44,29 @@ export async function POST(req) {
     const { audioStream } = await tts.toStream(cleanText, {
       pitch: config.pitch,
       rate: config.rate,
+      volume: config.volume,
     });
 
-    const chunks = [];
-    for await (const chunk of audioStream) {
-      chunks.push(chunk);
-    }
+    // Mengubah stream Node.js / AsyncIterable menjadi Web ReadableStream
+    // agar data dikirim langsung secara chunked (realtime streaming)
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of audioStream) {
+            controller.enqueue(new Uint8Array(chunk));
+          }
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        }
+      },
+    });
 
-    const audioBuffer = Buffer.concat(chunks);
-
-    return new NextResponse(audioBuffer, {
+    return new NextResponse(stream, {
       headers: {
         'Content-Type': 'audio/mpeg',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-transform',
+        'Transfer-Encoding': 'chunked',
       },
     });
 
