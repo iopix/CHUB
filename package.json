@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.26",
+    "groq-sdk": "^1.5.0",
     "msedge-tts": "^2.0.7",
     "next": "latest",
     "react": "^18",

@@ -1,7 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 
-// Corong Unmute
 const IconSpeaker = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -9,7 +8,6 @@ const IconSpeaker = () => (
   </svg>
 );
 
-// Corong Mute
 const IconMute = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -18,24 +16,15 @@ const IconMute = () => (
   </svg>
 );
 
-// SVG Auto Suara ON
 const IconAutoVoiceOn = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 10v4" />
-    <path d="M6 6v12" />
-    <path d="M10 3v18" />
-    <path d="M14 8v8" />
-    <path d="M18 5v14" />
-    <path d="M22 10v4" />
+    <path d="M2 10v4" /><path d="M6 6v12" /><path d="M10 3v18" /><path d="M14 8v8" /><path d="M18 5v14" /><path d="M22 10v4" />
   </svg>
 );
 
-// SVG Auto Suara OFF
 const IconAutoVoiceOff = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 10v4" />
-    <path d="M6 6v12" />
-    <line x1="2" y1="2" x2="22" y2="22" />
+    <path d="M2 10v4" /><path d="M6 6v12" /><line x1="2" y1="2" x2="22" y2="22" />
   </svg>
 );
 
@@ -47,25 +36,25 @@ export default function Home() {
   const [selectedVoice, setSelectedVoice] = useState('spruce');
   const [autoVoice, setAutoVoice] = useState(true);
   const [remainingTokens, setRemainingTokens] = useState(null);
-  
+
+  // State Animasi & Video Avatar
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isReachingForward, setIsReachingForward] = useState(false);
+
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
     setMessages([{ role: 'assistant', content: initialGreeting }]);
-    
-    if (autoVoice) {
-      speakText(initialGreeting, 0);
-    }
+    if (autoVoice) speakText(initialGreeting, 0);
+
+    return () => stopAudio();
   }, []);
 
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
   const stopAudio = () => {
@@ -73,32 +62,40 @@ export default function Home() {
       audioRef.current.pause();
       audioRef.current = null;
     }
+
+    // Stop & Reset Video Avatar ke Frame Awal (Diam Total)
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+
     setPlayingIndex(null);
+    setIsSpeaking(false);
+    setIsReachingForward(false);
   };
 
   const handleClearChat = () => {
     stopAudio();
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
     setMessages([{ role: 'assistant', content: initialGreeting }]);
-    if (autoVoice) {
-      speakText(initialGreeting, 0);
-    }
+    if (autoVoice) speakText(initialGreeting, 0);
   };
 
   const speakText = async (text, index) => {
     if (!text) return;
-
-    if (playingIndex === index) {
+    if (playingIndex === index && isSpeaking) {
       stopAudio();
       return;
     }
 
     stopAudio();
-
     const cleanText = text.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
     setPlayingIndex(index);
+
+    // Deteksi Kata Kunci Khusus: kamu, mu, atau sayang
+    const hasSpecialWord = /\b(kamu|mu|sayang)\b/i.test(cleanText);
 
     try {
       const res = await fetch('/api/tts', {
@@ -107,35 +104,31 @@ export default function Home() {
         body: JSON.stringify({ text: cleanText, voice: selectedVoice }),
       });
 
-      if (!res.ok) {
-        setPlayingIndex(null);
-        return;
-      }
-
+      if (!res.ok) return stopAudio();
       const blob = await res.blob();
-      if (blob.size === 0) {
-        setPlayingIndex(null);
-        return;
-      }
+      if (blob.size === 0) return stopAudio();
 
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      audio.onended = () => setPlayingIndex(null);
-      audio.onpause = () => setPlayingIndex(null);
-      audio.onerror = () => setPlayingIndex(null);
+      // Event Audio Native Sync dengan Video WebM
+      audio.onplay = () => {
+        setIsSpeaking(true);
+        setIsReachingForward(hasSpecialWord);
 
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn('Autoplay blocked or interrupted:', err);
-          setPlayingIndex(null);
-        });
-      }
+        if (videoRef.current) {
+          videoRef.current.play().catch(() => {});
+        }
+      };
+
+      audio.onended = () => stopAudio();
+      audio.onpause = () => stopAudio();
+      audio.onerror = () => stopAudio();
+
+      await audio.play();
     } catch (err) {
-      console.warn('TTS Fetch Error:', err);
-      setPlayingIndex(null);
+      stopAudio();
     }
   };
 
@@ -158,23 +151,14 @@ export default function Home() {
       });
 
       const data = await res.json();
-
       if (res.ok && data.reply) {
-        // Simpan sisa token Groq jika dikembalikan dari backend
-        if (data.remainingTokens !== undefined && data.remainingTokens !== null) {
-          setRemainingTokens(data.remainingTokens);
-        }
-
+        if (data.remainingTokens) setRemainingTokens(data.remainingTokens);
         const updatedMessages = [...newMessages, { role: 'assistant', content: data.reply }];
         const newIndex = updatedMessages.length - 1;
         setMessages(updatedMessages);
-
-        if (autoVoice) {
-          speakText(data.reply, newIndex);
-        }
+        if (autoVoice) speakText(data.reply, newIndex);
       } else {
-        const errorMsg = `Error: ${data.error || 'Gagal tersambung ke server.'}`;
-        setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.error || 'Gagal tersambung.'}` }]);
       }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: `Error Network: ${err.message}` }]);
@@ -183,31 +167,40 @@ export default function Home() {
     }
   };
 
+  // Logika Transform Gerakan Avatar
+  let avatarTransform = 'scale(1) translateY(0px)';
+  let transitionStyle = 'transform 0.3s ease-out';
+
+  if (isSpeaking) {
+    if (isReachingForward) {
+      // Menyodor ke depan saat menyebut: "kamu", "mu", atau "sayang"
+      avatarTransform = 'scale(1.18) translateY(-12px)';
+      transitionStyle = 'transform 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    } else {
+      // Berbicara biasa: Gerakan standar tanpa posisi tangan menyodor maju
+      avatarTransform = 'scale(1.02) translateY(-2px)';
+      transitionStyle = 'transform 0.2s ease-in-out';
+    }
+  }
+
   return (
     <div style={styles.container}>
-      {/* Header Mobile Friendly */}
       <header style={styles.header}>
         <div style={styles.headerTitleGroup}>
           <div style={styles.statusDot} />
           <h1 style={styles.title}>SukaChub AI</h1>
           {remainingTokens !== null && (
-            <span style={styles.tokenBadge} title="Sisa token Groq limit">
+            <span style={styles.tokenBadge}>
               {Number(remainingTokens).toLocaleString('id-ID')} Tkn
             </span>
           )}
         </div>
 
-        {/* Kontrol Suara & Auto Play Toggle */}
         <div style={styles.voiceControlGroup}>
-          <select
-            value={selectedVoice}
-            onChange={(e) => setSelectedVoice(e.target.value)}
-            style={styles.voiceSelect}
-          >
+          <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
             <option value="spruce">Deep Voice</option>
             <option value="arbor">Man Voice</option>
           </select>
-
           <button
             type="button"
             onClick={() => setAutoVoice(!autoVoice)}
@@ -217,77 +210,74 @@ export default function Home() {
               borderColor: autoVoice ? '#f97316' : '#3f3f46',
               color: autoVoice ? '#f97316' : '#71717a',
             }}
-            title={autoVoice ? 'Auto Suara: ON' : 'Auto Suara: OFF'}
           >
             {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-            <span style={styles.autoVoiceText}>{autoVoice ? 'ON' : 'OFF'}</span>
+            <span>{autoVoice ? 'ON' : 'OFF'}</span>
           </button>
         </div>
       </header>
 
-      {/* Chat Area */}
-      <div style={styles.chatBox}>
-        {messages.map((msg, index) => (
+      <div style={styles.chatBoxWrapper}>
+        {/* Layer Avatar Video (.webm) */}
+        <div style={styles.avatarLayer}>
           <div
-            key={index}
             style={{
-              ...styles.messageWrapper,
-              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              ...styles.avatarContainer,
+              transform: avatarTransform,
+              transition: transitionStyle,
             }}
           >
-            <div
-              style={{
-                ...styles.bubble,
-                ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble),
-              }}
-            >
-              <div style={styles.roleHeader}>
-                <span style={styles.roleLabel}>
-                  {msg.role === 'user' ? 'Kamu' : 'SukaChub AI'}
-                </span>
-                {msg.role === 'assistant' && !msg.content.startsWith('Error:') && (
-                  <button
-                    onClick={() => speakText(msg.content, index)}
-                    style={{
-                      ...styles.speakerBtn,
-                      color: playingIndex === index ? '#f97316' : '#a1a1aa',
-                    }}
-                    title={playingIndex === index ? 'Matikan Suara' : 'Putar Suara'}
-                  >
-                    {playingIndex === index ? <IconSpeaker /> : <IconMute />}
-                  </button>
-                )}
-              </div>
-              <div style={styles.textContent}>
-                {msg.content}
-              </div>
-            </div>
+            <video
+              ref={videoRef}
+              src="/A.webm"
+              muted
+              loop
+              playsInline
+              style={styles.avatarVideo}
+            />
           </div>
-        ))}
+        </div>
 
-        {loading && (
-          <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
-            <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.8 }}>
-              SukaChub AI sedang mengetik...
+        {/* Chat Box */}
+        <div style={styles.chatBox}>
+          <div style={styles.topSpacer} />
+          {messages.map((msg, index) => (
+            <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
+                <div style={styles.roleHeader}>
+                  <span style={styles.roleLabel}>{msg.role === 'user' ? 'Kamu' : 'SukaChub AI'}</span>
+                  {msg.role === 'assistant' && !msg.content.startsWith('Error:') && (
+                    <button
+                      onClick={() => speakText(msg.content, index)}
+                      style={{ ...styles.speakerBtn, color: playingIndex === index && isSpeaking ? '#f97316' : '#a1a1aa' }}
+                    >
+                      {playingIndex === index && isSpeaking ? <IconSpeaker /> : <IconMute />}
+                    </button>
+                  )}
+                </div>
+                <div style={styles.textContent}>{msg.content}</div>
+              </div>
             </div>
-          </div>
-        )}
-        <div ref={chatEndRef} />
+          ))}
+
+          {loading && (
+            <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
+              <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.8 }}>
+                SukaChub AI sedang mengetik...
+              </div>
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
       </div>
 
-      {/* Suggestion Chips */}
       <div style={styles.suggestions}>
         {['Peluk saya erat-erat', 'Temani saya mengobrol', 'Manjain saya dong'].map((text, i) => (
-          <button key={i} onClick={() => handleSend(text)} style={styles.chipButton}>
-            {text}
-          </button>
+          <button key={i} onClick={() => handleSend(text)} style={styles.chipButton}>{text}</button>
         ))}
-        <button onClick={handleClearChat} style={styles.clearChipButton}>
-          Hapus Chat
-        </button>
+        <button onClick={handleClearChat} style={styles.clearChipButton}>Hapus Chat</button>
       </div>
 
-      {/* Input Bar */}
       <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
         <input
           type="text"
@@ -296,7 +286,6 @@ export default function Home() {
           placeholder="Ketik pesan hangat..."
           style={styles.input}
         />
-
         <button type="submit" disabled={loading} style={styles.sendButton}>
           {loading ? '...' : 'Kirim'}
         </button>
@@ -316,7 +305,6 @@ const styles = {
     backgroundColor: '#09090b',
     color: '#e4e4e7',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    boxShadow: '0 0 50px rgba(0,0,0,0.8)',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -330,200 +318,78 @@ const styles = {
     backdropFilter: 'blur(10px)',
     zIndex: 10,
     flexShrink: 0,
-    gap: '8px',
   },
-  headerTitleGroup: {
+  headerTitleGroup: { display: 'flex', alignItems: 'center', gap: '6px' },
+  statusDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f97316' },
+  title: { fontSize: '0.9rem', fontWeight: '600', margin: 0 },
+  tokenBadge: { fontSize: '0.68rem', backgroundColor: '#27272a', color: '#f97316', padding: '2px 6px', borderRadius: '6px' },
+  voiceControlGroup: { display: 'flex', alignItems: 'center', gap: '6px' },
+  voiceSelect: { backgroundColor: '#18181b', color: '#e4e4e7', border: '1px solid #3f3f46', borderRadius: '8px', padding: '5px 8px', fontSize: '0.78rem' },
+  autoVoiceBtn: { display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid', borderRadius: '8px', padding: '5px 8px', fontSize: '0.72rem', cursor: 'pointer' },
+  chatBoxWrapper: {
+    flex: 1,
+    position: 'relative',
     display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    minWidth: 0,
-  },
-  statusDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    backgroundColor: '#f97316',
-    boxShadow: '0 0 8px #f97316',
-    flexShrink: 0,
-  },
-  title: {
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    margin: 0,
-    whiteSpace: 'nowrap',
+    flexDirection: 'column',
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
   },
-  tokenBadge: {
-    fontSize: '0.68rem',
-    fontWeight: '600',
-    backgroundColor: '#27272a',
-    color: '#f97316',
-    padding: '2px 6px',
-    borderRadius: '6px',
-    border: '1px solid #3f3f46',
-    whiteSpace: 'nowrap',
-  },
-  voiceControlGroup: {
+  avatarLayer: {
+    position: 'absolute',
+    inset: 0,
     display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    flexShrink: 0,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    pointerEvents: 'none',
+    zIndex: 1,
+    paddingTop: '10px',
   },
-  voiceSelect: {
-    backgroundColor: '#18181b',
-    color: '#e4e4e7',
-    border: '1px solid #3f3f46',
-    borderRadius: '8px',
-    padding: '5px 8px',
-    fontSize: '0.78rem',
-    outline: 'none',
-    cursor: 'pointer',
-  },
-  autoVoiceBtn: {
+  avatarContainer: {
+    position: 'relative',
+    width: '320px',
+    height: '460px',
     display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    border: '1px solid',
-    borderRadius: '8px',
-    padding: '5px 8px',
-    fontSize: '0.72rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    touchAction: 'manipulation',
-    transition: 'all 0.2s ease',
+    justifyContent: 'center',
+    willChange: 'transform',
   },
-  autoVoiceText: {
-    fontSize: '0.7rem',
-    lineHeight: 1,
+  avatarVideo: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
   },
   chatBox: {
     flex: 1,
+    position: 'relative',
+    zIndex: 2,
     overflowY: 'auto',
     padding: '12px 14px',
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    WebkitOverflowScrolling: 'touch',
+    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 22%, black 45%, black 100%)',
+    maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 22%, black 45%, black 100%)',
   },
-  messageWrapper: {
-    display: 'flex',
-    width: '100%',
+  topSpacer: {
+    minHeight: '260px',
+    flexShrink: 0,
   },
+  messageWrapper: { display: 'flex', width: '100%' },
   bubble: {
     maxWidth: '85%',
     padding: '10px 14px',
     borderRadius: '16px',
     fontSize: '0.92rem',
+    backdropFilter: 'blur(12px)',
   },
-  userBubble: {
-    backgroundColor: '#2563eb',
-    color: '#ffffff',
-    borderBottomRightRadius: '4px',
-  },
-  aiBubble: {
-    backgroundColor: '#18181b',
-    color: '#e4e4e7',
-    border: '1px solid #27272a',
-    borderBottomLeftRadius: '4px',
-  },
-  roleHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '4px',
-    gap: '8px',
-  },
-  roleLabel: {
-    fontSize: '0.7rem',
-    opacity: 0.6,
-    fontWeight: 'bold',
-  },
-  speakerBtn: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '2px 4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    touchAction: 'manipulation',
-  },
-  textContent: {
-    whiteSpace: 'pre-wrap',
-    lineHeight: '1.45',
-    wordBreak: 'break-word',
-  },
-  suggestions: {
-    display: 'flex',
-    gap: '8px',
-    padding: '8px 14px',
-    overflowX: 'auto',
-    alignItems: 'center',
-    scrollbarWidth: 'none',
-    msOverflowStyle: 'none',
-    WebkitOverflowScrolling: 'touch',
-    flexShrink: 0,
-  },
-  chipButton: {
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
-    color: '#a1a1aa',
-    padding: '6px 12px',
-    borderRadius: '20px',
-    fontSize: '0.78rem',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-    touchAction: 'manipulation',
-  },
-  clearChipButton: {
-    backgroundColor: '#ef4444',
-    border: 'none',
-    color: '#ffffff',
-    padding: '6px 12px',
-    borderRadius: '20px',
-    fontSize: '0.78rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
-    flexShrink: 0,
-    marginLeft: 'auto',
-    touchAction: 'manipulation',
-  },
-  inputContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '10px 14px calc(10px + env(safe-area-inset-bottom)) 14px',
-    gap: '8px',
-    borderTop: '1px solid #27272a',
-    backgroundColor: '#09090b',
-    flexShrink: 0,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
-    borderRadius: '12px',
-    padding: '10px 14px',
-    color: '#fff',
-    outline: 'none',
-    fontSize: '16px',
-    minWidth: 0,
-  },
-  sendButton: {
-    backgroundColor: '#f97316',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '12px',
-    padding: '0 16px',
-    height: '42px',
-    fontWeight: '600',
-    fontSize: '0.88rem',
-    cursor: 'pointer',
-    flexShrink: 0,
-    boxShadow: '0 2px 8px rgba(249, 115, 22, 0.4)',
-    touchAction: 'manipulation',
-  },
+  userBubble: { backgroundColor: 'rgba(37, 99, 235, 0.85)', color: '#ffffff', borderBottomRightRadius: '4px' },
+  aiBubble: { backgroundColor: 'rgba(24, 24, 27, 0.85)', color: '#e4e4e7', border: '1px solid rgba(63, 63, 70, 0.5)', borderBottomLeftRadius: '4px' },
+  roleHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' },
+  roleLabel: { fontSize: '0.7rem', opacity: 0.6, fontWeight: 'bold' },
+  speakerBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '2px' },
+  textContent: { whiteSpace: 'pre-wrap', lineHeight: '1.45', wordBreak: 'break-word' },
+  suggestions: { display: 'flex', gap: '8px', padding: '8px 14px', overflowX: 'auto', zIndex: 3 },
+  chipButton: { backgroundColor: '#18181b', border: '1px solid #27272a', color: '#a1a1aa', padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem', cursor: 'pointer', whiteSpace: 'nowrap' },
+  clearChipButton: { backgroundColor: '#ef4444', border: 'none', color: '#ffffff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', marginLeft: 'auto' },
+  inputContainer: { display: 'flex', alignItems: 'center', padding: '10px 14px calc(10px + env(safe-area-inset-bottom)) 14px', gap: '8px', borderTop: '1px solid #27272a', backgroundColor: '#09090b', zIndex: 3 },
+  input: { flex: 1, backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '10px 14px', color: '#fff', outline: 'none', fontSize: '16px' },
+  sendButton: { backgroundColor: '#f97316', color: '#fff', border: 'none', borderRadius: '12px', padding: '0 16px', height: '42px', fontWeight: '600', cursor: 'pointer' },
 };
