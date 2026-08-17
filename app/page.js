@@ -37,13 +37,10 @@ export default function Home() {
   const [autoVoice, setAutoVoice] = useState(true);
   const [remainingTokens, setRemainingTokens] = useState(null);
 
-  // State Animasi & Video Avatar
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isReachingForward, setIsReachingForward] = useState(false);
-
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
   const videoRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
@@ -58,20 +55,23 @@ export default function Home() {
   }, [messages, loading]);
 
   const stopAudio = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.src = '';
       audioRef.current = null;
     }
 
-    // Stop & Reset Video Avatar ke Frame Awal (Diam Total)
+    // Freeze video secara instan di frame/posisi saat ini (tanpa reset ke awal)
     if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.currentTime = 0;
     }
 
     setPlayingIndex(null);
-    setIsSpeaking(false);
-    setIsReachingForward(false);
   };
 
   const handleClearChat = () => {
@@ -83,7 +83,8 @@ export default function Home() {
 
   const speakText = async (text, index) => {
     if (!text) return;
-    if (playingIndex === index && isSpeaking) {
+
+    if (playingIndex === index) {
       stopAudio();
       return;
     }
@@ -94,14 +95,15 @@ export default function Home() {
 
     setPlayingIndex(index);
 
-    // Deteksi Kata Kunci Khusus: kamu, mu, atau sayang
-    const hasSpecialWord = /\b(kamu|mu|sayang)\b/i.test(cleanText);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: cleanText, voice: selectedVoice }),
+        signal: controller.signal,
       });
 
       if (!res.ok) return stopAudio();
@@ -112,13 +114,17 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      // Event Audio Native Sync dengan Video WebM
+      // Lanjutkan gerakan video dari posisi freeze terakhir (tanpa resetting currentTime)
       audio.onplay = () => {
-        setIsSpeaking(true);
-        setIsReachingForward(hasSpecialWord);
-
         if (videoRef.current) {
+          videoRef.current.playbackRate = audio.playbackRate || 1.0;
           videoRef.current.play().catch(() => {});
+        }
+      };
+
+      audio.onratechange = () => {
+        if (videoRef.current) {
+          videoRef.current.playbackRate = audio.playbackRate;
         }
       };
 
@@ -128,7 +134,9 @@ export default function Home() {
 
       await audio.play();
     } catch (err) {
-      stopAudio();
+      if (err.name !== 'AbortError') {
+        stopAudio();
+      }
     }
   };
 
@@ -167,22 +175,6 @@ export default function Home() {
     }
   };
 
-  // Logika Transform Gerakan Avatar
-  let avatarTransform = 'scale(1) translateY(0px)';
-  let transitionStyle = 'transform 0.3s ease-out';
-
-  if (isSpeaking) {
-    if (isReachingForward) {
-      // Menyodor ke depan saat menyebut: "kamu", "mu", atau "sayang"
-      avatarTransform = 'scale(1.18) translateY(-12px)';
-      transitionStyle = 'transform 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-    } else {
-      // Berbicara biasa: Gerakan standar tanpa posisi tangan menyodor maju
-      avatarTransform = 'scale(1.02) translateY(-2px)';
-      transitionStyle = 'transform 0.2s ease-in-out';
-    }
-  }
-
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -218,15 +210,8 @@ export default function Home() {
       </header>
 
       <div style={styles.chatBoxWrapper}>
-        {/* Layer Avatar Video (.webm) */}
         <div style={styles.avatarLayer}>
-          <div
-            style={{
-              ...styles.avatarContainer,
-              transform: avatarTransform,
-              transition: transitionStyle,
-            }}
-          >
+          <div style={styles.avatarContainer}>
             <video
               ref={videoRef}
               src="/A.webm"
@@ -238,7 +223,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Chat Box */}
         <div style={styles.chatBox}>
           <div style={styles.topSpacer} />
           {messages.map((msg, index) => (
@@ -249,9 +233,9 @@ export default function Home() {
                   {msg.role === 'assistant' && !msg.content.startsWith('Error:') && (
                     <button
                       onClick={() => speakText(msg.content, index)}
-                      style={{ ...styles.speakerBtn, color: playingIndex === index && isSpeaking ? '#f97316' : '#a1a1aa' }}
+                      style={{ ...styles.speakerBtn, color: playingIndex === index ? '#f97316' : '#a1a1aa' }}
                     >
-                      {playingIndex === index && isSpeaking ? <IconSpeaker /> : <IconMute />}
+                      {playingIndex === index ? <IconSpeaker /> : <IconMute />}
                     </button>
                   )}
                 </div>
@@ -302,7 +286,7 @@ const styles = {
     width: '100%',
     maxWidth: '600px',
     margin: '0 auto',
-    backgroundColor: '#09090b',
+    backgroundColor: '#000000',
     color: '#e4e4e7',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     overflow: 'hidden',
@@ -314,7 +298,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: 'rgba(18, 18, 20, 0.95)',
+    background: 'rgba(0, 0, 0, 0.95)',
     backdropFilter: 'blur(10px)',
     zIndex: 10,
     flexShrink: 0,
@@ -332,6 +316,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
+    backgroundColor: '#000000',
   },
   avatarLayer: {
     position: 'absolute',
@@ -349,7 +334,6 @@ const styles = {
     height: '460px',
     display: 'flex',
     justifyContent: 'center',
-    willChange: 'transform',
   },
   avatarVideo: {
     width: '100%',
@@ -389,7 +373,7 @@ const styles = {
   suggestions: { display: 'flex', gap: '8px', padding: '8px 14px', overflowX: 'auto', zIndex: 3 },
   chipButton: { backgroundColor: '#18181b', border: '1px solid #27272a', color: '#a1a1aa', padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem', cursor: 'pointer', whiteSpace: 'nowrap' },
   clearChipButton: { backgroundColor: '#ef4444', border: 'none', color: '#ffffff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', marginLeft: 'auto' },
-  inputContainer: { display: 'flex', alignItems: 'center', padding: '10px 14px calc(10px + env(safe-area-inset-bottom)) 14px', gap: '8px', borderTop: '1px solid #27272a', backgroundColor: '#09090b', zIndex: 3 },
+  inputContainer: { display: 'flex', alignItems: 'center', padding: '10px 14px calc(10px + env(safe-area-inset-bottom)) 14px', gap: '8px', borderTop: '1px solid #27272a', backgroundColor: '#000000', zIndex: 3 },
   input: { flex: 1, backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '10px 14px', color: '#fff', outline: 'none', fontSize: '16px' },
   sendButton: { backgroundColor: '#f97316', color: '#fff', border: 'none', borderRadius: '12px', padding: '0 16px', height: '42px', fontWeight: '600', cursor: 'pointer' },
 };
