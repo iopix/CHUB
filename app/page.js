@@ -101,22 +101,23 @@ export default function Home() {
   const [typingMessageIndex, setTypingMessageIndex] = useState(null);
   const [typingText, setTypingText] = useState('');
 
+  const [inputDisabled, setInputDisabled] = useState(true);
+
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const voiceDelayTimeoutRef = useRef(null);
   
-  // Video refs
-  const videoIdleRef = useRef(null);   // D.webm
-  const videoARef = useRef(null);      // A.webm (speaking)
-  const videoA0Ref = useRef(null);     // A0.webm (typing neutral)
-  const videoHRef = useRef(null);      // H.webm (typing romantic)
-  const videoMRef = useRef(null);      // M.webm (typing angry)
+  const videoIdleRef = useRef(null);
+  const videoARef = useRef(null);
+  const videoA0Ref = useRef(null);
+  const videoHRef = useRef(null);
+  const videoMRef = useRef(null);
   
   const abortControllerRef = useRef(null);
 
   const isSpeaking = playingIndex !== null;
 
-  // Detect mobile
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -126,9 +127,7 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Video control - does NOT auto-play A.webm (reserved for audio onplay)
   useEffect(() => {
-    // Pause all videos and reset non-idle ones
     const allVideos = [videoIdleRef, videoARef, videoA0Ref, videoHRef, videoMRef];
     allVideos.forEach(ref => {
       if (ref.current) {
@@ -140,7 +139,6 @@ export default function Home() {
     });
 
     if (isTyping) {
-      // Typing → A0 (neutral), H (romantic), M (angry)
       if (emotion === 'romantic') {
         videoHRef.current?.play().catch(() => {});
       } else if (emotion === 'angry') {
@@ -149,13 +147,10 @@ export default function Home() {
         videoA0Ref.current?.play().catch(() => {});
       }
     } else if (!isSpeaking && !isTyping) {
-      // Idle → D.webm (loop)
       videoIdleRef.current?.play().catch(() => {});
     }
-    // If isSpeaking, we do NOT play A.webm here; it will be played by audio.onplay
   }, [isSpeaking, isTyping, emotion]);
 
-  // INITIAL GREETING
   useEffect(() => {
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
     const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
@@ -165,13 +160,20 @@ export default function Home() {
     const initialEmotion = detectEmotion(initialGreeting);
     setEmotion(initialEmotion);
     
-    setTimeout(() => {
-      if (autoVoice) speakText(initialGreeting, 0);
-    }, 500);
+    setInputDisabled(true);
+
+    if (!autoVoice) {
+      setInputDisabled(false);
+    } else {
+      setTimeout(() => {
+        if (autoVoice) speakText(initialGreeting, 0);
+      }, 500);
+    }
 
     return () => {
       stopAudio();
       clearTimeout(typingTimeoutRef.current);
+      clearTimeout(voiceDelayTimeoutRef.current);
     };
   }, []);
 
@@ -191,19 +193,20 @@ export default function Home() {
       audioRef.current = null;
     }
 
-    // Stop A.webm if playing
     if (videoARef.current) {
       videoARef.current.pause();
       videoARef.current.currentTime = 0;
     }
 
     setPlayingIndex(null);
+    clearTimeout(voiceDelayTimeoutRef.current);
   };
 
   const handleClearChat = () => {
     stopAudio();
     setIsTyping(false);
     clearTimeout(typingTimeoutRef.current);
+    clearTimeout(voiceDelayTimeoutRef.current);
     
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
     const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
@@ -214,8 +217,11 @@ export default function Home() {
     const initialEmotion = detectEmotion(initialGreeting);
     setEmotion(initialEmotion);
     
+    setInputDisabled(true);
     if (autoVoice) {
       setTimeout(() => speakText(initialGreeting, 0), 300);
+    } else {
+      setInputDisabled(false);
     }
   };
 
@@ -267,7 +273,10 @@ export default function Home() {
         });
         
         if (autoVoice) {
-          speakText(fullText, messageIndex, userQuery);
+          clearTimeout(voiceDelayTimeoutRef.current);
+          voiceDelayTimeoutRef.current = setTimeout(() => {
+            speakText(fullText, messageIndex, userQuery);
+          }, 350);
         } else {
           setTimeout(() => {
             [videoA0Ref, videoHRef, videoMRef, videoARef].forEach(ref => {
@@ -292,11 +301,12 @@ export default function Home() {
     }
     if (isTyping) return;
 
+    clearTimeout(voiceDelayTimeoutRef.current);
+
     stopAudio();
     const cleanText = text.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
-    // Set playing index immediately for UI
     setPlayingIndex(index);
     
     const userTextContext = customUserText !== null 
@@ -332,21 +342,21 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      // Start A.webm exactly when audio starts playing, 
-      // and jump to frame 0.1s (mulut terbuka) to avoid closed mouth frame.
       audio.onplay = () => {
         if (videoARef.current) {
-          videoARef.current.currentTime = 0.1; // langsung ke frame mulut terbuka
+          videoARef.current.currentTime = 0.15;
           videoARef.current.play().catch(() => {});
         }
       };
 
       audio.onended = () => {
         stopAudio();
-        // Stop A.webm after audio ends
         if (videoARef.current) {
           videoARef.current.pause();
           videoARef.current.currentTime = 0;
+        }
+        if (index === 0 && autoVoice) {
+          setInputDisabled(false);
         }
       };
       
@@ -355,6 +365,9 @@ export default function Home() {
         if (videoARef.current) {
           videoARef.current.pause();
           videoARef.current.currentTime = 0;
+        }
+        if (index === 0 && autoVoice) {
+          setInputDisabled(false);
         }
       };
 
@@ -366,13 +379,16 @@ export default function Home() {
           videoARef.current.pause();
           videoARef.current.currentTime = 0;
         }
+        if (index === 0 && autoVoice) {
+          setInputDisabled(false);
+        }
       }
     }
   };
 
   const handleSend = async (textToSend) => {
     const query = textToSend || input;
-    if (!query.trim() || loading || isTyping) return;
+    if (!query.trim() || loading || isTyping || inputDisabled) return;
 
     const userMsg = { role: 'user', content: query, isTyping: false };
     const newMessages = [...messages, userMsg];
@@ -424,7 +440,9 @@ export default function Home() {
       <header style={styles.header}>
         <div style={styles.headerTitleGroup}>
           <div style={styles.statusDot} />
-          <h1 style={styles.title}>SukaChub Virtual Chat</h1>
+          <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
+            SukaChub Virtual Chat
+          </h1>
           {remainingTokens !== null && !isMobile && (
             <span style={styles.tokenBadge}>
               {Number(remainingTokens).toLocaleString('id-ID')} Tkn
@@ -456,7 +474,6 @@ export default function Home() {
       <div style={styles.chatBoxWrapper}>
         <div style={styles.avatarLayer}>
           <div style={styles.avatarContainer}>
-            {/* IDLE */}
             <video
               ref={videoIdleRef}
               src="/D.webm"
@@ -470,7 +487,6 @@ export default function Home() {
                 opacity: !isSpeaking && !isTyping ? 1 : 0,
               }}
             />
-            {/* TYPING NEUTRAL */}
             <video
               ref={videoA0Ref}
               src="/A0.webm"
@@ -483,7 +499,6 @@ export default function Home() {
                 opacity: isTyping && emotion === 'neutral' ? 1 : 0,
               }}
             />
-            {/* TYPING ROMANTIC */}
             <video
               ref={videoHRef}
               src="/H.webm"
@@ -496,7 +511,6 @@ export default function Home() {
                 opacity: isTyping && emotion === 'romantic' ? 1 : 0,
               }}
             />
-            {/* TYPING ANGRY */}
             <video
               ref={videoMRef}
               src="/M.webm"
@@ -509,7 +523,6 @@ export default function Home() {
                 opacity: isTyping && emotion === 'angry' ? 1 : 0,
               }}
             />
-            {/* SPEAKING - played manually via audio.onplay */}
             <video
               ref={videoARef}
               src="/A.webm"
@@ -533,9 +546,11 @@ export default function Home() {
                 <div style={styles.roleHeader}>
                   <span style={{ 
                     ...styles.roleLabel, 
-                    color: msg.role === 'assistant' ? '#fb923c' : '#ffffff' 
+                    color: msg.role === 'assistant' ? '#fb923c' : '#000000',
+                    fontWeight: '700',
+                    fontStyle: 'italic',
                   }}>
-                    {msg.role === 'user' ? 'Kamu' : 'SukaChub Virtual Chat'}
+                    {msg.role === 'user' ? 'Sayang' : 'SukaChub Virtual Chat'}
                   </span>
                   {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
                     <button
@@ -567,9 +582,12 @@ export default function Home() {
           {loading && !isTyping && (
             <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
               <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
-                <span style={styles.typingDots}>
-                  <span>.</span><span>.</span><span>.</span>
+                <span style={styles.waveDots}>
+                  <span style={{ color: '#f97316' }}>.</span>
+                  <span style={{ color: '#fb923c' }}>.</span>
+                  <span style={{ color: '#fdba74' }}>.</span>
                 </span>
+                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang mikir...</span>
               </div>
             </div>
           )}
@@ -591,11 +609,11 @@ export default function Home() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ketik pesan hangat..."
+          placeholder={inputDisabled ? "Tunggu AI selesai bicara..." : "Ketik pesan hangat..."}
           style={styles.input}
-          disabled={isTyping}
+          disabled={isTyping || inputDisabled}
         />
-        <button type="submit" disabled={loading || isTyping} style={styles.sendButton}>
+        <button type="submit" disabled={loading || isTyping || inputDisabled} style={styles.sendButton}>
           {loading || isTyping ? '...' : 'Kirim'}
         </button>
       </form>
@@ -605,16 +623,18 @@ export default function Home() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0; }
         }
-        .typing-dots span {
-          animation: dotPulse 1.4s infinite both;
-          font-size: 1.5rem;
+        .wave-dots span {
+          display: inline-block;
+          font-size: 1.8rem;
+          line-height: 1;
+          animation: bounce 0.6s ease-in-out infinite alternate;
         }
-        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes dotPulse {
-          0% { opacity: 0.2; }
-          20% { opacity: 1; }
-          100% { opacity: 0.2; }
+        .wave-dots span:nth-child(1) { animation-delay: 0s; }
+        .wave-dots span:nth-child(2) { animation-delay: 0.15s; }
+        .wave-dots span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-8px); }
         }
       `}</style>
     </div>
@@ -732,11 +752,15 @@ const styles = {
   },
   avatarContainer: {
     position: 'relative',
-    width: 'min(100%, 340px)',
-    height: 'min(50vh, 420px)',
-    maxHeight: '420px',
+    width: 'min(100%, 400px)',
+    height: 'min(60vh, 500px)',
+    maxHeight: '500px',
     display: 'flex',
     justifyContent: 'center',
+    transform: 'scale(1.02)',
+    transition: 'transform 0.3s ease',
+    // GESER AVATAR KE BAWAH AGAR PUSAR TERTUTUP TEKS
+    marginTop: 'clamp(30px, 8vh, 80px)',
   },
   avatarVideo: {
     position: 'absolute',
@@ -756,12 +780,13 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '10px',
-    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 15%, black 30%, black 100%)',
-    maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 15%, black 30%, black 100%)',
+    // PERUT KE BAWAH SOLID, PERUT KE ATAS TRANSPARAN
+    maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
+    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitOverflowScrolling: 'touch',
   },
   topSpacer: {
-    minHeight: 'clamp(180px, 35vh, 230px)',
+    minHeight: 'clamp(180px, 35vh, 240px)',
     flexShrink: 0,
   },
   messageWrapper: { display: 'flex', width: '100%' },
@@ -796,7 +821,6 @@ const styles = {
   roleLabel: { 
     fontSize: 'clamp(0.6rem, 1.8vw, 0.7rem)', 
     opacity: 0.9, 
-    fontWeight: '700' 
   },
   speakerBtn: { 
     background: 'none', 
@@ -813,11 +837,12 @@ const styles = {
     wordBreak: 'break-word',
     fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)',
   },
-  typingDots: {
+  waveDots: {
     display: 'inline-flex',
-    gap: '2px',
-    fontSize: '1.5rem',
+    gap: '3px',
+    fontSize: '1.6rem',
     letterSpacing: '2px',
+    alignItems: 'center',
   },
   suggestions: { 
     display: 'flex', 
