@@ -51,7 +51,6 @@ const HARSH_WORDS = [
 ];
 
 const NEGATION_WORDS = ['tidak', 'bukan', 'jangan', 'nggak', 'enggak', 'tak', 'kurang', 'tanpa', 'ga usah', 'jgn'];
-
 const MODERATION_PHRASES = ['sopan', 'bahasa seperti itu', 'tidak dapat melanjutkan', 'permintaan tersebut'];
 
 const detectEmotion = (text = '', userText = '') => {
@@ -95,6 +94,7 @@ export default function Home() {
   const [autoVoice, setAutoVoice] = useState(true);
   const [remainingTokens, setRemainingTokens] = useState(null);
   const [emotion, setEmotion] = useState('neutral');
+  const [isMobile, setIsMobile] = useState(false);
 
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
@@ -107,6 +107,16 @@ export default function Home() {
   const abortControllerRef = useRef(null);
 
   const isSpeaking = playingIndex !== null;
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (isSpeaking) {
@@ -284,7 +294,7 @@ export default function Home() {
         <div style={styles.headerTitleGroup}>
           <div style={styles.statusDot} />
           <h1 style={styles.title}>SukaChub Virtual Chat</h1>
-          {remainingTokens !== null && (
+          {remainingTokens !== null && !isMobile && (
             <span style={styles.tokenBadge}>
               {Number(remainingTokens).toLocaleString('id-ID')} Tkn
             </span>
@@ -425,49 +435,104 @@ export default function Home() {
   );
 }
 
+// ===== STYLES - FULL BLACK BACKGROUND =====
 const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
     height: '100dvh',
     width: '100%',
-    maxWidth: '500px',
+    maxWidth: '100%',
     margin: '0 auto',
-    backgroundColor: '#09090b',
+    backgroundColor: '#000000',
     color: '#f4f4f5',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     overflow: 'hidden',
     position: 'relative',
-    boxShadow: '0 0 40px rgba(0, 0, 0, 0.8)',
   },
   header: {
-    padding: '12px 16px',
-    margin: '10px 12px 0 12px',
-    borderRadius: '20px',
+    padding: '10px 12px',
+    margin: '8px 10px 0 10px',
+    borderRadius: '16px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: 'rgba(24, 24, 27, 0.75)',
+    background: 'rgba(24, 24, 27, 0.85)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     border: '1px solid rgba(63, 63, 70, 0.4)',
     zIndex: 10,
     flexShrink: 0,
+    gap: '6px',
+    flexWrap: 'wrap',
   },
-  headerTitleGroup: { display: 'flex', alignItems: 'center', gap: '8px' },
-  statusDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f97316', boxShadow: '0 0 8px #f97316' },
-  title: { fontSize: '0.88rem', fontWeight: '600', margin: 0, letterSpacing: '-0.01em' },
-  tokenBadge: { fontSize: '0.65rem', backgroundColor: 'rgba(39, 39, 42, 0.9)', color: '#f97316', padding: '3px 8px', borderRadius: '12px', fontWeight: '600' },
-  voiceControlGroup: { display: 'flex', alignItems: 'center', gap: '8px' },
-  voiceSelect: { backgroundColor: '#18181b', color: '#f4f4f5', border: '1px solid #3f3f46', borderRadius: '14px', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' },
-  autoVoiceBtn: { display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid', borderRadius: '14px', padding: '6px 10px', fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
+  headerTitleGroup: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '6px',
+    flex: '1 1 auto',
+    minWidth: '120px',
+  },
+  statusDot: { 
+    width: '7px', 
+    height: '7px', 
+    borderRadius: '50%', 
+    backgroundColor: '#f97316', 
+    boxShadow: '0 0 8px #f97316',
+    flexShrink: 0,
+  },
+  title: { 
+    fontSize: 'clamp(0.75rem, 3vw, 0.88rem)', 
+    fontWeight: '600', 
+    margin: 0, 
+    letterSpacing: '-0.01em',
+    whiteSpace: 'nowrap',
+  },
+  tokenBadge: { 
+    fontSize: '0.6rem', 
+    backgroundColor: 'rgba(39, 39, 42, 0.9)', 
+    color: '#f97316', 
+    padding: '2px 7px', 
+    borderRadius: '12px', 
+    fontWeight: '600',
+    flexShrink: 0,
+  },
+  voiceControlGroup: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '5px',
+    flexShrink: 0,
+  },
+  voiceSelect: { 
+    backgroundColor: '#18181b', 
+    color: '#f4f4f5', 
+    border: '1px solid #3f3f46', 
+    borderRadius: '12px', 
+    padding: '4px 8px', 
+    fontSize: 'clamp(0.6rem, 2vw, 0.75rem)', 
+    outline: 'none',
+    maxWidth: '90px',
+  },
+  autoVoiceBtn: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '3px', 
+    border: '1px solid', 
+    borderRadius: '12px', 
+    padding: '4px 8px', 
+    fontSize: 'clamp(0.55rem, 1.8vw, 0.72rem)', 
+    fontWeight: '600', 
+    cursor: 'pointer', 
+    transition: 'all 0.2s',
+    flexShrink: 0,
+  },
   chatBoxWrapper: {
     flex: 1,
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    backgroundColor: '#09090b',
+    backgroundColor: '#000000',
   },
   avatarLayer: {
     position: 'absolute',
@@ -481,9 +546,9 @@ const styles = {
   },
   avatarContainer: {
     position: 'relative',
-    width: '100%',
-    maxWidth: '340px',
-    height: '420px',
+    width: 'min(100%, 340px)',
+    height: 'min(50vh, 420px)',
+    maxHeight: '420px',
     display: 'flex',
     justifyContent: 'center',
   },
@@ -501,104 +566,141 @@ const styles = {
     position: 'relative',
     zIndex: 2,
     overflowY: 'auto',
-    padding: '12px 16px',
+    padding: '8px 12px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 18%, black 38%, black 100%)',
-    maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 18%, black 38%, black 100%)',
+    gap: '10px',
+    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 15%, black 30%, black 100%)',
+    maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 15%, black 30%, black 100%)',
+    WebkitOverflowScrolling: 'touch',
   },
   topSpacer: {
-    minHeight: '230px',
+    minHeight: 'clamp(180px, 35vh, 230px)',
     flexShrink: 0,
   },
   messageWrapper: { display: 'flex', width: '100%' },
   bubble: {
-    maxWidth: '85%',
-    padding: '12px 16px',
-    borderRadius: '22px',
-    fontSize: '0.9rem',
+    maxWidth: '88%',
+    padding: '10px 14px',
+    borderRadius: '18px',
+    fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    wordBreak: 'break-word',
   },
   userBubble: { 
     backgroundColor: 'rgba(249, 115, 22, 0.9)', 
     color: '#ffffff', 
-    borderRadius: '22px 22px 4px 22px' 
+    borderRadius: '18px 18px 4px 18px' 
   },
   aiBubble: { 
     backgroundColor: 'rgba(24, 24, 27, 0.85)', 
     color: '#f4f4f5', 
     border: '1px solid rgba(63, 63, 70, 0.5)', 
-    borderRadius: '22px 22px 22px 4px' 
+    borderRadius: '18px 18px 18px 4px' 
   },
-  roleHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' },
-  roleLabel: { fontSize: '0.7rem', opacity: 0.9, fontWeight: '700' },
-  speakerBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' },
-  textContent: { whiteSpace: 'pre-wrap', lineHeight: '1.45', wordBreak: 'break-word' },
+  roleHeader: { 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: '3px', 
+    gap: '6px' 
+  },
+  roleLabel: { 
+    fontSize: 'clamp(0.6rem, 1.8vw, 0.7rem)', 
+    opacity: 0.9, 
+    fontWeight: '700' 
+  },
+  speakerBtn: { 
+    background: 'none', 
+    border: 'none', 
+    cursor: 'pointer', 
+    padding: '2px', 
+    display: 'flex', 
+    alignItems: 'center',
+    touchAction: 'manipulation',
+  },
+  textContent: { 
+    whiteSpace: 'pre-wrap', 
+    lineHeight: '1.45', 
+    wordBreak: 'break-word',
+    fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)',
+  },
   suggestions: { 
     display: 'flex', 
-    gap: '8px', 
-    padding: '8px 16px', 
+    gap: '6px', 
+    padding: '6px 12px', 
     overflowX: 'auto', 
     zIndex: 3,
     scrollbarWidth: 'none',
-    msOverflowStyle: 'none'
+    msOverflowStyle: 'none',
+    WebkitOverflowScrolling: 'touch',
+    backgroundColor: '#000000',
   },
   chipButton: { 
     backgroundColor: 'rgba(24, 24, 27, 0.8)', 
     border: '1px solid rgba(63, 63, 70, 0.6)', 
     color: '#d4d4d8', 
-    padding: '8px 16px', 
+    padding: '6px 14px', 
     borderRadius: '9999px', 
-    fontSize: '0.78rem', 
+    fontSize: 'clamp(0.7rem, 2.2vw, 0.78rem)', 
     fontWeight: '500',
     cursor: 'pointer', 
     whiteSpace: 'nowrap',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
+    touchAction: 'manipulation',
+    minHeight: '36px',
   },
   inputContainer: { 
     display: 'flex', 
     alignItems: 'center', 
-    padding: '12px 16px calc(12px + env(safe-area-inset-bottom)) 16px', 
-    gap: '8px', 
-    backgroundColor: '#09090b', 
-    zIndex: 3 
+    padding: '8px 12px calc(8px + env(safe-area-inset-bottom)) 12px', 
+    gap: '6px', 
+    backgroundColor: '#000000',
+    zIndex: 3,
+    borderTop: '1px solid rgba(63, 63, 70, 0.3)',
   },
   input: { 
     flex: 1, 
     backgroundColor: '#18181b', 
     border: '1px solid #27272a', 
-    borderRadius: '24px', 
-    padding: '12px 18px', 
+    borderRadius: '20px', 
+    padding: '10px 14px', 
     color: '#fff', 
     outline: 'none', 
-    fontSize: '0.95rem' 
+    fontSize: 'clamp(0.85rem, 2.8vw, 0.95rem)',
+    minHeight: '42px',
+    WebkitAppearance: 'none',
   },
   sendButton: { 
     backgroundColor: '#f97316', 
     color: '#fff', 
     border: 'none', 
-    borderRadius: '24px', 
-    padding: '0 20px', 
-    height: '46px', 
+    borderRadius: '20px', 
+    padding: '0 16px', 
+    height: '42px', 
+    minWidth: '60px',
     fontWeight: '600', 
     cursor: 'pointer',
-    fontSize: '0.9rem',
-    boxShadow: '0 2px 10px rgba(249, 115, 22, 0.4)'
+    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
+    boxShadow: '0 2px 10px rgba(249, 115, 22, 0.4)',
+    touchAction: 'manipulation',
+    flexShrink: 0,
   },
   clearButton: { 
     backgroundColor: 'rgba(239, 68, 68, 0.15)', 
     color: '#ef4444', 
     border: '1px solid rgba(239, 68, 68, 0.3)', 
-    borderRadius: '24px', 
-    padding: '0 14px', 
-    height: '46px', 
-    fontSize: '0.78rem', 
+    borderRadius: '20px', 
+    padding: '0 12px', 
+    height: '42px', 
+    fontSize: 'clamp(0.7rem, 2.2vw, 0.78rem)', 
     fontWeight: '600', 
     cursor: 'pointer', 
-    whiteSpace: 'nowrap' 
+    whiteSpace: 'nowrap',
+    touchAction: 'manipulation',
+    flexShrink: 0,
   },
 };
