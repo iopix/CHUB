@@ -1,5 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import AuthGuard from '@/components/AuthGuard';
 
 // --- ICONS ---
 const IconSpeaker = () => (
@@ -86,6 +88,25 @@ const detectEmotion = (text = '', userText = '') => {
 };
 
 export default function Home() {
+  const router = useRouter();
+  const [userProfile, setUserProfile] = useState(null);
+
+  // Ambil data user dari localStorage
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        setUserProfile(JSON.parse(userData));
+      } catch {
+        localStorage.removeItem('user');
+        router.push('/login');
+      }
+    } else {
+      router.push('/login');
+    }
+  }, []);
+
+  // --- SEMUA STATE CHAT ---
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -164,12 +185,9 @@ export default function Home() {
       }
     });
 
-    // PRIORITAS: Speaking > Typing > Idle
     if (isSpeaking) {
-      // A.webm di-play di audio.onplay, di sini hanya opacity
       videoARef.current?.play().catch(() => {});
     } else if (isTyping) {
-      // Typing sesuai emosi
       if (emotion === 'romantic') {
         videoHRef.current?.play().catch(() => {});
       } else if (emotion === 'angry') {
@@ -178,7 +196,6 @@ export default function Home() {
         videoA0Ref.current?.play().catch(() => {});
       }
     } else {
-      // IDLE - hanya jika benar-benar idle
       videoIdleRef.current?.play().catch(() => {});
     }
   }, [isSpeaking, isTyping, emotion]);
@@ -288,7 +305,6 @@ export default function Home() {
         const delay = Math.random() * 40 + 20;
         typingTimeoutRef.current = setTimeout(typeNextChar, delay);
       } else {
-        // SELESAI TYPING - langsung panggil voice tanpa delay
         setIsTyping(false);
         setTypingMessageIndex(null);
         
@@ -304,7 +320,6 @@ export default function Home() {
           return updated;
         });
         
-        // Voice langsung dipanggil, video typing tetap berjalan sampai voice mulai
         if (autoVoice) {
           speakText(fullText, messageIndex, userQuery);
         } else {
@@ -332,7 +347,6 @@ export default function Home() {
     }
     if (isTyping) return;
 
-    // STOP audio sebelumnya tapi JANGAN stop video typing
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -347,8 +361,6 @@ export default function Home() {
     const cleanText = text.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
-    // JANGAN set playingIndex dulu! Nanti di audio.onplay
-    // Tapi kita simpan index buat referensi
     const targetIndex = index;
     
     const userTextContext = customUserText !== null 
@@ -384,9 +396,7 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      // === A.webm MULAI PAS AUDIO PLAY ===
       audio.onplay = () => {
-        // Set playingIndex agar isSpeaking = true dan A.webm muncul
         setPlayingIndex(targetIndex);
         if (videoARef.current) {
           videoARef.current.currentTime = 0.15;
@@ -436,7 +446,6 @@ export default function Home() {
     const query = textToSend || input;
     if (!query.trim() || loading || isTyping || inputDisabled) return;
 
-    // CEK PERTANYAAN WAKTU
     if (isTimeQuestion(query)) {
       const userMsg = { role: 'user', content: query, isTyping: false };
       const newMessages = [...messages, userMsg];
@@ -453,7 +462,6 @@ export default function Home() {
       return;
     }
 
-    // LANJUT KE API
     const userMsg = { role: 'user', content: query, isTyping: false };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
@@ -499,214 +507,226 @@ export default function Home() {
     }
   };
 
+  // --- LOGOUT ---
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    router.push('/login');
+  };
+
+  // --- RENDER ---
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.headerTitleGroup}>
-          <div style={styles.statusDot} />
-          <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
-            SukaChub Virtual Chat
-          </h1>
-          {remainingTokens !== null && !isMobile && (
-            <span style={styles.tokenBadge}>
-              {Number(remainingTokens).toLocaleString('id-ID')} Tkn
-            </span>
-          )}
-        </div>
+    <AuthGuard>
+      <div style={styles.container}>
+        <header style={styles.header}>
+          <div style={styles.headerTitleGroup}>
+            <div style={styles.statusDot} />
+            <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
+              SukaChub Virtual Chat
+            </h1>
+            {remainingTokens !== null && !isMobile && (
+              <span style={styles.tokenBadge}>
+                {Number(remainingTokens).toLocaleString('id-ID')} Tkn
+              </span>
+            )}
+            {userProfile && (
+              <span style={styles.userBadge}>
+                {userProfile.username || userProfile.email || 'User'}
+              </span>
+            )}
+          </div>
 
-        <div style={styles.voiceControlGroup}>
-          <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
-            <option value="spruce">Deep Voice</option>
-            <option value="arbor">Man Voice</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => setAutoVoice(!autoVoice)}
-            style={{
-              ...styles.autoVoiceBtn,
-              backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.2)' : '#18181b',
-              borderColor: autoVoice ? '#f97316' : '#3f3f46',
-              color: autoVoice ? '#f97316' : '#a1a1aa',
-            }}
-          >
-            {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-            <span>{autoVoice ? 'ON' : 'OFF'}</span>
-          </button>
-        </div>
-      </header>
+          <div style={styles.voiceControlGroup}>
+            <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
+              <option value="spruce">Deep Voice</option>
+              <option value="arbor">Man Voice</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setAutoVoice(!autoVoice)}
+              style={{
+                ...styles.autoVoiceBtn,
+                backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.2)' : '#18181b',
+                borderColor: autoVoice ? '#f97316' : '#3f3f46',
+                color: autoVoice ? '#f97316' : '#a1a1aa',
+              }}
+            >
+              {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
+              <span>{autoVoice ? 'ON' : 'OFF'}</span>
+            </button>
+            <button onClick={handleLogout} style={styles.logoutButton}>
+              Logout
+            </button>
+          </div>
+        </header>
 
-      <div style={styles.chatBoxWrapper}>
-        <div style={styles.avatarLayer}>
-          <div style={styles.avatarContainer}>
-            {/* IDLE - D.webm */}
-            <video
-              ref={videoIdleRef}
-              src="/D.webm"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                ...styles.avatarVideo,
-                opacity: !isSpeaking && !isTyping ? 1 : 0,
-              }}
-            />
-            {/* TYPING NEUTRAL - A0.webm */}
-            <video
-              ref={videoA0Ref}
-              src="/A0.webm"
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                ...styles.avatarVideo,
-                opacity: isTyping && emotion === 'neutral' ? 1 : 0,
-              }}
-            />
-            {/* TYPING ROMANTIC - H.webm */}
-            <video
-              ref={videoHRef}
-              src="/H.webm"
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                ...styles.avatarVideo,
-                opacity: isTyping && emotion === 'romantic' ? 1 : 0,
-              }}
-            />
-            {/* TYPING ANGRY - M.webm */}
-            <video
-              ref={videoMRef}
-              src="/M.webm"
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                ...styles.avatarVideo,
-                opacity: isTyping && emotion === 'angry' ? 1 : 0,
-              }}
-            />
-            {/* SPEAKING - A.webm (hanya muncul saat isSpeaking = true) */}
-            <video
-              ref={videoARef}
-              src="/A.webm"
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                ...styles.avatarVideo,
-                opacity: isSpeaking ? 1 : 0,
-              }}
-            />
+        <div style={styles.chatBoxWrapper}>
+          <div style={styles.avatarLayer}>
+            <div style={styles.avatarContainer}>
+              <video
+                ref={videoIdleRef}
+                src="/D.webm"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                style={{
+                  ...styles.avatarVideo,
+                  opacity: !isSpeaking && !isTyping ? 1 : 0,
+                }}
+              />
+              <video
+                ref={videoA0Ref}
+                src="/A0.webm"
+                muted
+                loop
+                playsInline
+                preload="auto"
+                style={{
+                  ...styles.avatarVideo,
+                  opacity: isTyping && emotion === 'neutral' ? 1 : 0,
+                }}
+              />
+              <video
+                ref={videoHRef}
+                src="/H.webm"
+                muted
+                loop
+                playsInline
+                preload="auto"
+                style={{
+                  ...styles.avatarVideo,
+                  opacity: isTyping && emotion === 'romantic' ? 1 : 0,
+                }}
+              />
+              <video
+                ref={videoMRef}
+                src="/M.webm"
+                muted
+                loop
+                playsInline
+                preload="auto"
+                style={{
+                  ...styles.avatarVideo,
+                  opacity: isTyping && emotion === 'angry' ? 1 : 0,
+                }}
+              />
+              <video
+                ref={videoARef}
+                src="/A.webm"
+                muted
+                loop
+                playsInline
+                preload="auto"
+                style={{
+                  ...styles.avatarVideo,
+                  opacity: isSpeaking ? 1 : 0,
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={styles.chatBox}>
+            <div style={styles.topSpacer} />
+            {displayMessages.map((msg, index) => (
+              <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
+                  <div style={styles.roleHeader}>
+                    <span style={{ 
+                      ...styles.roleLabel, 
+                      color: msg.role === 'assistant' ? '#fb923c' : '#000000',
+                      fontWeight: '700',
+                      fontStyle: 'italic',
+                    }}>
+                      {msg.role === 'user' ? 'Sayang' : 'SukaChub Virtual Chat'}
+                    </span>
+                    {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
+                      <button
+                        onClick={() => speakText(msg.content, index)}
+                        style={{ ...styles.speakerBtn, color: playingIndex === index ? '#f97316' : '#a1a1aa' }}
+                      >
+                        {playingIndex === index ? <IconSpeaker /> : <IconMute />}
+                      </button>
+                    )}
+                  </div>
+                  <div style={styles.textContent}>
+                    {msg.content || ''}
+                    {msg.isTyping && index === typingMessageIndex && (
+                      <span style={{
+                        display: 'inline-block',
+                        width: '2px',
+                        height: '1em',
+                        backgroundColor: '#f97316',
+                        marginLeft: '2px',
+                        animation: 'blink 0.5s step-end infinite',
+                        verticalAlign: 'text-bottom',
+                      }} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {loading && !isTyping && (
+              <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
+                <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
+                  <span style={styles.waveDots}>
+                    <span style={{ color: '#f97316' }}>.</span>
+                    <span style={{ color: '#fb923c' }}>.</span>
+                    <span style={{ color: '#fdba74' }}>.</span>
+                  </span>
+                  <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang mikir...</span>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
           </div>
         </div>
 
-        <div style={styles.chatBox}>
-          <div style={styles.topSpacer} />
-          {displayMessages.map((msg, index) => (
-            <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
-                <div style={styles.roleHeader}>
-                  <span style={{ 
-                    ...styles.roleLabel, 
-                    color: msg.role === 'assistant' ? '#fb923c' : '#000000',
-                    fontWeight: '700',
-                    fontStyle: 'italic',
-                  }}>
-                    {msg.role === 'user' ? 'Sayang' : 'SukaChub Virtual Chat'}
-                  </span>
-                  {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
-                    <button
-                      onClick={() => speakText(msg.content, index)}
-                      style={{ ...styles.speakerBtn, color: playingIndex === index ? '#f97316' : '#a1a1aa' }}
-                    >
-                      {playingIndex === index ? <IconSpeaker /> : <IconMute />}
-                    </button>
-                  )}
-                </div>
-                <div style={styles.textContent}>
-                  {msg.content || ''}
-                  {msg.isTyping && index === typingMessageIndex && (
-                    <span style={{
-                      display: 'inline-block',
-                      width: '2px',
-                      height: '1em',
-                      backgroundColor: '#f97316',
-                      marginLeft: '2px',
-                      animation: 'blink 0.5s step-end infinite',
-                      verticalAlign: 'text-bottom',
-                    }} />
-                  )}
-                </div>
-              </div>
-            </div>
+        <div style={styles.suggestions}>
+          {['Peluk saya erat-erat', 'Temani saya mengobrol', 'Manjain saya dong'].map((text, i) => (
+            <button key={i} onClick={() => handleSend(text)} style={styles.chipButton}>{text}</button>
           ))}
-
-          {loading && !isTyping && (
-            <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
-              <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
-                <span style={styles.waveDots}>
-                  <span style={{ color: '#f97316' }}>.</span>
-                  <span style={{ color: '#fb923c' }}>.</span>
-                  <span style={{ color: '#fdba74' }}>.</span>
-                </span>
-                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang mikir...</span>
-              </div>
-            </div>
-          )}
-          <div ref={chatEndRef} />
         </div>
+
+        <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
+          <button type="button" onClick={handleClearChat} style={styles.clearButton}>
+            Hapus
+          </button>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={inputDisabled ? "Tunggu AI selesai bicara..." : "Ketik pesan hangat..."}
+            style={styles.input}
+            disabled={isTyping || inputDisabled}
+          />
+          <button type="submit" disabled={loading || isTyping || inputDisabled} style={styles.sendButton}>
+            {loading || isTyping ? '...' : 'Kirim'}
+          </button>
+        </form>
+
+        <style jsx>{`
+          @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+          }
+          .wave-dots span {
+            display: inline-block;
+            font-size: 1.8rem;
+            line-height: 1;
+            animation: bounce 0.6s ease-in-out infinite alternate;
+          }
+          .wave-dots span:nth-child(1) { animation-delay: 0s; }
+          .wave-dots span:nth-child(2) { animation-delay: 0.15s; }
+          .wave-dots span:nth-child(3) { animation-delay: 0.3s; }
+          @keyframes bounce {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-8px); }
+          }
+        `}</style>
       </div>
-
-      <div style={styles.suggestions}>
-        {['Peluk saya erat-erat', 'Temani saya mengobrol', 'Manjain saya dong'].map((text, i) => (
-          <button key={i} onClick={() => handleSend(text)} style={styles.chipButton}>{text}</button>
-        ))}
-      </div>
-
-      <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
-        <button type="button" onClick={handleClearChat} style={styles.clearButton}>
-          Hapus
-        </button>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={inputDisabled ? "Tunggu AI selesai bicara..." : "Ketik pesan hangat..."}
-          style={styles.input}
-          disabled={isTyping || inputDisabled}
-        />
-        <button type="submit" disabled={loading || isTyping || inputDisabled} style={styles.sendButton}>
-          {loading || isTyping ? '...' : 'Kirim'}
-        </button>
-      </form>
-
-      <style jsx>{`
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-        .wave-dots span {
-          display: inline-block;
-          font-size: 1.8rem;
-          line-height: 1;
-          animation: bounce 0.6s ease-in-out infinite alternate;
-        }
-        .wave-dots span:nth-child(1) { animation-delay: 0s; }
-        .wave-dots span:nth-child(2) { animation-delay: 0.15s; }
-        .wave-dots span:nth-child(3) { animation-delay: 0.3s; }
-        @keyframes bounce {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(-8px); }
-        }
-      `}</style>
-    </div>
+    </AuthGuard>
   );
 }
 
@@ -772,6 +792,18 @@ const styles = {
     fontWeight: '600',
     flexShrink: 0,
   },
+  userBadge: {
+    fontSize: '0.6rem',
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
+    color: '#f97316',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontWeight: '600',
+    maxWidth: '90px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
   voiceControlGroup: { 
     display: 'flex', 
     alignItems: 'center', 
@@ -800,6 +832,17 @@ const styles = {
     cursor: 'pointer', 
     transition: 'all 0.2s',
     flexShrink: 0,
+  },
+  logoutButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    color: '#ef4444',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    borderRadius: '12px',
+    padding: '4px 10px',
+    fontSize: '0.7rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   chatBoxWrapper: {
     flex: 1,
