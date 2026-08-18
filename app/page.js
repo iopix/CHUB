@@ -118,6 +118,37 @@ export default function Home() {
 
   const isSpeaking = playingIndex !== null;
 
+  // --- FUNGSI WAKTU (DIPERBAIKI) ---
+  const isTimeQuestion = (text) => {
+    const timeKeywords = [
+      'hari ini', 'hari apa', 'tanggal berapa', 'jam berapa', 'waktu', 
+      'pukul', 'jam', 'hari', 'tanggal', 'bulan', 'tahun',
+      'hr ini', 'hr apa', 'tgl berapa', 'j berapa',
+      'tgl', 'tanggal', 'jam', 'pukul', 'waktu'
+    ];
+    const lowerText = text.toLowerCase();
+    return timeKeywords.some(keyword => lowerText.includes(keyword));
+  };
+
+  const getLocalTimeResponse = () => {
+    const now = new Date();
+    // Format tanggal pakai locale Indonesia
+    const dateStr = now.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    // Format jam pakai locale Indonesia (24 jam)
+    const timeStr = now.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    return `Hari ini ${dateStr}, jam ${timeStr} sayang. Ada yang bisa aku bantu?`;
+  };
+
+  // --- DETECT MOBILE ---
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -127,6 +158,7 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // --- VIDEO CONTROL ---
   useEffect(() => {
     const allVideos = [videoIdleRef, videoARef, videoA0Ref, videoHRef, videoMRef];
     allVideos.forEach(ref => {
@@ -151,6 +183,7 @@ export default function Home() {
     }
   }, [isSpeaking, isTyping, emotion]);
 
+  // --- INITIAL GREETING ---
   useEffect(() => {
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
     const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
@@ -225,6 +258,7 @@ export default function Home() {
     }
   };
 
+  // --- TYPING EFFECT ---
   const typeMessage = (fullText, messageIndex, userQuery = '') => {
     setIsTyping(true);
     setTypingMessageIndex(messageIndex);
@@ -293,6 +327,7 @@ export default function Home() {
     typingTimeoutRef.current = setTimeout(typeNextChar, 300);
   };
 
+  // --- SPEAK TEXT (TTS) ---
   const speakText = async (text, index, customUserText = null) => {
     if (!text) return;
     if (playingIndex === index) {
@@ -386,10 +421,29 @@ export default function Home() {
     }
   };
 
+  // --- SEND MESSAGE ---
   const handleSend = async (textToSend) => {
     const query = textToSend || input;
     if (!query.trim() || loading || isTyping || inputDisabled) return;
 
+    // CEK PERTANYAAN WAKTU (langsung jawab tanpa API)
+    if (isTimeQuestion(query)) {
+      const userMsg = { role: 'user', content: query, isTyping: false };
+      const newMessages = [...messages, userMsg];
+      setMessages(newMessages);
+      setDisplayMessages(prev => [...prev, userMsg]);
+      if (!textToSend) setInput('');
+      
+      const timeReply = getLocalTimeResponse();
+      const aiMsg = { role: 'assistant', content: timeReply, isTyping: false };
+      setMessages(prev => [...prev, { role: 'assistant', content: timeReply }]);
+      setDisplayMessages(prev => [...prev, aiMsg]);
+      
+      if (autoVoice) speakText(timeReply, newMessages.length);
+      return;
+    }
+
+    // LANJUT KE API
     const userMsg = { role: 'user', content: query, isTyping: false };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
@@ -435,6 +489,7 @@ export default function Home() {
     }
   };
 
+  // --- RENDER ---
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -759,7 +814,6 @@ const styles = {
     justifyContent: 'center',
     transform: 'scale(1.02)',
     transition: 'transform 0.3s ease',
-    // GESER AVATAR KE BAWAH AGAR PUSAR TERTUTUP TEKS
     marginTop: 'clamp(30px, 8vh, 80px)',
   },
   avatarVideo: {
