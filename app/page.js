@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 
-// --- ICONS ---
+// --- ICONS (tetap) ---
 const IconSpeaker = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -96,7 +96,6 @@ export default function Home() {
   const [emotion, setEmotion] = useState('neutral');
   const [isMobile, setIsMobile] = useState(false);
   
-  // Typing effect states
   const [displayMessages, setDisplayMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [typingMessageIndex, setTypingMessageIndex] = useState(null);
@@ -106,10 +105,12 @@ export default function Home() {
   const audioRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   
-  const videoRef = useRef(null);
-  const videoIdleRef = useRef(null);
-  const videoRomanticRef = useRef(null);
-  const videoAngryRef = useRef(null);
+  // Video refs
+  const videoIdleRef = useRef(null);   // D.webm
+  const videoARef = useRef(null);      // A.webm (speaking semua emosi)
+  const videoA0Ref = useRef(null);     // A0.webm (typing neutral)
+  const videoHRef = useRef(null);      // H.webm (typing romantic)
+  const videoMRef = useRef(null);      // M.webm (typing angry)
   
   const abortControllerRef = useRef(null);
 
@@ -125,50 +126,33 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Video control - sync with speaking + typing
+  // Video control
   useEffect(() => {
-    if (isSpeaking) {
-      // Saat speaking, video aktif sesuai emosi
-      videoIdleRef.current?.pause();
-      
-      if (emotion === 'romantic') {
-        videoRomanticRef.current?.play().catch(() => {});
-        videoRef.current?.pause();
-        videoAngryRef.current?.pause();
-      } else if (emotion === 'angry') {
-        videoAngryRef.current?.play().catch(() => {});
-        videoRef.current?.pause();
-        videoRomanticRef.current?.pause();
-      } else {
-        videoRef.current?.play().catch(() => {});
-        videoRomanticRef.current?.pause();
-        videoAngryRef.current?.pause();
-      }
-    } else if (isTyping) {
-      // Saat typing, video aktif sesuai emosi (tanpa suara)
-      videoIdleRef.current?.pause();
-      
-      if (emotion === 'romantic') {
-        videoRomanticRef.current?.play().catch(() => {});
-        videoRef.current?.pause();
-        videoAngryRef.current?.pause();
-      } else if (emotion === 'angry') {
-        videoAngryRef.current?.play().catch(() => {});
-        videoRef.current?.pause();
-        videoRomanticRef.current?.pause();
-      } else {
-        videoRef.current?.play().catch(() => {});
-        videoRomanticRef.current?.pause();
-        videoAngryRef.current?.pause();
-      }
-    } else {
-      // Idle - semua video berhenti, idle jalan
-      [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
-        if (ref.current) {
-          ref.current.pause();
+    // Stop semua video dulu
+    const allVideos = [videoIdleRef, videoARef, videoA0Ref, videoHRef, videoMRef];
+    allVideos.forEach(ref => {
+      if (ref.current) {
+        ref.current.pause();
+        if (ref !== videoIdleRef) {
           ref.current.currentTime = 0;
         }
-      });
+      }
+    });
+
+    if (isSpeaking) {
+      // Bersuara → A.webm (apa pun emosi)
+      videoARef.current?.play().catch(() => {});
+    } else if (isTyping) {
+      // Mengetik → A0 (neutral), H (romantic), M (angry)
+      if (emotion === 'romantic') {
+        videoHRef.current?.play().catch(() => {});
+      } else if (emotion === 'angry') {
+        videoMRef.current?.play().catch(() => {});
+      } else {
+        videoA0Ref.current?.play().catch(() => {});
+      }
+    } else {
+      // Idle → D.webm (loop)
       videoIdleRef.current?.play().catch(() => {});
     }
   }, [isSpeaking, isTyping, emotion]);
@@ -180,11 +164,9 @@ export default function Home() {
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
     
-    // Deteksi emosi untuk greeting
     const initialEmotion = detectEmotion(initialGreeting);
     setEmotion(initialEmotion);
     
-    // Auto voice with delay biar video siap
     setTimeout(() => {
       if (autoVoice) speakText(initialGreeting, 0);
     }, 500);
@@ -233,7 +215,6 @@ export default function Home() {
     }
   };
 
-  // TYPING EFFECT + VOICE SYNC
   const typeMessage = (fullText, messageIndex, userQuery = '') => {
     setIsTyping(true);
     setTypingMessageIndex(messageIndex);
@@ -242,18 +223,8 @@ export default function Home() {
     let currentIndex = 0;
     const chars = fullText.split('');
     
-    // Deteksi emosi
     const currentEmotion = detectEmotion(fullText, userQuery);
     setEmotion(currentEmotion);
-    
-    // Mulai video sesuai emosi (tanpa suara dulu)
-    if (currentEmotion === 'romantic') {
-      videoRomanticRef.current?.play().catch(() => {});
-    } else if (currentEmotion === 'angry') {
-      videoAngryRef.current?.play().catch(() => {});
-    } else {
-      videoRef.current?.play().catch(() => {});
-    }
     
     const typeNextChar = () => {
       if (currentIndex < chars.length) {
@@ -276,7 +247,6 @@ export default function Home() {
         const delay = Math.random() * 40 + 20;
         typingTimeoutRef.current = setTimeout(typeNextChar, delay);
       } else {
-        // SELESAI TYPING
         setIsTyping(false);
         setTypingMessageIndex(null);
         
@@ -292,13 +262,11 @@ export default function Home() {
           return updated;
         });
         
-        // LANGSUNG PLAY VOICE + VIDEO BERSAMAAN
         if (autoVoice) {
           speakText(fullText, messageIndex, userQuery);
         } else {
-          // Kalo auto voice off, stop video
           setTimeout(() => {
-            [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+            [videoA0Ref, videoHRef, videoMRef, videoARef].forEach(ref => {
               if (ref.current) {
                 ref.current.pause();
                 ref.current.currentTime = 0;
@@ -314,14 +282,10 @@ export default function Home() {
 
   const speakText = async (text, index, customUserText = null) => {
     if (!text) return;
-    
-    // Kalo lagi diputar sama index, stop
     if (playingIndex === index) {
       stopAudio();
       return;
     }
-
-    // Kalo lagi typing, tunggu selesai
     if (isTyping) return;
 
     stopAudio();
@@ -363,23 +327,10 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      // VIDEO SUDAH AKTIF DARI TYPING, LANGSUNG PLAY
-      audio.onplay = () => {
-        // Video udah jalan dari typing, tinggal maintain
-        if (currentEmotion === 'romantic') {
-          videoRomanticRef.current?.play().catch(() => {});
-        } else if (currentEmotion === 'angry') {
-          videoAngryRef.current?.play().catch(() => {});
-        } else {
-          videoRef.current?.play().catch(() => {});
-        }
-      };
-
       audio.onended = () => {
         stopAudio();
-        // Stop video setelah suara selesai
         setTimeout(() => {
-          [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+          [videoARef, videoA0Ref, videoHRef, videoMRef].forEach(ref => {
             if (ref.current) {
               ref.current.pause();
               ref.current.currentTime = 0;
@@ -390,7 +341,7 @@ export default function Home() {
       
       audio.onerror = () => {
         stopAudio();
-        [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+        [videoARef, videoA0Ref, videoHRef, videoMRef].forEach(ref => {
           if (ref.current) {
             ref.current.pause();
             ref.current.currentTime = 0;
@@ -402,7 +353,7 @@ export default function Home() {
     } catch (err) {
       if (err.name !== 'AbortError') {
         stopAudio();
-        [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+        [videoARef, videoA0Ref, videoHRef, videoMRef].forEach(ref => {
           if (ref.current) {
             ref.current.pause();
             ref.current.currentTime = 0;
@@ -443,7 +394,6 @@ export default function Home() {
         const displayIndex = updatedMessages.length - 1;
         setDisplayMessages(prev => [...prev, aiMsg]);
         
-        // START TYPING + VIDEO
         typeMessage(data.reply, displayIndex, query);
         
       } else {
@@ -499,6 +449,7 @@ export default function Home() {
       <div style={styles.chatBoxWrapper}>
         <div style={styles.avatarLayer}>
           <div style={styles.avatarContainer}>
+            {/* IDLE - D.webm */}
             <video
               ref={videoIdleRef}
               src="/D.webm"
@@ -508,40 +459,55 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: !isSpeaking && !isTyping ? 1 : 0, 
+                opacity: !isSpeaking && !isTyping ? 1 : 0,
               }}
             />
+            {/* TYPING NEUTRAL - A0.webm */}
             <video
-              ref={videoRef}
-              src="/A.webm"
+              ref={videoA0Ref}
+              src="/A0.webm"
               muted
               loop
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: ((isSpeaking || isTyping) && emotion === 'neutral') ? 1 : 0, 
+                opacity: isTyping && emotion === 'neutral' ? 1 : 0,
               }}
             />
+            {/* TYPING ROMANTIC - H.webm */}
             <video
-              ref={videoRomanticRef}
+              ref={videoHRef}
               src="/H.webm"
               muted
               loop
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: ((isSpeaking || isTyping) && emotion === 'romantic') ? 1 : 0, 
+                opacity: isTyping && emotion === 'romantic' ? 1 : 0,
               }}
             />
+            {/* TYPING ANGRY - M.webm */}
             <video
-              ref={videoAngryRef}
+              ref={videoMRef}
               src="/M.webm"
               muted
               loop
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: ((isSpeaking || isTyping) && emotion === 'angry') ? 1 : 0, 
+                opacity: isTyping && emotion === 'angry' ? 1 : 0,
+              }}
+            />
+            {/* SPEAKING - A.webm (semua emosi) */}
+            <video
+              ref={videoARef}
+              src="/A.webm"
+              muted
+              loop
+              playsInline
+              style={{
+                ...styles.avatarVideo,
+                opacity: isSpeaking ? 1 : 0,
               }}
             />
           </div>
@@ -643,7 +609,7 @@ export default function Home() {
   );
 }
 
-// ===== STYLES (sama) =====
+// ===== STYLES (tetap) =====
 const styles = {
   container: {
     display: 'flex',
