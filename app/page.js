@@ -95,9 +95,16 @@ export default function Home() {
   const [remainingTokens, setRemainingTokens] = useState(null);
   const [emotion, setEmotion] = useState('neutral');
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Typing effect states
+  const [displayMessages, setDisplayMessages] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingMessageIndex, setTypingMessageIndex] = useState(null);
+  const [typingText, setTypingText] = useState('');
 
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   
   const videoRef = useRef(null);
   const videoIdleRef = useRef(null);
@@ -118,32 +125,79 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Video control - sync with speaking + typing
   useEffect(() => {
     if (isSpeaking) {
+      // Saat speaking, video aktif sesuai emosi
       videoIdleRef.current?.pause();
-    } else {
-      videoIdleRef.current?.play().catch(() => {});
       
+      if (emotion === 'romantic') {
+        videoRomanticRef.current?.play().catch(() => {});
+        videoRef.current?.pause();
+        videoAngryRef.current?.pause();
+      } else if (emotion === 'angry') {
+        videoAngryRef.current?.play().catch(() => {});
+        videoRef.current?.pause();
+        videoRomanticRef.current?.pause();
+      } else {
+        videoRef.current?.play().catch(() => {});
+        videoRomanticRef.current?.pause();
+        videoAngryRef.current?.pause();
+      }
+    } else if (isTyping) {
+      // Saat typing, video aktif sesuai emosi (tanpa suara)
+      videoIdleRef.current?.pause();
+      
+      if (emotion === 'romantic') {
+        videoRomanticRef.current?.play().catch(() => {});
+        videoRef.current?.pause();
+        videoAngryRef.current?.pause();
+      } else if (emotion === 'angry') {
+        videoAngryRef.current?.play().catch(() => {});
+        videoRef.current?.pause();
+        videoRomanticRef.current?.pause();
+      } else {
+        videoRef.current?.play().catch(() => {});
+        videoRomanticRef.current?.pause();
+        videoAngryRef.current?.pause();
+      }
+    } else {
+      // Idle - semua video berhenti, idle jalan
       [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
         if (ref.current) {
           ref.current.pause();
           ref.current.currentTime = 0;
         }
       });
+      videoIdleRef.current?.play().catch(() => {});
     }
-  }, [isSpeaking]);
+  }, [isSpeaking, isTyping, emotion]);
 
+  // INITIAL GREETING
   useEffect(() => {
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
-    setMessages([{ role: 'assistant', content: initialGreeting }]);
-    if (autoVoice) speakText(initialGreeting, 0);
+    const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
+    setMessages([initialMsg]);
+    setDisplayMessages([initialMsg]);
+    
+    // Deteksi emosi untuk greeting
+    const initialEmotion = detectEmotion(initialGreeting);
+    setEmotion(initialEmotion);
+    
+    // Auto voice with delay biar video siap
+    setTimeout(() => {
+      if (autoVoice) speakText(initialGreeting, 0);
+    }, 500);
 
-    return () => stopAudio();
+    return () => {
+      stopAudio();
+      clearTimeout(typingTimeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+  }, [displayMessages, loading]);
 
   const stopAudio = () => {
     if (abortControllerRef.current) {
@@ -157,30 +211,118 @@ export default function Home() {
       audioRef.current = null;
     }
 
-    [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
-      if (ref.current) {
-        ref.current.pause();
-        ref.current.currentTime = 0;
-      }
-    });
-
     setPlayingIndex(null);
   };
 
   const handleClearChat = () => {
     stopAudio();
+    setIsTyping(false);
+    clearTimeout(typingTimeoutRef.current);
+    
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
-    setMessages([{ role: 'assistant', content: initialGreeting }]);
-    if (autoVoice) speakText(initialGreeting, 0);
+    const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
+    setMessages([initialMsg]);
+    setDisplayMessages([initialMsg]);
+    setTypingText('');
+    
+    const initialEmotion = detectEmotion(initialGreeting);
+    setEmotion(initialEmotion);
+    
+    if (autoVoice) {
+      setTimeout(() => speakText(initialGreeting, 0), 300);
+    }
+  };
+
+  // TYPING EFFECT + VOICE SYNC
+  const typeMessage = (fullText, messageIndex, userQuery = '') => {
+    setIsTyping(true);
+    setTypingMessageIndex(messageIndex);
+    setTypingText('');
+    
+    let currentIndex = 0;
+    const chars = fullText.split('');
+    
+    // Deteksi emosi
+    const currentEmotion = detectEmotion(fullText, userQuery);
+    setEmotion(currentEmotion);
+    
+    // Mulai video sesuai emosi (tanpa suara dulu)
+    if (currentEmotion === 'romantic') {
+      videoRomanticRef.current?.play().catch(() => {});
+    } else if (currentEmotion === 'angry') {
+      videoAngryRef.current?.play().catch(() => {});
+    } else {
+      videoRef.current?.play().catch(() => {});
+    }
+    
+    const typeNextChar = () => {
+      if (currentIndex < chars.length) {
+        const newText = fullText.substring(0, currentIndex + 1);
+        setTypingText(newText);
+        
+        setDisplayMessages(prev => {
+          const updated = [...prev];
+          if (updated[messageIndex]) {
+            updated[messageIndex] = { 
+              ...updated[messageIndex], 
+              content: newText,
+              isTyping: true 
+            };
+          }
+          return updated;
+        });
+        
+        currentIndex++;
+        const delay = Math.random() * 40 + 20;
+        typingTimeoutRef.current = setTimeout(typeNextChar, delay);
+      } else {
+        // SELESAI TYPING
+        setIsTyping(false);
+        setTypingMessageIndex(null);
+        
+        setDisplayMessages(prev => {
+          const updated = [...prev];
+          if (updated[messageIndex]) {
+            updated[messageIndex] = { 
+              ...updated[messageIndex], 
+              content: fullText,
+              isTyping: false 
+            };
+          }
+          return updated;
+        });
+        
+        // LANGSUNG PLAY VOICE + VIDEO BERSAMAAN
+        if (autoVoice) {
+          speakText(fullText, messageIndex, userQuery);
+        } else {
+          // Kalo auto voice off, stop video
+          setTimeout(() => {
+            [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+              if (ref.current) {
+                ref.current.pause();
+                ref.current.currentTime = 0;
+              }
+            });
+          }, 300);
+        }
+      }
+    };
+    
+    typingTimeoutRef.current = setTimeout(typeNextChar, 300);
   };
 
   const speakText = async (text, index, customUserText = null) => {
     if (!text) return;
-
+    
+    // Kalo lagi diputar sama index, stop
     if (playingIndex === index) {
       stopAudio();
       return;
     }
+
+    // Kalo lagi typing, tunggu selesai
+    if (isTyping) return;
 
     stopAudio();
     const cleanText = text.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
@@ -221,44 +363,63 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      const getActiveVideoRef = () => {
-        if (currentEmotion === 'romantic') return videoRomanticRef;
-        if (currentEmotion === 'angry') return videoAngryRef;
-        return videoRef;
-      };
-
+      // VIDEO SUDAH AKTIF DARI TYPING, LANGSUNG PLAY
       audio.onplay = () => {
-        const activeVideo = getActiveVideoRef();
-        if (activeVideo.current) {
-          activeVideo.current.playbackRate = audio.playbackRate || 1.0;
-          activeVideo.current.play().catch(() => {});
+        // Video udah jalan dari typing, tinggal maintain
+        if (currentEmotion === 'romantic') {
+          videoRomanticRef.current?.play().catch(() => {});
+        } else if (currentEmotion === 'angry') {
+          videoAngryRef.current?.play().catch(() => {});
+        } else {
+          videoRef.current?.play().catch(() => {});
         }
       };
 
-      audio.onratechange = () => {
-        const activeVideo = getActiveVideoRef();
-        if (activeVideo.current) {
-          activeVideo.current.playbackRate = audio.playbackRate;
-        }
+      audio.onended = () => {
+        stopAudio();
+        // Stop video setelah suara selesai
+        setTimeout(() => {
+          [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+            if (ref.current) {
+              ref.current.pause();
+              ref.current.currentTime = 0;
+            }
+          });
+        }, 300);
       };
-
-      audio.onended = () => stopAudio();
-      audio.onerror = () => stopAudio();
+      
+      audio.onerror = () => {
+        stopAudio();
+        [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+          if (ref.current) {
+            ref.current.pause();
+            ref.current.currentTime = 0;
+          }
+        });
+      };
 
       await audio.play();
     } catch (err) {
       if (err.name !== 'AbortError') {
         stopAudio();
+        [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+          if (ref.current) {
+            ref.current.pause();
+            ref.current.currentTime = 0;
+          }
+        });
       }
     }
   };
 
   const handleSend = async (textToSend) => {
     const query = textToSend || input;
-    if (!query.trim() || loading) return;
+    if (!query.trim() || loading || isTyping) return;
 
-    const newMessages = [...messages, { role: 'user', content: query }];
+    const userMsg = { role: 'user', content: query, isTyping: false };
+    const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+    setDisplayMessages(prev => [...prev, userMsg]);
     if (!textToSend) setInput('');
     setLoading(true);
 
@@ -274,15 +435,28 @@ export default function Home() {
       const data = await res.json();
       if (res.ok && data.reply) {
         if (data.remainingTokens) setRemainingTokens(data.remainingTokens);
+        
+        const aiMsg = { role: 'assistant', content: '', isTyping: true };
         const updatedMessages = [...newMessages, { role: 'assistant', content: data.reply }];
-        const newIndex = updatedMessages.length - 1;
         setMessages(updatedMessages);
-        if (autoVoice) speakText(data.reply, newIndex, query);
+        
+        const displayIndex = updatedMessages.length - 1;
+        setDisplayMessages(prev => [...prev, aiMsg]);
+        
+        // START TYPING + VIDEO
+        typeMessage(data.reply, displayIndex, query);
+        
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.error || 'Gagal tersambung.'}` }]);
+        const errorMsg = `Error: ${data.error || 'Gagal tersambung.'}`;
+        setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+        setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
+        setLoading(false);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `Error Network: ${err.message}` }]);
+      const errorMsg = `Error Network: ${err.message}`;
+      setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+      setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -334,7 +508,7 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: !isSpeaking ? 1 : 0, 
+                opacity: !isSpeaking && !isTyping ? 1 : 0, 
               }}
             />
             <video
@@ -345,7 +519,7 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: (isSpeaking && emotion === 'neutral') ? 1 : 0, 
+                opacity: ((isSpeaking || isTyping) && emotion === 'neutral') ? 1 : 0, 
               }}
             />
             <video
@@ -356,7 +530,7 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: (isSpeaking && emotion === 'romantic') ? 1 : 0, 
+                opacity: ((isSpeaking || isTyping) && emotion === 'romantic') ? 1 : 0, 
               }}
             />
             <video
@@ -367,7 +541,7 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: (isSpeaking && emotion === 'angry') ? 1 : 0, 
+                opacity: ((isSpeaking || isTyping) && emotion === 'angry') ? 1 : 0, 
               }}
             />
           </div>
@@ -375,7 +549,7 @@ export default function Home() {
 
         <div style={styles.chatBox}>
           <div style={styles.topSpacer} />
-          {messages.map((msg, index) => (
+          {displayMessages.map((msg, index) => (
             <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
                 <div style={styles.roleHeader}>
@@ -385,7 +559,7 @@ export default function Home() {
                   }}>
                     {msg.role === 'user' ? 'Kamu' : 'SukaChub Virtual Chat'}
                   </span>
-                  {msg.role === 'assistant' && !msg.content.startsWith('Error:') && (
+                  {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
                     <button
                       onClick={() => speakText(msg.content, index)}
                       style={{ ...styles.speakerBtn, color: playingIndex === index ? '#f97316' : '#a1a1aa' }}
@@ -394,15 +568,30 @@ export default function Home() {
                     </button>
                   )}
                 </div>
-                <div style={styles.textContent}>{msg.content}</div>
+                <div style={styles.textContent}>
+                  {msg.content || ''}
+                  {msg.isTyping && index === typingMessageIndex && (
+                    <span style={{
+                      display: 'inline-block',
+                      width: '2px',
+                      height: '1em',
+                      backgroundColor: '#f97316',
+                      marginLeft: '2px',
+                      animation: 'blink 0.5s step-end infinite',
+                      verticalAlign: 'text-bottom',
+                    }} />
+                  )}
+                </div>
               </div>
             </div>
           ))}
 
-          {loading && (
+          {loading && !isTyping && (
             <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
               <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
-                SukaChub Virtual Chat sedang mengetik...
+                <span style={styles.typingDots}>
+                  <span>.</span><span>.</span><span>.</span>
+                </span>
               </div>
             </div>
           )}
@@ -426,16 +615,35 @@ export default function Home() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ketik pesan hangat..."
           style={styles.input}
+          disabled={isTyping}
         />
-        <button type="submit" disabled={loading} style={styles.sendButton}>
-          {loading ? '...' : 'Kirim'}
+        <button type="submit" disabled={loading || isTyping} style={styles.sendButton}>
+          {loading || isTyping ? '...' : 'Kirim'}
         </button>
       </form>
+
+      <style jsx>{`
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        .typing-dots span {
+          animation: dotPulse 1.4s infinite both;
+          font-size: 1.5rem;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse {
+          0% { opacity: 0.2; }
+          20% { opacity: 1; }
+          100% { opacity: 0.2; }
+        }
+      `}</style>
     </div>
   );
 }
 
-// ===== STYLES - FULL BLACK BACKGROUND =====
+// ===== STYLES (sama) =====
 const styles = {
   container: {
     display: 'flex',
@@ -626,6 +834,12 @@ const styles = {
     lineHeight: '1.45', 
     wordBreak: 'break-word',
     fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)',
+  },
+  typingDots: {
+    display: 'inline-flex',
+    gap: '2px',
+    fontSize: '1.5rem',
+    letterSpacing: '2px',
   },
   suggestions: { 
     display: 'flex', 
