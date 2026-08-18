@@ -118,7 +118,7 @@ export default function Home() {
 
   const isSpeaking = playingIndex !== null;
 
-  // --- FUNGSI WAKTU (DIPERBAIKI) ---
+  // --- FUNGSI WAKTU ---
   const isTimeQuestion = (text) => {
     const timeKeywords = [
       'hari ini', 'hari apa', 'tanggal berapa', 'jam berapa', 'waktu', 
@@ -132,20 +132,15 @@ export default function Home() {
 
   const getLocalTimeResponse = () => {
     const now = new Date();
-    // Format tanggal pakai locale Indonesia
-    const dateStr = now.toLocaleDateString('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-    // Format jam pakai locale Indonesia (24 jam)
-    const timeStr = now.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-    return `Hari ini ${dateStr}, jam ${timeStr} sayang. Ada yang bisa aku bantu?`;
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const dayName = days[now.getDay()];
+    const date = now.getDate();
+    const monthName = months[now.getMonth()];
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `Hari ini ${dayName}, ${date} ${monthName} ${year}, jam ${hours}.${minutes} sayang. Ada yang bisa aku bantu?`;
   };
 
   // --- DETECT MOBILE ---
@@ -158,7 +153,7 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // --- VIDEO CONTROL ---
+  // --- VIDEO CONTROL - TANPA JEDA D.webm DI TRANSISI ---
   useEffect(() => {
     const allVideos = [videoIdleRef, videoARef, videoA0Ref, videoHRef, videoMRef];
     allVideos.forEach(ref => {
@@ -170,7 +165,13 @@ export default function Home() {
       }
     });
 
-    if (isTyping) {
+    // PRIORITAS: Speaking > Typing > Idle
+    if (isSpeaking) {
+      // A.webm di-play di audio.onplay, di sini hanya opacity
+      // Tapi kita tetap jalankan video A.webm di sini biar gak freeze
+      videoARef.current?.play().catch(() => {});
+    } else if (isTyping) {
+      // Typing sesuai emosi
       if (emotion === 'romantic') {
         videoHRef.current?.play().catch(() => {});
       } else if (emotion === 'angry') {
@@ -178,7 +179,8 @@ export default function Home() {
       } else {
         videoA0Ref.current?.play().catch(() => {});
       }
-    } else if (!isSpeaking && !isTyping) {
+    } else {
+      // IDLE - hanya jika benar-benar idle (tidak speaking dan tidak typing)
       videoIdleRef.current?.play().catch(() => {});
     }
   }, [isSpeaking, isTyping, emotion]);
@@ -291,6 +293,7 @@ export default function Home() {
         const delay = Math.random() * 40 + 20;
         typingTimeoutRef.current = setTimeout(typeNextChar, delay);
       } else {
+        // SELESAI TYPING - LANGSUNG VOICE TANPA JEDA D.webm
         setIsTyping(false);
         setTypingMessageIndex(null);
         
@@ -306,12 +309,15 @@ export default function Home() {
           return updated;
         });
         
+        // Voice langsung dipanggil, video tetap jalan sesuai emosi
         if (autoVoice) {
           clearTimeout(voiceDelayTimeoutRef.current);
+          // Delay kecil 200ms biar transisi halus tapi tanpa D.webm
           voiceDelayTimeoutRef.current = setTimeout(() => {
             speakText(fullText, messageIndex, userQuery);
-          }, 350);
+          }, 200);
         } else {
+          // Kalo auto voice off, stop video setelah 300ms
           setTimeout(() => {
             [videoA0Ref, videoHRef, videoMRef, videoARef].forEach(ref => {
               if (ref.current) {
@@ -342,6 +348,7 @@ export default function Home() {
     const cleanText = text.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
+    // Set playing index untuk UI
     setPlayingIndex(index);
     
     const userTextContext = customUserText !== null 
@@ -377,6 +384,7 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
+      // A.webm langsung play pas audio mulai, tanpa jeda
       audio.onplay = () => {
         if (videoARef.current) {
           videoARef.current.currentTime = 0.15;
@@ -426,7 +434,7 @@ export default function Home() {
     const query = textToSend || input;
     if (!query.trim() || loading || isTyping || inputDisabled) return;
 
-    // CEK PERTANYAAN WAKTU (langsung jawab tanpa API)
+    // CEK PERTANYAAN WAKTU
     if (isTimeQuestion(query)) {
       const userMsg = { role: 'user', content: query, isTyping: false };
       const newMessages = [...messages, userMsg];
@@ -489,7 +497,6 @@ export default function Home() {
     }
   };
 
-  // --- RENDER ---
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -529,6 +536,7 @@ export default function Home() {
       <div style={styles.chatBoxWrapper}>
         <div style={styles.avatarLayer}>
           <div style={styles.avatarContainer}>
+            {/* IDLE - D.webm */}
             <video
               ref={videoIdleRef}
               src="/D.webm"
@@ -542,6 +550,7 @@ export default function Home() {
                 opacity: !isSpeaking && !isTyping ? 1 : 0,
               }}
             />
+            {/* TYPING NEUTRAL - A0.webm */}
             <video
               ref={videoA0Ref}
               src="/A0.webm"
@@ -554,6 +563,7 @@ export default function Home() {
                 opacity: isTyping && emotion === 'neutral' ? 1 : 0,
               }}
             />
+            {/* TYPING ROMANTIC - H.webm */}
             <video
               ref={videoHRef}
               src="/H.webm"
@@ -566,6 +576,7 @@ export default function Home() {
                 opacity: isTyping && emotion === 'romantic' ? 1 : 0,
               }}
             />
+            {/* TYPING ANGRY - M.webm */}
             <video
               ref={videoMRef}
               src="/M.webm"
@@ -578,6 +589,7 @@ export default function Home() {
                 opacity: isTyping && emotion === 'angry' ? 1 : 0,
               }}
             />
+            {/* SPEAKING - A.webm (semua emosi) */}
             <video
               ref={videoARef}
               src="/A.webm"
@@ -834,7 +846,6 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '10px',
-    // PERUT KE BAWAH SOLID, PERUT KE ATAS TRANSPARAN
     maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitOverflowScrolling: 'touch',
