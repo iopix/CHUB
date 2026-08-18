@@ -29,20 +29,28 @@ const IconAutoVoiceOff = () => (
   </svg>
 );
 
-// --- KATA KUNCI & EMOTION DETECTION ---
+// --- LOGIKA EMOSI ---
 const ROMANTIC_WORDS = [
   'peluk', 'pelukan', 'memeluk', 'cium', 'ciuman', 'mencium', 'sayang', 'sayangku',
   'hangat', 'kehangatan', 'cinta', 'rindu', 'kangen', 'manja', 'gemas', 'belai',
-  'merindukan', 'menyayangi', 'kasih', 'dekap', 'babe', 'honey', 'sweetheart'
+  'merindukan', 'menyayangi', 'kasih', 'dekap', 'babe', 'honey', 'sweetheart', 
+  'mesra', 'romantis', 'indah', 'candu'
+];
+
+const ROMANTIC_PHRASES = [
+  'aku sayang kamu', 'aku cinta kamu', 'aku rindu kamu', 'aku kangen kamu',
+  'sayangku', 'cintaku', 'peluk aku', 'peluk saya', 'manja aku', 
+  'kangen banget', 'rindu banget', 'mesra ya', 'candu banget'
 ];
 
 const HARSH_WORDS = [
   'bodoh', 'bego', 'tolol', 'idiot', 'gila', 'kasar', 'jelek', 'babi', 'anjing',
   'bangsat', 'sialan', 'bajingan', 'jancok', 'jancuk', 'mampus', 'setan', 'iblis',
-  'bacot', 'pantek', 'kontol', 'memek', 'pepek', 'ngentot', 'goblok', 'bebal'
+  'bacot', 'pantek', 'kontol', 'memek', 'pepek', 'ngentot', 'goblok', 'bebal',
+  'ngentod', 'tai', 'kampret', 'brengsek'
 ];
 
-const NEGATION_WORDS = ['tidak', 'bukan', 'jangan', 'nggak', 'enggak', 'tak', 'kurang', 'tanpa'];
+const NEGATION_WORDS = ['tidak', 'bukan', 'jangan', 'nggak', 'enggak', 'tak', 'kurang', 'tanpa', 'ga usah', 'jgn'];
 
 const MODERATION_PHRASES = ['sopan', 'bahasa seperti itu', 'tidak dapat melanjutkan', 'permintaan tersebut'];
 
@@ -52,27 +60,30 @@ const detectEmotion = (text = '', userText = '') => {
   const combinedText = `${text} ${userText}`.toLowerCase().replace(/[.,!?;:]/g, '');
   const words = combinedText.split(/\s+/);
 
-  // 1. Cek apakah ada kata kasar (di input user atau balasan AI)
   for (let i = 0; i < words.length; i++) {
     if (HARSH_WORDS.includes(words[i])) {
       const prevWords = words.slice(Math.max(0, i - 2), i);
       const isNegated = prevWords.some(w => NEGATION_WORDS.includes(w));
-      if (!isNegated) return 'angry'; // Memicu M.webm
+      if (!isNegated) return 'angry';
     }
   }
 
-  // 2. Cek apakah AI sedang memberikan respon berupa penolakan/teguran
   const lowerAIText = text.toLowerCase();
   if (MODERATION_PHRASES.some(phrase => lowerAIText.includes(phrase))) {
-    return 'angry'; // Memicu M.webm
+    return 'angry';
   }
 
-  // 3. Cek kata romantis
-  const isRomantic = ROMANTIC_WORDS.some(word => combinedText.includes(word));
-  if (isRomantic) return 'romantic'; // Memicu H.webm
+  const hasRomanticPhrase = ROMANTIC_PHRASES.some(phrase => combinedText.includes(phrase));
+  let romanticWordCount = 0;
+  ROMANTIC_WORDS.forEach(word => {
+    if (combinedText.includes(word)) romanticWordCount++;
+  });
 
-  // 4. Default ngobrol biasa
-  return 'neutral'; // Memicu A.webm
+  if (hasRomanticPhrase || romanticWordCount >= 2) {
+    return 'romantic'; 
+  }
+
+  return 'neutral'; 
 };
 
 export default function Home() {
@@ -88,16 +99,15 @@ export default function Home() {
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
   
-  const videoRef = useRef(null); // Netral Bicara (A.webm)
-  const videoIdleRef = useRef(null); // Diam (D.webm)
-  const videoRomanticRef = useRef(null); // Romantis (H.webm)
-  const videoAngryRef = useRef(null); // Kasar/Teguran (M.webm)
+  const videoRef = useRef(null);
+  const videoIdleRef = useRef(null);
+  const videoRomanticRef = useRef(null);
+  const videoAngryRef = useRef(null);
   
   const abortControllerRef = useRef(null);
 
   const isSpeaking = playingIndex !== null;
 
-  // Mengatur pergerakan play/pause semua video
   useEffect(() => {
     if (isSpeaking) {
       videoIdleRef.current?.pause();
@@ -168,7 +178,6 @@ export default function Home() {
 
     setPlayingIndex(index);
     
-    // Ambil konteks input user sebelumnya untuk memastikan M.webm dipicu tepat waktu
     const userTextContext = customUserText !== null 
       ? customUserText 
       : (index > 0 && messages[index - 1]?.role === 'user' ? messages[index - 1].content : '');
@@ -292,9 +301,9 @@ export default function Home() {
             onClick={() => setAutoVoice(!autoVoice)}
             style={{
               ...styles.autoVoiceBtn,
-              backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.15)' : '#18181b',
+              backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.2)' : '#18181b',
               borderColor: autoVoice ? '#f97316' : '#3f3f46',
-              color: autoVoice ? '#f97316' : '#71717a',
+              color: autoVoice ? '#f97316' : '#a1a1aa',
             }}
           >
             {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
@@ -306,7 +315,6 @@ export default function Home() {
       <div style={styles.chatBoxWrapper}>
         <div style={styles.avatarLayer}>
           <div style={styles.avatarContainer}>
-            {/* Video Diam (D.webm) */}
             <video
               ref={videoIdleRef}
               src="/D.webm"
@@ -319,7 +327,6 @@ export default function Home() {
                 opacity: !isSpeaking ? 1 : 0, 
               }}
             />
-            {/* Video Bicara Netral (A.webm) */}
             <video
               ref={videoRef}
               src="/A.webm"
@@ -331,7 +338,6 @@ export default function Home() {
                 opacity: (isSpeaking && emotion === 'neutral') ? 1 : 0, 
               }}
             />
-            {/* Video Bicara Romantis (H.webm) */}
             <video
               ref={videoRomanticRef}
               src="/H.webm"
@@ -343,7 +349,6 @@ export default function Home() {
                 opacity: (isSpeaking && emotion === 'romantic') ? 1 : 0, 
               }}
             />
-            {/* Video Bicara Kasar/Marah/Teguran (M.webm) */}
             <video
               ref={videoAngryRef}
               src="/M.webm"
@@ -366,7 +371,7 @@ export default function Home() {
                 <div style={styles.roleHeader}>
                   <span style={{ 
                     ...styles.roleLabel, 
-                    color: msg.role === 'assistant' ? '#f97316' : '#ffffff' 
+                    color: msg.role === 'assistant' ? '#fb923c' : '#ffffff' 
                   }}>
                     {msg.role === 'user' ? 'Kamu' : 'SukaChub Virtual Chat'}
                   </span>
@@ -386,7 +391,7 @@ export default function Home() {
 
           {loading && (
             <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
-              <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.8 }}>
+              <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
                 SukaChub Virtual Chat sedang mengetik...
               </div>
             </div>
@@ -403,7 +408,7 @@ export default function Home() {
 
       <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
         <button type="button" onClick={handleClearChat} style={styles.clearButton}>
-          Hapus Chat
+          Hapus
         </button>
         <input
           type="text"
@@ -426,39 +431,43 @@ const styles = {
     flexDirection: 'column',
     height: '100dvh',
     width: '100%',
-    maxWidth: '600px',
+    maxWidth: '500px',
     margin: '0 auto',
-    backgroundColor: '#000000',
-    color: '#e4e4e7',
+    backgroundColor: '#09090b',
+    color: '#f4f4f5',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     overflow: 'hidden',
     position: 'relative',
+    boxShadow: '0 0 40px rgba(0, 0, 0, 0.8)',
   },
   header: {
-    padding: '10px 14px',
-    borderBottom: '1px solid #27272a',
+    padding: '12px 16px',
+    margin: '10px 12px 0 12px',
+    borderRadius: '20px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    background: 'rgba(0, 0, 0, 0.95)',
-    backdropFilter: 'blur(10px)',
+    background: 'rgba(24, 24, 27, 0.75)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: '1px solid rgba(63, 63, 70, 0.4)',
     zIndex: 10,
     flexShrink: 0,
   },
-  headerTitleGroup: { display: 'flex', alignItems: 'center', gap: '6px' },
-  statusDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f97316' },
-  title: { fontSize: '0.9rem', fontWeight: '600', margin: 0 },
-  tokenBadge: { fontSize: '0.68rem', backgroundColor: '#27272a', color: '#f97316', padding: '2px 6px', borderRadius: '6px' },
-  voiceControlGroup: { display: 'flex', alignItems: 'center', gap: '6px' },
-  voiceSelect: { backgroundColor: '#18181b', color: '#e4e4e7', border: '1px solid #3f3f46', borderRadius: '8px', padding: '5px 8px', fontSize: '0.78rem' },
-  autoVoiceBtn: { display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid', borderRadius: '8px', padding: '5px 8px', fontSize: '0.72rem', cursor: 'pointer' },
+  headerTitleGroup: { display: 'flex', alignItems: 'center', gap: '8px' },
+  statusDot: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f97316', boxShadow: '0 0 8px #f97316' },
+  title: { fontSize: '0.88rem', fontWeight: '600', margin: 0, letterSpacing: '-0.01em' },
+  tokenBadge: { fontSize: '0.65rem', backgroundColor: 'rgba(39, 39, 42, 0.9)', color: '#f97316', padding: '3px 8px', borderRadius: '12px', fontWeight: '600' },
+  voiceControlGroup: { display: 'flex', alignItems: 'center', gap: '8px' },
+  voiceSelect: { backgroundColor: '#18181b', color: '#f4f4f5', border: '1px solid #3f3f46', borderRadius: '14px', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' },
+  autoVoiceBtn: { display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid', borderRadius: '14px', padding: '6px 10px', fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
   chatBoxWrapper: {
     flex: 1,
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    backgroundColor: '#000000',
+    backgroundColor: '#09090b',
   },
   avatarLayer: {
     position: 'absolute',
@@ -472,8 +481,9 @@ const styles = {
   },
   avatarContainer: {
     position: 'relative',
-    width: '320px',
-    height: '460px',
+    width: '100%',
+    maxWidth: '340px',
+    height: '420px',
     display: 'flex',
     justifyContent: 'center',
   },
@@ -484,42 +494,111 @@ const styles = {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
-    transition: 'opacity 0.4s ease-in-out',
+    transition: 'opacity 0.3s ease-in-out',
   },
   chatBox: {
     flex: 1,
     position: 'relative',
     zIndex: 2,
     overflowY: 'auto',
-    padding: '12px 14px',
+    padding: '12px 16px',
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 22%, black 45%, black 100%)',
-    maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 22%, black 45%, black 100%)',
+    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 18%, black 38%, black 100%)',
+    maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 18%, black 38%, black 100%)',
   },
   topSpacer: {
-    minHeight: '260px',
+    minHeight: '230px',
     flexShrink: 0,
   },
   messageWrapper: { display: 'flex', width: '100%' },
   bubble: {
     maxWidth: '85%',
-    padding: '10px 14px',
-    borderRadius: '16px',
-    fontSize: '0.92rem',
-    backdropFilter: 'blur(12px)',
+    padding: '12px 16px',
+    borderRadius: '22px',
+    fontSize: '0.9rem',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
   },
-  userBubble: { backgroundColor: 'rgba(249, 115, 22, 0.85)', color: '#ffffff', borderBottomRightRadius: '4px' },
-  aiBubble: { backgroundColor: 'rgba(24, 24, 27, 0.85)', color: '#e4e4e7', border: '1px solid rgba(63, 63, 70, 0.5)', borderBottomLeftRadius: '4px' },
-  roleHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' },
-  roleLabel: { fontSize: '0.7rem', opacity: 0.8, fontWeight: 'bold' },
-  speakerBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '2px' },
+  userBubble: { 
+    backgroundColor: 'rgba(249, 115, 22, 0.9)', 
+    color: '#ffffff', 
+    borderRadius: '22px 22px 4px 22px' 
+  },
+  aiBubble: { 
+    backgroundColor: 'rgba(24, 24, 27, 0.85)', 
+    color: '#f4f4f5', 
+    border: '1px solid rgba(63, 63, 70, 0.5)', 
+    borderRadius: '22px 22px 22px 4px' 
+  },
+  roleHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' },
+  roleLabel: { fontSize: '0.7rem', opacity: 0.9, fontWeight: '700' },
+  speakerBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' },
   textContent: { whiteSpace: 'pre-wrap', lineHeight: '1.45', wordBreak: 'break-word' },
-  suggestions: { display: 'flex', gap: '8px', padding: '8px 14px', overflowX: 'auto', zIndex: 3 },
-  chipButton: { backgroundColor: '#18181b', border: '1px solid #27272a', color: '#a1a1aa', padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem', cursor: 'pointer', whiteSpace: 'nowrap' },
-  inputContainer: { display: 'flex', alignItems: 'center', padding: '10px 14px calc(10px + env(safe-area-inset-bottom)) 14px', gap: '8px', borderTop: '1px solid #27272a', backgroundColor: '#000000', zIndex: 3 },
-  input: { flex: 1, backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '10px 14px', color: '#fff', outline: 'none', fontSize: '16px' },
-  sendButton: { backgroundColor: '#f97316', color: '#fff', border: 'none', borderRadius: '12px', padding: '0 16px', height: '42px', fontWeight: '600', cursor: 'pointer' },
-  clearButton: { backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '12px', padding: '0 12px', height: '42px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' },
+  suggestions: { 
+    display: 'flex', 
+    gap: '8px', 
+    padding: '8px 16px', 
+    overflowX: 'auto', 
+    zIndex: 3,
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none'
+  },
+  chipButton: { 
+    backgroundColor: 'rgba(24, 24, 27, 0.8)', 
+    border: '1px solid rgba(63, 63, 70, 0.6)', 
+    color: '#d4d4d8', 
+    padding: '8px 16px', 
+    borderRadius: '9999px', 
+    fontSize: '0.78rem', 
+    fontWeight: '500',
+    cursor: 'pointer', 
+    whiteSpace: 'nowrap',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+  },
+  inputContainer: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    padding: '12px 16px calc(12px + env(safe-area-inset-bottom)) 16px', 
+    gap: '8px', 
+    backgroundColor: '#09090b', 
+    zIndex: 3 
+  },
+  input: { 
+    flex: 1, 
+    backgroundColor: '#18181b', 
+    border: '1px solid #27272a', 
+    borderRadius: '24px', 
+    padding: '12px 18px', 
+    color: '#fff', 
+    outline: 'none', 
+    fontSize: '0.95rem' 
+  },
+  sendButton: { 
+    backgroundColor: '#f97316', 
+    color: '#fff', 
+    border: 'none', 
+    borderRadius: '24px', 
+    padding: '0 20px', 
+    height: '46px', 
+    fontWeight: '600', 
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    boxShadow: '0 2px 10px rgba(249, 115, 22, 0.4)'
+  },
+  clearButton: { 
+    backgroundColor: 'rgba(239, 68, 68, 0.15)', 
+    color: '#ef4444', 
+    border: '1px solid rgba(239, 68, 68, 0.3)', 
+    borderRadius: '24px', 
+    padding: '0 14px', 
+    height: '46px', 
+    fontSize: '0.78rem', 
+    fontWeight: '600', 
+    cursor: 'pointer', 
+    whiteSpace: 'nowrap' 
+  },
 };
