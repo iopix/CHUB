@@ -39,8 +39,20 @@ export default function Home() {
 
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
-  const videoRef = useRef(null);
+  const videoRef = useRef(null); // Untuk A.webm (Bicara)
+  const videoIdleRef = useRef(null); // Untuk D.webm (Diam)
   const abortControllerRef = useRef(null);
+
+  const isSpeaking = playingIndex !== null;
+
+  // Pastikan video idle selalu play saat tidak ada suara
+  useEffect(() => {
+    if (videoIdleRef.current) {
+      if (!isSpeaking) {
+        videoIdleRef.current.play().catch(() => {});
+      }
+    }
+  }, [isSpeaking]);
 
   useEffect(() => {
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
@@ -66,7 +78,6 @@ export default function Home() {
       audioRef.current = null;
     }
 
-    // Freeze video secara instan di frame/posisi saat ini (tanpa reset ke awal)
     if (videoRef.current) {
       videoRef.current.pause();
     }
@@ -114,7 +125,6 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      // Lanjutkan gerakan video dari posisi freeze terakhir (tanpa resetting currentTime)
       audio.onplay = () => {
         if (videoRef.current) {
           videoRef.current.playbackRate = audio.playbackRate || 1.0;
@@ -212,13 +222,30 @@ export default function Home() {
       <div style={styles.chatBoxWrapper}>
         <div style={styles.avatarLayer}>
           <div style={styles.avatarContainer}>
+            {/* Video Diam (D.webm) diletakkan di bawah */}
+            <video
+              ref={videoIdleRef}
+              src="/D.webm"
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{
+                ...styles.avatarVideo,
+                opacity: isSpeaking ? 0 : 1, // Hilang saat bicara
+              }}
+            />
+            {/* Video Bicara (A.webm) diletakkan di atas */}
             <video
               ref={videoRef}
               src="/A.webm"
               muted
               loop
               playsInline
-              style={styles.avatarVideo}
+              style={{
+                ...styles.avatarVideo,
+                opacity: isSpeaking ? 1 : 0, // Muncul saat bicara
+              }}
             />
           </div>
         </div>
@@ -229,7 +256,12 @@ export default function Home() {
             <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
                 <div style={styles.roleHeader}>
-                  <span style={styles.roleLabel}>{msg.role === 'user' ? 'Kamu' : 'SukaChub AI'}</span>
+                  <span style={{ 
+                    ...styles.roleLabel, 
+                    color: msg.role === 'assistant' ? '#f97316' : '#ffffff' 
+                  }}>
+                    {msg.role === 'user' ? 'Kamu' : 'SukaChub Virtual Chat'}
+                  </span>
                   {msg.role === 'assistant' && !msg.content.startsWith('Error:') && (
                     <button
                       onClick={() => speakText(msg.content, index)}
@@ -247,7 +279,7 @@ export default function Home() {
           {loading && (
             <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
               <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.8 }}>
-                SukaChub AI sedang mengetik...
+                SukaChub Virtual Chat sedang mengetik...
               </div>
             </div>
           )}
@@ -259,10 +291,12 @@ export default function Home() {
         {['Peluk saya erat-erat', 'Temani saya mengobrol', 'Manjain saya dong'].map((text, i) => (
           <button key={i} onClick={() => handleSend(text)} style={styles.chipButton}>{text}</button>
         ))}
-        <button onClick={handleClearChat} style={styles.clearChipButton}>Hapus Chat</button>
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
+        <button type="button" onClick={handleClearChat} style={styles.clearButton}>
+          Hapus Chat
+        </button>
         <input
           type="text"
           value={input}
@@ -336,9 +370,13 @@ const styles = {
     justifyContent: 'center',
   },
   avatarVideo: {
+    position: 'absolute', // Membuat video bertumpuk
+    top: 0,
+    left: 0,
     width: '100%',
     height: '100%',
     objectFit: 'contain',
+    transition: 'opacity 0.3s ease-in-out', // Transisi memudar halus tanpa kedip
   },
   chatBox: {
     flex: 1,
@@ -364,16 +402,16 @@ const styles = {
     fontSize: '0.92rem',
     backdropFilter: 'blur(12px)',
   },
-  userBubble: { backgroundColor: 'rgba(37, 99, 235, 0.85)', color: '#ffffff', borderBottomRightRadius: '4px' },
+  userBubble: { backgroundColor: 'rgba(249, 115, 22, 0.85)', color: '#ffffff', borderBottomRightRadius: '4px' },
   aiBubble: { backgroundColor: 'rgba(24, 24, 27, 0.85)', color: '#e4e4e7', border: '1px solid rgba(63, 63, 70, 0.5)', borderBottomLeftRadius: '4px' },
   roleHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' },
-  roleLabel: { fontSize: '0.7rem', opacity: 0.6, fontWeight: 'bold' },
+  roleLabel: { fontSize: '0.7rem', opacity: 0.8, fontWeight: 'bold' },
   speakerBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '2px' },
   textContent: { whiteSpace: 'pre-wrap', lineHeight: '1.45', wordBreak: 'break-word' },
   suggestions: { display: 'flex', gap: '8px', padding: '8px 14px', overflowX: 'auto', zIndex: 3 },
   chipButton: { backgroundColor: '#18181b', border: '1px solid #27272a', color: '#a1a1aa', padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem', cursor: 'pointer', whiteSpace: 'nowrap' },
-  clearChipButton: { backgroundColor: '#ef4444', border: 'none', color: '#ffffff', padding: '6px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', marginLeft: 'auto' },
   inputContainer: { display: 'flex', alignItems: 'center', padding: '10px 14px calc(10px + env(safe-area-inset-bottom)) 14px', gap: '8px', borderTop: '1px solid #27272a', backgroundColor: '#000000', zIndex: 3 },
   input: { flex: 1, backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '10px 14px', color: '#fff', outline: 'none', fontSize: '16px' },
   sendButton: { backgroundColor: '#f97316', color: '#fff', border: 'none', borderRadius: '12px', padding: '0 16px', height: '42px', fontWeight: '600', cursor: 'pointer' },
+  clearButton: { backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '12px', padding: '0 12px', height: '42px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' },
 };
