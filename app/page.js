@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 
+// --- ICONS ---
 const IconSpeaker = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -28,6 +29,52 @@ const IconAutoVoiceOff = () => (
   </svg>
 );
 
+// --- KATA KUNCI & EMOTION DETECTION ---
+const ROMANTIC_WORDS = [
+  'peluk', 'pelukan', 'memeluk', 'cium', 'ciuman', 'mencium', 'sayang', 'sayangku',
+  'hangat', 'kehangatan', 'cinta', 'rindu', 'kangen', 'manja', 'gemas', 'belai',
+  'merindukan', 'menyayangi', 'kasih', 'dekap', 'babe', 'honey', 'sweetheart'
+];
+
+const HARSH_WORDS = [
+  'bodoh', 'bego', 'tolol', 'idiot', 'gila', 'kasar', 'jelek', 'babi', 'anjing',
+  'bangsat', 'sialan', 'bajingan', 'jancok', 'jancuk', 'mampus', 'setan', 'iblis',
+  'bacot', 'pantek', 'kontol', 'memek', 'pepek', 'ngentot', 'goblok', 'bebal'
+];
+
+const NEGATION_WORDS = ['tidak', 'bukan', 'jangan', 'nggak', 'enggak', 'tak', 'kurang', 'tanpa'];
+
+const MODERATION_PHRASES = ['sopan', 'bahasa seperti itu', 'tidak dapat melanjutkan', 'permintaan tersebut'];
+
+const detectEmotion = (text = '', userText = '') => {
+  if (!text && !userText) return 'neutral';
+  
+  const combinedText = `${text} ${userText}`.toLowerCase().replace(/[.,!?;:]/g, '');
+  const words = combinedText.split(/\s+/);
+
+  // 1. Cek apakah ada kata kasar (di input user atau balasan AI)
+  for (let i = 0; i < words.length; i++) {
+    if (HARSH_WORDS.includes(words[i])) {
+      const prevWords = words.slice(Math.max(0, i - 2), i);
+      const isNegated = prevWords.some(w => NEGATION_WORDS.includes(w));
+      if (!isNegated) return 'angry'; // Memicu M.webm
+    }
+  }
+
+  // 2. Cek apakah AI sedang memberikan respon berupa penolakan/teguran
+  const lowerAIText = text.toLowerCase();
+  if (MODERATION_PHRASES.some(phrase => lowerAIText.includes(phrase))) {
+    return 'angry'; // Memicu M.webm
+  }
+
+  // 3. Cek kata romantis
+  const isRomantic = ROMANTIC_WORDS.some(word => combinedText.includes(word));
+  if (isRomantic) return 'romantic'; // Memicu H.webm
+
+  // 4. Default ngobrol biasa
+  return 'neutral'; // Memicu A.webm
+};
+
 export default function Home() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -36,25 +83,33 @@ export default function Home() {
   const [selectedVoice, setSelectedVoice] = useState('spruce');
   const [autoVoice, setAutoVoice] = useState(true);
   const [remainingTokens, setRemainingTokens] = useState(null);
+  const [emotion, setEmotion] = useState('neutral');
 
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
-  const videoRef = useRef(null); // Untuk A.webm (Bicara)
-  const videoIdleRef = useRef(null); // Untuk D.webm (Diam)
+  
+  const videoRef = useRef(null); // Netral Bicara (A.webm)
+  const videoIdleRef = useRef(null); // Diam (D.webm)
+  const videoRomanticRef = useRef(null); // Romantis (H.webm)
+  const videoAngryRef = useRef(null); // Kasar/Teguran (M.webm)
+  
   const abortControllerRef = useRef(null);
 
   const isSpeaking = playingIndex !== null;
 
-  // Mengatur pergerakan play/pause video agar tidak macet
+  // Mengatur pergerakan play/pause semua video
   useEffect(() => {
     if (isSpeaking) {
-      videoIdleRef.current?.pause(); // Pause video diam saat bicara
+      videoIdleRef.current?.pause();
     } else {
-      videoIdleRef.current?.play().catch(() => {}); // Mainkan video diam saat idle
-      if (videoRef.current) {
-        videoRef.current.pause();
-        videoRef.current.currentTime = 0; // Reset mulut A.webm ke posisi awal
-      }
+      videoIdleRef.current?.play().catch(() => {});
+      
+      [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+        if (ref.current) {
+          ref.current.pause();
+          ref.current.currentTime = 0;
+        }
+      });
     }
   }, [isSpeaking]);
 
@@ -82,10 +137,12 @@ export default function Home() {
       audioRef.current = null;
     }
 
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
+    [videoRef, videoRomanticRef, videoAngryRef].forEach(ref => {
+      if (ref.current) {
+        ref.current.pause();
+        ref.current.currentTime = 0;
+      }
+    });
 
     setPlayingIndex(null);
   };
@@ -97,7 +154,7 @@ export default function Home() {
     if (autoVoice) speakText(initialGreeting, 0);
   };
 
-  const speakText = async (text, index) => {
+  const speakText = async (text, index, customUserText = null) => {
     if (!text) return;
 
     if (playingIndex === index) {
@@ -110,6 +167,14 @@ export default function Home() {
     if (!cleanText) return;
 
     setPlayingIndex(index);
+    
+    // Ambil konteks input user sebelumnya untuk memastikan M.webm dipicu tepat waktu
+    const userTextContext = customUserText !== null 
+      ? customUserText 
+      : (index > 0 && messages[index - 1]?.role === 'user' ? messages[index - 1].content : '');
+
+    const currentEmotion = detectEmotion(cleanText, userTextContext);
+    setEmotion(currentEmotion);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -137,21 +202,28 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
+      const getActiveVideoRef = () => {
+        if (currentEmotion === 'romantic') return videoRomanticRef;
+        if (currentEmotion === 'angry') return videoAngryRef;
+        return videoRef;
+      };
+
       audio.onplay = () => {
-        if (videoRef.current) {
-          videoRef.current.playbackRate = audio.playbackRate || 1.0;
-          videoRef.current.play().catch(() => {});
+        const activeVideo = getActiveVideoRef();
+        if (activeVideo.current) {
+          activeVideo.current.playbackRate = audio.playbackRate || 1.0;
+          activeVideo.current.play().catch(() => {});
         }
       };
 
       audio.onratechange = () => {
-        if (videoRef.current) {
-          videoRef.current.playbackRate = audio.playbackRate;
+        const activeVideo = getActiveVideoRef();
+        if (activeVideo.current) {
+          activeVideo.current.playbackRate = audio.playbackRate;
         }
       };
 
       audio.onended = () => stopAudio();
-      // audio.onpause = () => stopAudio(); <--- BAGIAN INI DIHAPUS karena sering bikin error audio tiba-tiba mati
       audio.onerror = () => stopAudio();
 
       await audio.play();
@@ -186,7 +258,7 @@ export default function Home() {
         const updatedMessages = [...newMessages, { role: 'assistant', content: data.reply }];
         const newIndex = updatedMessages.length - 1;
         setMessages(updatedMessages);
-        if (autoVoice) speakText(data.reply, newIndex);
+        if (autoVoice) speakText(data.reply, newIndex, query);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.error || 'Gagal tersambung.'}` }]);
       }
@@ -244,10 +316,10 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: isSpeaking ? 0 : 1, // Transparan saat bicara
+                opacity: !isSpeaking ? 1 : 0, 
               }}
             />
-            {/* Video Bicara (A.webm) */}
+            {/* Video Bicara Netral (A.webm) */}
             <video
               ref={videoRef}
               src="/A.webm"
@@ -256,7 +328,31 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: isSpeaking ? 1 : 0, // Muncul mulus saat bicara
+                opacity: (isSpeaking && emotion === 'neutral') ? 1 : 0, 
+              }}
+            />
+            {/* Video Bicara Romantis (H.webm) */}
+            <video
+              ref={videoRomanticRef}
+              src="/H.webm"
+              muted
+              loop
+              playsInline
+              style={{
+                ...styles.avatarVideo,
+                opacity: (isSpeaking && emotion === 'romantic') ? 1 : 0, 
+              }}
+            />
+            {/* Video Bicara Kasar/Marah/Teguran (M.webm) */}
+            <video
+              ref={videoAngryRef}
+              src="/M.webm"
+              muted
+              loop
+              playsInline
+              style={{
+                ...styles.avatarVideo,
+                opacity: (isSpeaking && emotion === 'angry') ? 1 : 0, 
               }}
             />
           </div>
@@ -382,13 +478,13 @@ const styles = {
     justifyContent: 'center',
   },
   avatarVideo: {
-    position: 'absolute', // Menumpuk 2 video di tempat yang persis sama
+    position: 'absolute',
     top: 0,
     left: 0,
     width: '100%',
     height: '100%',
     objectFit: 'contain',
-    transition: 'opacity 0.4s ease-in-out', // Membuat fade-in fade-out yang mulus tanpa kedip hitam
+    transition: 'opacity 0.4s ease-in-out',
   },
   chatBox: {
     flex: 1,
