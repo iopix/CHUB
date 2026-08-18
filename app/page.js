@@ -106,7 +106,6 @@ export default function Home() {
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const voiceDelayTimeoutRef = useRef(null);
   
   const videoIdleRef = useRef(null);
   const videoARef = useRef(null);
@@ -153,7 +152,7 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // --- VIDEO CONTROL - TANPA JEDA D.webm DI TRANSISI ---
+  // --- VIDEO CONTROL ---
   useEffect(() => {
     const allVideos = [videoIdleRef, videoARef, videoA0Ref, videoHRef, videoMRef];
     allVideos.forEach(ref => {
@@ -168,7 +167,6 @@ export default function Home() {
     // PRIORITAS: Speaking > Typing > Idle
     if (isSpeaking) {
       // A.webm di-play di audio.onplay, di sini hanya opacity
-      // Tapi kita tetap jalankan video A.webm di sini biar gak freeze
       videoARef.current?.play().catch(() => {});
     } else if (isTyping) {
       // Typing sesuai emosi
@@ -180,7 +178,7 @@ export default function Home() {
         videoA0Ref.current?.play().catch(() => {});
       }
     } else {
-      // IDLE - hanya jika benar-benar idle (tidak speaking dan tidak typing)
+      // IDLE - hanya jika benar-benar idle
       videoIdleRef.current?.play().catch(() => {});
     }
   }, [isSpeaking, isTyping, emotion]);
@@ -208,7 +206,6 @@ export default function Home() {
     return () => {
       stopAudio();
       clearTimeout(typingTimeoutRef.current);
-      clearTimeout(voiceDelayTimeoutRef.current);
     };
   }, []);
 
@@ -234,14 +231,12 @@ export default function Home() {
     }
 
     setPlayingIndex(null);
-    clearTimeout(voiceDelayTimeoutRef.current);
   };
 
   const handleClearChat = () => {
     stopAudio();
     setIsTyping(false);
     clearTimeout(typingTimeoutRef.current);
-    clearTimeout(voiceDelayTimeoutRef.current);
     
     const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
     const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
@@ -293,7 +288,7 @@ export default function Home() {
         const delay = Math.random() * 40 + 20;
         typingTimeoutRef.current = setTimeout(typeNextChar, delay);
       } else {
-        // SELESAI TYPING - LANGSUNG VOICE TANPA JEDA D.webm
+        // SELESAI TYPING - langsung panggil voice tanpa delay
         setIsTyping(false);
         setTypingMessageIndex(null);
         
@@ -309,17 +304,12 @@ export default function Home() {
           return updated;
         });
         
-        // Voice langsung dipanggil, video tetap jalan sesuai emosi
+        // Voice langsung dipanggil, video typing tetap berjalan sampai voice mulai
         if (autoVoice) {
-          clearTimeout(voiceDelayTimeoutRef.current);
-          // Delay kecil 200ms biar transisi halus tapi tanpa D.webm
-          voiceDelayTimeoutRef.current = setTimeout(() => {
-            speakText(fullText, messageIndex, userQuery);
-          }, 200);
+          speakText(fullText, messageIndex, userQuery);
         } else {
-          // Kalo auto voice off, stop video setelah 300ms
           setTimeout(() => {
-            [videoA0Ref, videoHRef, videoMRef, videoARef].forEach(ref => {
+            [videoA0Ref, videoHRef, videoMRef].forEach(ref => {
               if (ref.current) {
                 ref.current.pause();
                 ref.current.currentTime = 0;
@@ -342,18 +332,28 @@ export default function Home() {
     }
     if (isTyping) return;
 
-    clearTimeout(voiceDelayTimeoutRef.current);
+    // STOP audio sebelumnya tapi JANGAN stop video typing
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
 
-    stopAudio();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+
     const cleanText = text.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
-    // Set playing index untuk UI
-    setPlayingIndex(index);
+    // JANGAN set playingIndex dulu! Nanti di audio.onplay
+    // Tapi kita simpan index buat referensi
+    const targetIndex = index;
     
     const userTextContext = customUserText !== null 
       ? customUserText 
-      : (index > 0 && messages[index - 1]?.role === 'user' ? messages[index - 1].content : '');
+      : (targetIndex > 0 && messages[targetIndex - 1]?.role === 'user' ? messages[targetIndex - 1].content : '');
 
     const currentEmotion = detectEmotion(cleanText, userTextContext);
     setEmotion(currentEmotion);
@@ -384,8 +384,10 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      // A.webm langsung play pas audio mulai, tanpa jeda
+      // === A.webm MULAI PAS AUDIO PLAY ===
       audio.onplay = () => {
+        // Set playingIndex agar isSpeaking = true dan A.webm muncul
+        setPlayingIndex(targetIndex);
         if (videoARef.current) {
           videoARef.current.currentTime = 0.15;
           videoARef.current.play().catch(() => {});
@@ -398,7 +400,7 @@ export default function Home() {
           videoARef.current.pause();
           videoARef.current.currentTime = 0;
         }
-        if (index === 0 && autoVoice) {
+        if (targetIndex === 0 && autoVoice) {
           setInputDisabled(false);
         }
       };
@@ -409,7 +411,7 @@ export default function Home() {
           videoARef.current.pause();
           videoARef.current.currentTime = 0;
         }
-        if (index === 0 && autoVoice) {
+        if (targetIndex === 0 && autoVoice) {
           setInputDisabled(false);
         }
       };
@@ -422,7 +424,7 @@ export default function Home() {
           videoARef.current.pause();
           videoARef.current.currentTime = 0;
         }
-        if (index === 0 && autoVoice) {
+        if (targetIndex === 0 && autoVoice) {
           setInputDisabled(false);
         }
       }
@@ -589,7 +591,7 @@ export default function Home() {
                 opacity: isTyping && emotion === 'angry' ? 1 : 0,
               }}
             />
-            {/* SPEAKING - A.webm (semua emosi) */}
+            {/* SPEAKING - A.webm (hanya muncul saat isSpeaking = true) */}
             <video
               ref={videoARef}
               src="/A.webm"
