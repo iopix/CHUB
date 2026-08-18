@@ -45,11 +45,15 @@ export default function Home() {
 
   const isSpeaking = playingIndex !== null;
 
-  // Pastikan video idle selalu play saat tidak ada suara
+  // Mengatur pergerakan play/pause video agar tidak macet
   useEffect(() => {
-    if (videoIdleRef.current) {
-      if (!isSpeaking) {
-        videoIdleRef.current.play().catch(() => {});
+    if (isSpeaking) {
+      videoIdleRef.current?.pause(); // Pause video diam saat bicara
+    } else {
+      videoIdleRef.current?.play().catch(() => {}); // Mainkan video diam saat idle
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0; // Reset mulut A.webm ke posisi awal
       }
     }
   }, [isSpeaking]);
@@ -80,6 +84,7 @@ export default function Home() {
 
     if (videoRef.current) {
       videoRef.current.pause();
+      videoRef.current.currentTime = 0;
     }
 
     setPlayingIndex(null);
@@ -117,9 +122,16 @@ export default function Home() {
         signal: controller.signal,
       });
 
-      if (!res.ok) return stopAudio();
+      if (!res.ok) {
+        stopAudio();
+        return;
+      }
+      
       const blob = await res.blob();
-      if (blob.size === 0) return stopAudio();
+      if (blob.size === 0) {
+        stopAudio();
+        return;
+      }
 
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
@@ -139,7 +151,7 @@ export default function Home() {
       };
 
       audio.onended = () => stopAudio();
-      audio.onpause = () => stopAudio();
+      // audio.onpause = () => stopAudio(); <--- BAGIAN INI DIHAPUS karena sering bikin error audio tiba-tiba mati
       audio.onerror = () => stopAudio();
 
       await audio.play();
@@ -190,7 +202,7 @@ export default function Home() {
       <header style={styles.header}>
         <div style={styles.headerTitleGroup}>
           <div style={styles.statusDot} />
-          <h1 style={styles.title}>SukaChub AI</h1>
+          <h1 style={styles.title}>SukaChub Virtual Chat</h1>
           {remainingTokens !== null && (
             <span style={styles.tokenBadge}>
               {Number(remainingTokens).toLocaleString('id-ID')} Tkn
@@ -222,7 +234,7 @@ export default function Home() {
       <div style={styles.chatBoxWrapper}>
         <div style={styles.avatarLayer}>
           <div style={styles.avatarContainer}>
-            {/* Video Diam (D.webm) diletakkan di bawah */}
+            {/* Video Diam (D.webm) */}
             <video
               ref={videoIdleRef}
               src="/D.webm"
@@ -232,10 +244,10 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: isSpeaking ? 0 : 1, // Hilang saat bicara
+                opacity: isSpeaking ? 0 : 1, // Transparan saat bicara
               }}
             />
-            {/* Video Bicara (A.webm) diletakkan di atas */}
+            {/* Video Bicara (A.webm) */}
             <video
               ref={videoRef}
               src="/A.webm"
@@ -244,7 +256,7 @@ export default function Home() {
               playsInline
               style={{
                 ...styles.avatarVideo,
-                opacity: isSpeaking ? 1 : 0, // Muncul saat bicara
+                opacity: isSpeaking ? 1 : 0, // Muncul mulus saat bicara
               }}
             />
           </div>
@@ -370,13 +382,13 @@ const styles = {
     justifyContent: 'center',
   },
   avatarVideo: {
-    position: 'absolute', // Membuat video bertumpuk
+    position: 'absolute', // Menumpuk 2 video di tempat yang persis sama
     top: 0,
     left: 0,
     width: '100%',
     height: '100%',
     objectFit: 'contain',
-    transition: 'opacity 0.3s ease-in-out', // Transisi memudar halus tanpa kedip
+    transition: 'opacity 0.4s ease-in-out', // Membuat fade-in fade-out yang mulus tanpa kedip hitam
   },
   chatBox: {
     flex: 1,
