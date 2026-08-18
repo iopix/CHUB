@@ -296,7 +296,7 @@ export default function Home() {
     const cleanText = text.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
-    // Set playing index immediately for UI, but video will start on audio.onplay
+    // Set playing index immediately for UI
     setPlayingIndex(index);
     
     const userTextContext = customUserText !== null 
@@ -332,9 +332,13 @@ export default function Home() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
 
-      // Start A.webm exactly when audio starts playing
+      // Start A.webm exactly when audio starts playing, 
+      // and jump to frame 0.1s (mulut terbuka) to avoid closed mouth frame.
       audio.onplay = () => {
-        videoARef.current?.play().catch(() => {});
+        if (videoARef.current) {
+          videoARef.current.currentTime = 0.1; // langsung ke frame mulut terbuka
+          videoARef.current.play().catch(() => {});
+        }
       };
 
       audio.onended = () => {
@@ -460,6 +464,7 @@ export default function Home() {
               muted
               loop
               playsInline
+              preload="auto"
               style={{
                 ...styles.avatarVideo,
                 opacity: !isSpeaking && !isTyping ? 1 : 0,
@@ -472,6 +477,7 @@ export default function Home() {
               muted
               loop
               playsInline
+              preload="auto"
               style={{
                 ...styles.avatarVideo,
                 opacity: isTyping && emotion === 'neutral' ? 1 : 0,
@@ -484,6 +490,7 @@ export default function Home() {
               muted
               loop
               playsInline
+              preload="auto"
               style={{
                 ...styles.avatarVideo,
                 opacity: isTyping && emotion === 'romantic' ? 1 : 0,
@@ -496,6 +503,7 @@ export default function Home() {
               muted
               loop
               playsInline
+              preload="auto"
               style={{
                 ...styles.avatarVideo,
                 opacity: isTyping && emotion === 'angry' ? 1 : 0,
@@ -508,6 +516,7 @@ export default function Home() {
               muted
               loop
               playsInline
+              preload="auto"
               style={{
                 ...styles.avatarVideo,
                 opacity: isSpeaking ? 1 : 0,
