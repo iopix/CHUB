@@ -1,7 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AuthGuard from '@/components/AuthGuard';
 
 // --- ICONS ---
 const IconMenu = () => (
@@ -38,6 +37,22 @@ const IconAutoVoiceOff = () => (
     <path d="M2 10v4" /><path d="M6 6v12" /><line x1="2" y1="2" x2="22" y2="22" />
   </svg>
 );
+
+// --- TRIAL PRESETS (TANPA MEMICU API AI) ---
+const TRIAL_PRESETS = {
+  'Peluk boleh?': {
+    reply: 'Boleh sayang, sini saya peluk erat kamu dengan sepenuh jiwa raga.',
+    emotion: 'romantic', // Memicu video H.webm
+  },
+  'Temani saya mengobrol': {
+    reply: 'Baik saya akan mengobrol dengan kamu,',
+    emotion: 'neutral', // Memicu video A0.webm
+  },
+  'Coba kata kasar': {
+    reply: 'Hmmmm. Jangan kasar ya no no ya.',
+    emotion: 'angry', // Memicu video M.webm
+  },
+};
 
 // --- EMOTION LOGIC ---
 const ROMANTIC_WORDS = [
@@ -98,8 +113,9 @@ const detectEmotion = (text = '', userText = '') => {
 export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState(null);
+  const [trialCount, setTrialCount] = useState(0);
 
-  // Ambil data user dari localStorage
+  // Ambil data user & trial dari localStorage
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
@@ -107,14 +123,19 @@ export default function Home() {
         setUserProfile(JSON.parse(userData));
       } catch {
         localStorage.removeItem('user');
-        router.push('/login');
+        setUserProfile(null);
       }
     } else {
-      router.push('/login');
+      setUserProfile(null);
+    }
+
+    const savedTrial = localStorage.getItem('trial_count');
+    if (savedTrial) {
+      setTrialCount(parseInt(savedTrial, 10));
     }
   }, []);
 
-  // --- SEMUA STATE CHAT & MENU ---
+  // --- STATE CHAT & MENU ---
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -133,6 +154,7 @@ export default function Home() {
 
   const [inputDisabled, setInputDisabled] = useState(true);
 
+  // --- REFS ---
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -148,7 +170,7 @@ export default function Home() {
 
   const isSpeaking = playingIndex !== null;
 
-  // Click outside listener untuk menutup menu grid
+  // Click outside listener
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -294,7 +316,7 @@ export default function Home() {
   };
 
   // --- TYPING EFFECT ---
-  const typeMessage = (fullText, messageIndex, userQuery = '') => {
+  const typeMessage = (fullText, messageIndex, userQuery = '', forcedEmotion = null) => {
     setIsTyping(true);
     setTypingMessageIndex(messageIndex);
     setTypingText('');
@@ -302,7 +324,7 @@ export default function Home() {
     let currentIndex = 0;
     const chars = fullText.split('');
     
-    const currentEmotion = detectEmotion(fullText, userQuery);
+    const currentEmotion = forcedEmotion || detectEmotion(fullText, userQuery);
     setEmotion(currentEmotion);
     
     const typeNextChar = () => {
@@ -388,9 +410,6 @@ export default function Home() {
       ? customUserText 
       : (targetIndex > 0 && messages[targetIndex - 1]?.role === 'user' ? messages[targetIndex - 1].content : '');
 
-    const currentEmotion = detectEmotion(cleanText, userTextContext);
-    setEmotion(currentEmotion);
-
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -462,8 +481,55 @@ export default function Home() {
     }
   };
 
-  // --- SEND MESSAGE ---
+  // --- HANDLE PILL / SUGGESTIONS CLICK (TRIAL LOGIC) ---
+  const handlePillClick = (presetKey) => {
+    // Jika sudah login, gunakan alur kirim standar
+    if (userProfile) {
+      handleSend(presetKey);
+      return;
+    }
+
+    // Jika belum login, cek batasan 3x Trial
+    if (trialCount >= 3) {
+      router.push('/login');
+      return;
+    }
+
+    const preset = TRIAL_PRESETS[presetKey];
+    if (!preset) return;
+
+    // Increment Trial Count
+    const newTrialCount = trialCount + 1;
+    setTrialCount(newTrialCount);
+    localStorage.setItem('trial_count', newTrialCount.toString());
+
+    // 1. Tambah Pesan User
+    const userMsg = { role: 'user', content: presetKey, isTyping: false };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setDisplayMessages(prev => [...prev, userMsg]);
+
+    // 2. Tambah Pesan AI Balasan Preset (Tanpa Panggil API AI)
+    const aiMsg = { role: 'assistant', content: '', isTyping: true };
+    const updatedMessages = [...newMessages, { role: 'assistant', content: preset.reply }];
+    setMessages(updatedMessages);
+
+    const displayIndex = updatedMessages.length - 1;
+    setDisplayMessages(prev => [...prev, aiMsg]);
+
+    // Jalankan efek ketik & pemicu video emosi yang sesuai
+    typeMessage(preset.reply, displayIndex, presetKey, preset.emotion);
+  };
+
+  // --- SEND MESSAGE (LOGIN USER) ---
   const handleSend = async (textToSend) => {
+    if (!userProfile) {
+      if (trialCount >= 3) {
+        router.push('/login');
+      }
+      return;
+    }
+
     const query = textToSend || input;
     if (!query.trim() || loading || isTyping || inputDisabled) return;
 
@@ -528,291 +594,316 @@ export default function Home() {
     }
   };
 
-  // --- LOGOUT ---
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    router.push('/login');
+  // --- LOGOUT / LOGIN ACTION ---
+  const handleAuthAction = () => {
+    if (userProfile) {
+      localStorage.removeItem('user');
+      setUserProfile(null);
+      router.push('/login');
+    } else {
+      router.push('/login');
+    }
   };
 
   // --- RENDER ---
   return (
-    <AuthGuard>
-      <div style={styles.container}>
-        <header style={styles.header}>
-          <div style={styles.headerTitleGroup}>
-            {/* SVG Strip 3 (Hamburger Icon) untuk Toggle Menu */}
-            <div style={{ position: 'relative' }} ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                style={styles.menuBtn}
-                title="Buka Menu"
-              >
-                <IconMenu />
-              </button>
-              
-              {/* Dropdown Menu 1 Kolom ke Bawah */}
-              {isMenuOpen && (
-                <div style={styles.dropdownGrid}>
-                  <a
-                    href="https://ipix.my.id"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={styles.gridItem}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    ipix.my.id
-                  </a>
-                  <a
-                    href="https://ipixchat.my.id"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={styles.gridItem}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    ipixchat.my.id
-                  </a>
-                  <a
-                    href="https://sukachub.my.id"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={styles.gridItem}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    sukachub.my.id
-                  </a>
-                  <a
-                    href="https://ipix.fun"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={styles.gridItem}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    ipix.fun
-                  </a>
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleLogout();
-                    }}
-                    style={{ ...styles.gridItem, ...styles.gridLogout }}
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Title Header & Username tepat di bawahnya */}
-            <div style={styles.titleWrapper}>
-              <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
-                SukaChub your virtual chat
-              </h1>
-              {userProfile && (
-                <span style={styles.userBadge}>
-                  {userProfile.username || userProfile.email || 'User'}
-                </span>
-              )}
-            </div>
-
-            {remainingTokens !== null && !isMobile && (
-              <span style={styles.tokenBadge}>
-                {Number(remainingTokens).toLocaleString('id-ID')} Tkn
-              </span>
-            )}
-          </div>
-
-          <div style={styles.voiceControlGroup}>
-            <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
-              <option value="spruce">Deep Voice</option>
-              <option value="arbor">Man Voice</option>
-            </select>
+    <div style={styles.container}>
+      <header style={styles.header}>
+        <div style={styles.headerTitleGroup}>
+          <div style={{ position: 'relative' }} ref={menuRef}>
             <button
               type="button"
-              onClick={() => setAutoVoice(!autoVoice)}
-              style={{
-                ...styles.autoVoiceBtn,
-                backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.2)' : '#18181b',
-                borderColor: autoVoice ? '#f97316' : '#3f3f46',
-                color: autoVoice ? '#f97316' : '#a1a1aa',
-              }}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              style={styles.menuBtn}
+              title="Buka Menu"
             >
-              {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-              <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
+              <IconMenu />
             </button>
-          </div>
-        </header>
-
-        <div style={styles.chatBoxWrapper}>
-          <div style={styles.avatarLayer}>
-            <div style={styles.avatarContainer}>
-              <video
-                ref={videoIdleRef}
-                src="/D.webm"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="auto"
-                style={{
-                  ...styles.avatarVideo,
-                  opacity: !isSpeaking && !isTyping ? 1 : 0,
-                }}
-              />
-              <video
-                ref={videoA0Ref}
-                src="/A0.webm"
-                muted
-                loop
-                playsInline
-                preload="auto"
-                style={{
-                  ...styles.avatarVideo,
-                  opacity: isTyping && emotion === 'neutral' ? 1 : 0,
-                }}
-              />
-              <video
-                ref={videoHRef}
-                src="/H.webm"
-                muted
-                loop
-                playsInline
-                preload="auto"
-                style={{
-                  ...styles.avatarVideo,
-                  opacity: isTyping && emotion === 'romantic' ? 1 : 0,
-                }}
-              />
-              <video
-                ref={videoMRef}
-                src="/M.webm"
-                muted
-                loop
-                playsInline
-                preload="auto"
-                style={{
-                  ...styles.avatarVideo,
-                  opacity: isTyping && emotion === 'angry' ? 1 : 0,
-                }}
-              />
-              <video
-                ref={videoARef}
-                src="/A.webm"
-                muted
-                loop
-                playsInline
-                preload="auto"
-                style={{
-                  ...styles.avatarVideo,
-                  opacity: isSpeaking ? 1 : 0,
-                }}
-              />
-            </div>
-          </div>
-
-          <div style={styles.chatBox}>
-            <div style={styles.topSpacer} />
-            {displayMessages.map((msg, index) => (
-              <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
-                  <div style={styles.roleHeader}>
-                    <span style={{ 
-                      ...styles.roleLabel, 
-                      color: msg.role === 'assistant' ? '#fb923c' : '#ffffff',
-                      fontWeight: '700',
-                      fontStyle: 'italic',
-                    }}>
-                      {msg.role === 'user' 
-                        ? (userProfile?.username || userProfile?.email || 'User') 
-                        : 'SukaChub Virtual Chat'}
-                    </span>
-                    {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
-                      <button
-                        onClick={() => speakText(msg.content, index)}
-                        style={{ ...styles.speakerBtn, color: playingIndex === index ? '#f97316' : '#a1a1aa' }}
-                      >
-                        {playingIndex === index ? <IconSpeaker /> : <IconMute />}
-                      </button>
-                    )}
-                  </div>
-                  <div style={styles.textContent}>
-                    {msg.content || ''}
-                    {msg.isTyping && index === typingMessageIndex && (
-                      <span style={{
-                        display: 'inline-block',
-                        width: '2px',
-                        height: '1em',
-                        backgroundColor: '#f97316',
-                        marginLeft: '2px',
-                        animation: 'blink 0.5s step-end infinite',
-                        verticalAlign: 'text-bottom',
-                      }} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {loading && !isTyping && (
-              <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
-                <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
-                  <span style={styles.waveDots}>
-                    <span style={{ color: '#f97316' }}>.</span>
-                    <span style={{ color: '#fb923c' }}>.</span>
-                    <span style={{ color: '#fdba74' }}>.</span>
-                  </span>
-                  <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang mikir...</span>
-                </div>
+            
+            {isMenuOpen && (
+              <div style={styles.dropdownGrid}>
+                <a href="https://ipix.my.id" target="_blank" rel="noopener noreferrer" style={styles.gridItem} onClick={() => setIsMenuOpen(false)}>ipix.my.id</a>
+                <a href="https://ipixchat.my.id" target="_blank" rel="noopener noreferrer" style={styles.gridItem} onClick={() => setIsMenuOpen(false)}>ipixchat.my.id</a>
+                <a href="https://sukachub.my.id" target="_blank" rel="noopener noreferrer" style={styles.gridItem} onClick={() => setIsMenuOpen(false)}>sukachub.my.id</a>
+                <a href="https://ipix.fun" target="_blank" rel="noopener noreferrer" style={styles.gridItem} onClick={() => setIsMenuOpen(false)}>ipix.fun</a>
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleAuthAction();
+                  }}
+                  style={{ 
+                    ...styles.gridItem, 
+                    ...(userProfile ? styles.gridLogout : styles.gridLogin) 
+                  }}
+                >
+                  {userProfile ? 'Logout' : 'Login'}
+                </button>
               </div>
             )}
-            <div ref={chatEndRef} />
+          </div>
+
+          <div style={styles.titleWrapper}>
+            <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
+              SukaChub your virtual chat
+            </h1>
+            <span style={{
+              ...styles.userBadge,
+              backgroundColor: userProfile ? 'rgba(249, 115, 22, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+              color: userProfile ? '#f97316' : '#ef4444'
+            }}>
+              {userProfile 
+                ? (userProfile.username || userProfile.email || 'User') 
+                : 'Belum Login'}
+            </span>
+          </div>
+
+          {userProfile && remainingTokens !== null && !isMobile && (
+            <span style={styles.tokenBadge}>
+              {Number(remainingTokens).toLocaleString('id-ID')} Tkn
+            </span>
+          )}
+        </div>
+
+        <div style={styles.voiceControlGroup}>
+          <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
+            <option value="spruce">Deep Voice</option>
+            <option value="arbor">Man Voice</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => setAutoVoice(!autoVoice)}
+            style={{
+              ...styles.autoVoiceBtn,
+              backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.2)' : '#18181b',
+              borderColor: autoVoice ? '#f97316' : '#3f3f46',
+              color: autoVoice ? '#f97316' : '#a1a1aa',
+            }}
+          >
+            {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
+            <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
+          </button>
+        </div>
+      </header>
+
+      <div style={styles.chatBoxWrapper}>
+        <div style={styles.avatarLayer}>
+          <div style={styles.avatarContainer}>
+            <video
+              ref={videoIdleRef}
+              src="/D.webm"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              style={{
+                ...styles.avatarVideo,
+                opacity: !isSpeaking && !isTyping ? 1 : 0,
+              }}
+            />
+            <video
+              ref={videoA0Ref}
+              src="/A0.webm"
+              muted
+              loop
+              playsInline
+              preload="auto"
+              style={{
+                ...styles.avatarVideo,
+                opacity: isTyping && emotion === 'neutral' ? 1 : 0,
+              }}
+            />
+            <video
+              ref={videoHRef}
+              src="/H.webm"
+              muted
+              loop
+              playsInline
+              preload="auto"
+              style={{
+                ...styles.avatarVideo,
+                opacity: isTyping && emotion === 'romantic' ? 1 : 0,
+              }}
+            />
+            <video
+              ref={videoMRef}
+              src="/M.webm"
+              muted
+              loop
+              playsInline
+              preload="auto"
+              style={{
+                ...styles.avatarVideo,
+                opacity: isTyping && emotion === 'angry' ? 1 : 0,
+              }}
+            />
+            <video
+              ref={videoARef}
+              src="/A.webm"
+              muted
+              loop
+              playsInline
+              preload="auto"
+              style={{
+                ...styles.avatarVideo,
+                opacity: isSpeaking ? 1 : 0,
+              }}
+            />
           </div>
         </div>
 
-        <div style={styles.suggestions}>
-          {['Peluk saya erat-erat', 'Temani saya mengobrol', 'Manjain saya dong'].map((text, i) => (
-            <button key={i} onClick={() => handleSend(text)} style={styles.chipButton}>{text}</button>
+        <div style={styles.chatBox}>
+          <div style={styles.topSpacer} />
+          {displayMessages.map((msg, index) => (
+            <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
+                <div style={styles.roleHeader}>
+                  <span style={{ 
+                    ...styles.roleLabel, 
+                    color: msg.role === 'assistant' ? '#fb923c' : '#ffffff',
+                    fontWeight: '700',
+                    fontStyle: 'italic',
+                  }}>
+                    {msg.role === 'user' 
+                      ? (userProfile?.username || userProfile?.email || 'User') 
+                      : 'SukaChub Virtual Chat'}
+                  </span>
+                  {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
+                    <button
+                      onClick={() => speakText(msg.content, index)}
+                      style={{ ...styles.speakerBtn, color: playingIndex === index ? '#f97316' : '#a1a1aa' }}
+                    >
+                      {playingIndex === index ? <IconSpeaker /> : <IconMute />}
+                    </button>
+                  )}
+                </div>
+                <div style={styles.textContent}>
+                  {msg.content || ''}
+                  {msg.isTyping && index === typingMessageIndex && (
+                    <span style={{
+                      display: 'inline-block',
+                      width: '2px',
+                      height: '1em',
+                      backgroundColor: '#f97316',
+                      marginLeft: '2px',
+                      animation: 'blink 0.5s step-end infinite',
+                      verticalAlign: 'text-bottom',
+                    }} />
+                  )}
+                </div>
+              </div>
+            </div>
           ))}
-        </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
+          {loading && !isTyping && (
+            <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
+              <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
+                <span style={styles.waveDots}>
+                  <span style={{ color: '#f97316' }}>.</span>
+                  <span style={{ color: '#fb923c' }}>.</span>
+                  <span style={{ color: '#fdba74' }}>.</span>
+                </span>
+                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang mikir...</span>
+              </div>
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+      </div>
+
+      {/* 3 PILL / CHIPS TERBARU */}
+      <div style={styles.suggestions}>
+        {Object.keys(TRIAL_PRESETS).map((presetKey, i) => (
+          <button key={i} onClick={() => handlePillClick(presetKey)} style={styles.chipButton}>
+            {presetKey}
+          </button>
+        ))}
+      </div>
+
+      {/* FORM INPUT TEKS DENGAN INDIKATOR TRIAL */}
+      <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
+        {userProfile && (
           <button type="button" onClick={handleClearChat} style={styles.clearButton}>
             Hapus
           </button>
+        )}
+        
+        <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={inputDisabled ? "Tunggu AI selesai bicara..." : "Ketik pesan hangat..."}
-            style={styles.input}
-            disabled={isTyping || inputDisabled}
+            placeholder={
+              !userProfile
+                ? trialCount < 3 
+                  ? `🔒 Trial ${3 - trialCount}/3 (Klik tombol saran di atas)...` 
+                  : "🔒 Trial habis. Silakan login..."
+                : inputDisabled 
+                  ? "Tunggu AI selesai bicara..." 
+                  : "Ketik pesan hangat..."
+            }
+            style={{ 
+              ...styles.input, 
+              paddingRight: '55px', 
+              width: '100%',
+              backgroundColor: !userProfile ? '#27272a' : '#18181b',
+              cursor: !userProfile ? 'not-allowed' : 'text'
+            }}
+            disabled={!userProfile || isTyping || inputDisabled}
+            maxLength={200}
           />
-          <button type="submit" disabled={loading || isTyping || inputDisabled} style={styles.sendButton}>
+          <span style={{
+            position: 'absolute',
+            right: '12px',
+            fontSize: '0.65rem',
+            color: input.length >= 200 ? '#ef4444' : '#71717a',
+            pointerEvents: 'none',
+            fontWeight: '500'
+          }}>
+            {input.length}/200
+          </span>
+        </div>
+
+        {/* Tombol Kirim / Login */}
+        {!userProfile ? (
+          <button 
+            type="button" 
+            onClick={() => router.push('/login')} 
+            style={styles.loginSubmitButton}
+          >
+            Login
+          </button>
+        ) : (
+          <button 
+            type="submit" 
+            disabled={loading || isTyping || inputDisabled} 
+            style={styles.sendButton}
+          >
             {loading || isTyping ? '...' : 'Kirim'}
           </button>
-        </form>
+        )}
+      </form>
 
-        <style jsx>{`
-          @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-          }
-          .wave-dots span {
-            display: inline-block;
-            font-size: 1.8rem;
-            line-height: 1;
-            animation: bounce 0.6s ease-in-out infinite alternate;
-          }
-          .wave-dots span:nth-child(1) { animation-delay: 0s; }
-          .wave-dots span:nth-child(2) { animation-delay: 0.15s; }
-          .wave-dots span:nth-child(3) { animation-delay: 0.3s; }
-          @keyframes bounce {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-8px); }
-          }
-        `}</style>
-      </div>
-    </AuthGuard>
+      <style jsx>{`
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        .wave-dots span {
+          display: inline-block;
+          font-size: 1.8rem;
+          line-height: 1;
+          animation: bounce 0.6s ease-in-out infinite alternate;
+        }
+        .wave-dots span:nth-child(1) { animation-delay: 0s; }
+        .wave-dots span:nth-child(2) { animation-delay: 0.15s; }
+        .wave-dots span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-8px); }
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -874,7 +965,7 @@ const styles = {
     borderRadius: '16px',
     padding: '10px',
     display: 'grid',
-    gridTemplateColumns: '1fr', // 1 kolom membujur ke bawah
+    gridTemplateColumns: '1fr',
     gap: '8px',
     zIndex: 100,
     boxShadow: '0 12px 32px rgba(0,0,0,0.8)',
@@ -903,6 +994,13 @@ const styles = {
     fontWeight: '600',
     marginTop: '2px',
   },
+  gridLogin: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    color: '#22c55e',
+    borderColor: 'rgba(34, 197, 94, 0.4)',
+    fontWeight: '600',
+    marginTop: '2px',
+  },
   titleWrapper: {
     display: 'flex',
     flexDirection: 'column',
@@ -918,8 +1016,6 @@ const styles = {
   },
   userBadge: {
     fontSize: '0.65rem',
-    backgroundColor: 'rgba(249, 115, 22, 0.15)',
-    color: '#f97316',
     padding: '1px 8px',
     borderRadius: '10px',
     fontWeight: '600',
@@ -1112,8 +1208,6 @@ const styles = {
     borderTop: '1px solid rgba(63, 63, 70, 0.3)',
   },
   input: { 
-    flex: 1, 
-    backgroundColor: '#18181b', 
     border: '1px solid #27272a', 
     borderRadius: '20px', 
     padding: '10px 14px', 
@@ -1135,6 +1229,21 @@ const styles = {
     cursor: 'pointer',
     fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
     boxShadow: '0 2px 10px rgba(249, 115, 22, 0.4)',
+    touchAction: 'manipulation',
+    flexShrink: 0,
+  },
+  loginSubmitButton: {
+    backgroundColor: '#22c55e', 
+    color: '#fff', 
+    border: 'none', 
+    borderRadius: '20px', 
+    padding: '0 18px', 
+    height: '42px', 
+    minWidth: '65px',
+    fontWeight: '600', 
+    cursor: 'pointer',
+    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
+    boxShadow: '0 2px 10px rgba(34, 197, 94, 0.4)',
     touchAction: 'manipulation',
     flexShrink: 0,
   },
