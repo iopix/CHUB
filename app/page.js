@@ -45,11 +45,11 @@ const TRIAL_PRESETS = {
     emotion: 'romantic', // Memicu video H.webm
   },
   'Temani saya mengobrol': {
-    reply: 'Baik saya akan mengobrol dengan kamu,',
+    reply: 'Baik, saya akan mengobrol dengan kamu,',
     emotion: 'neutral', // Memicu video A0.webm
   },
   'Coba kata kasar': {
-    reply: 'Hmmmm. Jangan kasar ya no no ya.',
+    reply: 'Kamu. Jangan kasar ya. no no no ,ya.',
     emotion: 'angry', // Memicu video M.webm
   },
 };
@@ -245,7 +245,7 @@ export default function Home() {
 
   // --- INITIAL GREETING ---
   useEffect(() => {
-    const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
+    const initialGreeting = 'Hai, Perkenalkan , Saya SukaChub virtual chat yang akan menemani kamu , merindukan kehangatan dan kehadiran kamu.';
     const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
@@ -298,7 +298,7 @@ export default function Home() {
     setIsTyping(false);
     clearTimeout(typingTimeoutRef.current);
     
-    const initialGreeting = 'Sini mendekat ke pelukan saya, sayang. Saya merindukan kehangatan dan kehadiran kamu.';
+    const initialGreeting = 'Hai, Perkenalkan , Saya SukaChub virtual chat yang akan menemani kamu , merindukan kehangatan dan kehadiran kamu.';
     const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
