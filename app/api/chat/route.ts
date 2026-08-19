@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
@@ -20,17 +20,18 @@ export async function POST(req) {
       JANGAN PERNAH menuliskan tag <think> atau reasoning apapun dalam jawaban. Langsung jawab aja.`
     };
 
-    // Prioritaskan Qwen (paling stabil)
-    const modelsToTry = [
-      'qwen/qwen3.6-27b',
-      'openai/gpt-oss-120b',
-      'openai/gpt-oss-20b',
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant'
+    // ✅ PRIORITASKAN MODEL DENGAN RPD TERTINGGI (biar awet)
+    const modelsToTry: string[] = [
+      'llama-3.1-8b-instant',     // RPD: 14.400 (paling besar!)
+      'meta-llama/llama-3.3-70b-versatile', // RPD: 1.000
+      'qwen/qwen3.6-27b',          // RPD: 1.000
+      'openai/gpt-oss-20b',        // RPD: 1.000
+      'openai/gpt-oss-120b',       // RPD: 1.000
+      'groq/compound',             // RPD: 250 (cadangan terakhir)
     ];
 
-    let replyText = null;
-    let lastError = null;
+    let replyText: string | null = null;
+    let lastError: string | null = null;
 
     for (const model of modelsToTry) {
       try {
@@ -50,8 +51,13 @@ export async function POST(req) {
 
         const data = await response.json();
 
+        // ✅ BACA HEADER RATELIMIT (biar tau sisa kuota)
+        const remainingRequests = response.headers.get('x-ratelimit-remaining-requests');
+        const remainingTokens = response.headers.get('x-ratelimit-remaining-tokens');
+        console.log(`[${model}] Sisa Request: ${remainingRequests}, Sisa Token: ${remainingTokens}`);
+
         if (response.ok && data.choices?.[0]?.message?.content) {
-          let rawContent = data.choices[0].message.content;
+          let rawContent: string = data.choices[0].message.content;
           
           // HAPUS SEMUA TAG THINK (agresif)
           rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '');
@@ -64,6 +70,12 @@ export async function POST(req) {
             break;
           }
         } else {
+          // ❌ Jika kena limit (429), langsung skip ke model berikutnya
+          if (response.status === 429) {
+            console.warn(`[Rate Limit] Model ${model} kehabisan kuota, skip...`);
+            continue;
+          }
+          
           console.warn(`[Groq Fail] Model ${model}:`, data.error?.message || data);
           lastError = data.error?.message || `Model ${model} gagal`;
           
@@ -73,14 +85,15 @@ export async function POST(req) {
           }
         }
       } catch (err) {
-        lastError = err.message;
-        console.warn(`[Groq Error] Model ${model}:`, err.message);
+        lastError = (err as Error).message;
+        console.warn(`[Groq Error] Model ${model}:`, (err as Error).message);
       }
     }
 
     if (!replyText) {
+      // ✅ Fallback dengan pesan tanpa emoji (sesuai aturan)
       return NextResponse.json({
-        reply: 'Maaf sayang, aku lagi error nih. Coba ketik ulang ya gantengku ❤️'
+        reply: 'Maaf sayang, aku lagi error nih. Coba ketik ulang ya gantengku.'
       });
     }
 
@@ -89,7 +102,7 @@ export async function POST(req) {
   } catch (error) {
     console.error('Error Chat API:', error);
     return NextResponse.json(
-      { error: error.message || 'Gagal terhubung ke AI' },
+      { error: (error as Error).message || 'Gagal terhubung ke AI' },
       { status: 500 }
     );
   }
