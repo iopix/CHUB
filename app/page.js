@@ -97,7 +97,12 @@ export default function Home() {
 
   // --- REAKSI INTERAKTIF AVATAR ---
   const [activeReaction, setActiveReaction] = useState(null); // 'kepala' | 'peluk' | 'marah' | null
+  const activeReactionRef = useRef(null);
   const isInteractingRef = useRef(false);
+
+  useEffect(() => {
+    activeReactionRef.current = activeReaction;
+  }, [activeReaction]);
 
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
@@ -159,22 +164,22 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // --- SWITCH VIDEO FUNCTION ---
+  // --- SWITCH VIDEO TANPA FLICKER / GLITCH ---
   const switchVideo = (activeVideoRef) => {
     const allVideos = [videoIdleRef, videoARef, videoKepalaRef, videoPelukRef, videoMarahRef];
 
     allVideos.forEach((ref) => {
-      if (ref.current) {
+      if (ref.current && ref.current !== activeVideoRef?.current) {
         ref.current.pause();
-        if (ref.current !== activeVideoRef?.current) {
-          ref.current.currentTime = 0;
-        }
+        ref.current.currentTime = 0;
       }
     });
 
     if (activeVideoRef?.current) {
-      activeVideoRef.current.currentTime = 0;
-      activeVideoRef.current.play().catch(() => {});
+      if (activeVideoRef.current.paused) {
+        activeVideoRef.current.currentTime = 0;
+        activeVideoRef.current.play().catch(() => {});
+      }
     }
   };
 
@@ -193,16 +198,19 @@ export default function Home() {
     }
   }, [activeReaction, isSpeaking]);
 
-  // --- DETEKSI USAPAN / SENTUHAN ---
+  // --- DETEKSI USAPAN / SENTUHAN (LOCKED UNTIL VIDEO FINISH) ---
   const handlePointerAction = (clientY) => {
+    // Jika reaksi sedang berjalan, abaikan sentuhan baru agar video tidak berkedip/restart
+    if (activeReactionRef.current) return;
     if (!avatarContainerRef.current) return;
+
     const rect = avatarContainerRef.current.getBoundingClientRect();
     const relativeY = (clientY - rect.top) / rect.height;
 
     if (relativeY < 0.35) {
       setActiveReaction('kepala');
     } else if (relativeY < 0.65) {
-      setActiveReaction('peluk');
+      setActiveReaction('peluk'); // Dada disentuh / diusap -> Peluk.webm
     } else {
       setActiveReaction('marah');
     }
@@ -1151,6 +1159,8 @@ const styles = {
     cursor: 'pointer',
     touchAction: 'none',
     userSelect: 'none',
+    WebkitUserSelect: 'none',
+    WebkitTapHighlightColor: 'transparent', // Menghilangkan kotak sorot biru/abu-abu saat disentuh
   },
   avatarVideo: {
     position: 'absolute',
@@ -1159,7 +1169,9 @@ const styles = {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
-    transition: 'opacity 0.3s ease-in-out',
+    transition: 'opacity 0.2s linear',
+    pointerEvents: 'none',
+    WebkitTapHighlightColor: 'transparent',
   },
   chatBox: {
     flex: 1,
@@ -1173,7 +1185,7 @@ const styles = {
     maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitOverflowScrolling: 'touch',
-    pointerEvents: 'none', // Menembuskan sentuhan ke avatar
+    pointerEvents: 'none',
   },
   topSpacer: {
     minHeight: 'clamp(180px, 35vh, 240px)',
@@ -1194,7 +1206,7 @@ const styles = {
     WebkitBackdropFilter: 'blur(16px)',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     wordBreak: 'break-word',
-    pointerEvents: 'auto', // Mengaktifkan klik kembali hanya pada balon pesan
+    pointerEvents: 'auto',
   },
   userBubble: { 
     backgroundColor: 'rgba(249, 115, 22, 0.9)', 
