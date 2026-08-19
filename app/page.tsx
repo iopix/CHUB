@@ -26,7 +26,7 @@ interface Message {
 }
 
 interface TrialPreset {
-  reply: string;
+  reply: (name: string) => string;
   emotion: string;
 }
 
@@ -68,18 +68,18 @@ const IconAutoVoiceOff = () => (
   </svg>
 );
 
-// --- TRIAL PRESETS ---
+// --- TRIAL PRESETS (MENGGUNAKAN DYNAMIC NAME) ---
 const TRIAL_PRESETS: Record<string, TrialPreset> = {
   'Peluk boleh?': {
-    reply: 'Boleh sayang, sini saya peluk erat kamu dengan sepenuh jiwa raga.',
+    reply: (name: string) => `Boleh ${name}, sini saya peluk erat kamu dengan sepenuh jiwa raga.`,
     emotion: 'romantic',
   },
   'Temani saya mengobrol': {
-    reply: 'Baik, saya akan mengobrol dengan kamu,',
+    reply: (name: string) => `Tentu ${name}, saya akan mengobrol dan menemani hari-harimu.`,
     emotion: 'neutral',
   },
   'Coba kata kasar': {
-    reply: 'Kamu. Jangan kasar ya. no no no ,ya.',
+    reply: (name: string) => `Maaf ${name}, jangan berkata kasar ya. No no no!`,
     emotion: 'angry',
   },
 };
@@ -89,11 +89,21 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [trialCount, setTrialCount] = useState<number>(0);
 
+  // Helper untuk mendapatkan nama panggilan user
+  const getUserName = (): string => {
+    if (!userProfile) return "sayang";
+    if (userProfile.username) return userProfile.username;
+    if (userProfile.email) return userProfile.email.split('@')[0];
+    return 'sayang';
+  };
+
   useEffect(() => {
     const userData = localStorage.getItem('user');
+    let loadedUser: UserProfile | null = null;
     if (userData) {
       try {
-        setUserProfile(JSON.parse(userData));
+        loadedUser = JSON.parse(userData);
+        setUserProfile(loadedUser);
       } catch {
         localStorage.removeItem('user');
         setUserProfile(null);
@@ -105,6 +115,23 @@ export default function Home() {
     const savedTrial = localStorage.getItem('trial_count');
     if (savedTrial) {
       setTrialCount(parseInt(savedTrial, 10));
+    }
+
+    // Set Greeting Awal dengan Nama User
+    const name = loadedUser?.username || (loadedUser?.email ? loadedUser.email.split('@')[0] : 'sayang');
+    const initialGreeting = `Halo ${name}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
+    const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
+    
+    setMessages([initialMsg]);
+    setDisplayMessages([initialMsg]);
+    setInputDisabled(true);
+
+    if (autoVoice) {
+      setTimeout(() => {
+        speakText(initialGreeting, 0);
+      }, 500);
+    } else {
+      setInputDisabled(false);
     }
   }, []);
 
@@ -182,7 +209,8 @@ export default function Home() {
     const year = now.getFullYear();
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `Hari ini ${dayName}, ${date} ${monthName} ${year}, jam ${hours}.${minutes} sayang. Ada yang bisa aku bantu?`;
+    const name = getUserName();
+    return `Hari ini ${dayName}, ${date} ${monthName} ${year}, jam ${hours}.${minutes}, ${name}. Ada yang bisa aku bantu?`;
   };
 
   useEffect(() => {
@@ -260,36 +288,14 @@ export default function Home() {
     isInteractingRef.current = false;
   };
 
-  // --- CLEANUP TEKS (MENGHAPUS 'IM SORRY' / 'MAAF') ---
+  // --- CLEANUP TEKS ---
   const sanitizeText = (text: string): string => {
     if (!text) return '';
     return text
-      .replace(/i'm sorry|im sorry|sorry|maaf/gi, '')
+      .replace(/i'm sorry|im sorry|sorry|maaf/gi, 'Maaf')
       .replace(/\s+/g, ' ')
       .trim();
   };
-
-  useEffect(() => {
-    const initialGreeting = 'Hai, Perkenalkan , Saya SukaChub virtual chat yang akan menemani kamu , merindukan kehangatan dan kehadiran kamu.';
-    const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
-    setMessages([initialMsg]);
-    setDisplayMessages([initialMsg]);
-
-    setInputDisabled(true);
-
-    if (!autoVoice) {
-      setInputDisabled(false);
-    } else {
-      setTimeout(() => {
-        if (autoVoice) speakText(initialGreeting, 0);
-      }, 500);
-    }
-
-    return () => {
-      stopAudio();
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -315,7 +321,8 @@ export default function Home() {
     setIsTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    const initialGreeting = 'Hai, Perkenalkan , Saya SukaChub virtual chat yang akan menemani kamu , merindukan kehangatan dan kehadiran kamu.';
+    const name = getUserName();
+    const initialGreeting = `Halo ${name}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
     const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
@@ -582,6 +589,8 @@ export default function Home() {
   };
 
   const handlePillClick = (presetKey: string) => {
+    const name = getUserName();
+
     if (userProfile) {
       handleSend(presetKey);
       return;
@@ -604,7 +613,7 @@ export default function Home() {
     setMessages(newMessages);
     setDisplayMessages(prev => [...prev, userMsg]);
 
-    const cleanedReply = sanitizeText(preset.reply);
+    const cleanedReply = sanitizeText(preset.reply(name));
     const aiMsg: Message = { role: 'assistant', content: '', isTyping: true };
     const updatedMessages: Message[] = [...newMessages, { role: 'assistant', content: cleanedReply }];
     setMessages(updatedMessages);
@@ -650,11 +659,13 @@ export default function Home() {
     setLoading(true);
 
     try {
+      const name = getUserName();
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: newMessages.map(m => ({ role: m.role, content: m.content }))
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          userName: name, // Kirim nama user ke backend API
         }),
       });
 
@@ -673,14 +684,14 @@ export default function Home() {
         typeMessageWithAudio(cleanedReply, displayIndex);
 
       } else {
-        const errorMsg = `Error: ${data.error || 'Gagal tersambung.'}`;
+        const errorMsg = `Maaf ${getUserName()}, ada masalah teknis: ${data.error || 'Gagal tersambung.'}`;
         setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
         setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
         setLoading(false);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      const errorMsg = `Error Network: ${errorMessage}`;
+      const errorMsg = `Maaf ${getUserName()}, koneksi terputus (${errorMessage})`;
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
       setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
       setLoading(false);
@@ -744,9 +755,7 @@ export default function Home() {
               backgroundColor: userProfile ? 'rgba(249, 115, 22, 0.15)' : 'rgba(239, 68, 68, 0.2)',
               color: userProfile ? '#f97316' : '#ef4444'
             }}>
-              {userProfile
-                ? (userProfile.username || userProfile.email || 'User')
-                : 'Belum Login'}
+              {getUserName()}
             </span>
           </div>
 
@@ -818,7 +827,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: MARAH (KEPALA DISENTUH) */}
+            {/* REAKSI: MARAH */}
             <video
               ref={videoMarahRef}
               src="/Marah.webm"
@@ -832,7 +841,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: PELUK (DADA DISENTUH) */}
+            {/* REAKSI: PELUK */}
             <video
               ref={videoPelukRef}
               src="/Peluk.webm"
@@ -846,7 +855,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: KEPALA (KAKI KIRI/KANAN DISENTUH) */}
+            {/* REAKSI: KEPALA */}
             <video
               ref={videoKepalaRef}
               src="/Kepala.webm"
@@ -876,7 +885,7 @@ export default function Home() {
                     fontStyle: 'italic',
                   }}>
                     {msg.role === 'user'
-                      ? (userProfile?.username || userProfile?.email || 'User')
+                      ? getUserName()
                       : 'SukaChub Virtual Chat'}
                   </span>
                   {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
@@ -949,7 +958,7 @@ export default function Home() {
                   : "Trial habis. Silakan login..."
                 : inputDisabled
                   ? "Tunggu AI selesai bicara..."
-                  : "Ketik pesan hangat..."
+                  : `Ketik pesan untuk SukaChub...`
             }
             style={{
               ...styles.input,
