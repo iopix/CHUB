@@ -96,7 +96,7 @@ export default function Home() {
   const [inputDisabled, setInputDisabled] = useState(true);
 
   // --- REAKSI INTERAKTIF AVATAR ---
-  const [activeReaction, setActiveReaction] = useState(null); // 'kepala' | 'peluk' | 'marah' | null
+  const [activeReaction, setActiveReaction] = useState(null); // 'peluk' | 'marah' | null
   const activeReactionRef = useRef(null);
   const isInteractingRef = useRef(false);
 
@@ -113,7 +113,6 @@ export default function Home() {
   // Video Refs
   const videoIdleRef = useRef(null);
   const videoARef = useRef(null);
-  const videoKepalaRef = useRef(null);
   const videoPelukRef = useRef(null);
   const videoMarahRef = useRef(null);
   
@@ -164,9 +163,9 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // --- SWITCH VIDEO TANPA FLICKER / GLITCH ---
+  // --- SWITCH VIDEO TANPA FLICKER ---
   const switchVideo = (activeVideoRef) => {
-    const allVideos = [videoIdleRef, videoARef, videoKepalaRef, videoPelukRef, videoMarahRef];
+    const allVideos = [videoIdleRef, videoARef, videoPelukRef, videoMarahRef];
 
     allVideos.forEach((ref) => {
       if (ref.current && ref.current !== activeVideoRef?.current) {
@@ -185,12 +184,10 @@ export default function Home() {
 
   // --- CONTROL ACTIVE VIDEO ---
   useEffect(() => {
-    if (activeReaction === 'kepala') {
-      switchVideo(videoKepalaRef);
+    if (activeReaction === 'marah') {
+      switchVideo(videoMarahRef);
     } else if (activeReaction === 'peluk') {
       switchVideo(videoPelukRef);
-    } else if (activeReaction === 'marah') {
-      switchVideo(videoMarahRef);
     } else if (isSpeaking) {
       switchVideo(videoARef);
     } else {
@@ -198,21 +195,18 @@ export default function Home() {
     }
   }, [activeReaction, isSpeaking]);
 
-  // --- DETEKSI USAPAN / SENTUHAN (LOCKED UNTIL VIDEO FINISH) ---
+  // --- DETEKSI USAPAN / SENTUHAN ---
   const handlePointerAction = (clientY) => {
-    // Jika reaksi sedang berjalan, abaikan sentuhan baru agar video tidak berkedip/restart
-    if (activeReactionRef.current) return;
+    if (activeReactionRef.current) return; // Mencegah restart saat video reaksi sedang berjalan
     if (!avatarContainerRef.current) return;
 
     const rect = avatarContainerRef.current.getBoundingClientRect();
     const relativeY = (clientY - rect.top) / rect.height;
 
     if (relativeY < 0.35) {
-      setActiveReaction('kepala');
+      setActiveReaction('marah'); // KEPALA DISENTUH -> Marah.webm
     } else if (relativeY < 0.65) {
-      setActiveReaction('peluk'); // Dada disentuh / diusap -> Peluk.webm
-    } else {
-      setActiveReaction('marah');
+      setActiveReaction('peluk'); // DADA DISENTUH -> Peluk.webm
     }
   };
 
@@ -229,6 +223,15 @@ export default function Home() {
 
   const handlePointerUp = () => {
     isInteractingRef.current = false;
+  };
+
+  // --- CLEANUP TEKS (MENGHAPUS 'IM SORRY' / 'MAAF') ---
+  const sanitizeText = (text) => {
+    if (!text) return '';
+    return text
+      .replace(/i'm sorry|im sorry|sorry|maaf/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   };
 
   useEffect(() => {
@@ -292,12 +295,14 @@ export default function Home() {
   };
 
   const typeMessageWithAudio = async (fullText, messageIndex) => {
+    const cleanedFullText = sanitizeText(fullText);
+
     setDisplayMessages(prev => {
       const updated = [...prev];
       if (updated[messageIndex]) {
         updated[messageIndex] = { 
           ...updated[messageIndex], 
-          content: fullText,
+          content: cleanedFullText,
           isTyping: false 
         };
       }
@@ -306,7 +311,7 @@ export default function Home() {
 
     if (autoVoice) {
       try {
-        const cleanText = fullText.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
+        const cleanText = cleanedFullText.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
         if (!cleanText) {
           if (messageIndex === 0) setInputDisabled(false);
           return;
@@ -329,7 +334,7 @@ export default function Home() {
 
         audio.onplay = () => {
           setPlayingIndex(messageIndex);
-          startTypingEffect(fullText, messageIndex);
+          startTypingEffect(cleanedFullText, messageIndex);
         };
 
         audio.onended = () => {
@@ -346,7 +351,7 @@ export default function Home() {
             if (updated[messageIndex]) {
               updated[messageIndex] = { 
                 ...updated[messageIndex], 
-                content: fullText,
+                content: cleanedFullText,
                 isTyping: false 
               };
             }
@@ -366,7 +371,7 @@ export default function Home() {
           if (updated[messageIndex]) {
             updated[messageIndex] = { 
               ...updated[messageIndex], 
-              content: fullText,
+              content: cleanedFullText,
               isTyping: false 
             };
           }
@@ -382,7 +387,7 @@ export default function Home() {
         if (updated[messageIndex]) {
           updated[messageIndex] = { 
             ...updated[messageIndex], 
-            content: fullText,
+            content: cleanedFullText,
             isTyping: false 
           };
         }
@@ -482,7 +487,7 @@ export default function Home() {
       audioRef.current = null;
     }
 
-    const cleanText = text.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
+    const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
     const targetIndex = index;
@@ -564,14 +569,15 @@ export default function Home() {
     setMessages(newMessages);
     setDisplayMessages(prev => [...prev, userMsg]);
 
+    const cleanedReply = sanitizeText(preset.reply);
     const aiMsg = { role: 'assistant', content: '', isTyping: true };
-    const updatedMessages = [...newMessages, { role: 'assistant', content: preset.reply }];
+    const updatedMessages = [...newMessages, { role: 'assistant', content: cleanedReply }];
     setMessages(updatedMessages);
 
     const displayIndex = updatedMessages.length - 1;
     setDisplayMessages(prev => [...prev, aiMsg]);
 
-    typeMessageWithAudio(preset.reply, displayIndex);
+    typeMessageWithAudio(cleanedReply, displayIndex);
   };
 
   const handleSend = async (textToSend) => {
@@ -621,14 +627,15 @@ export default function Home() {
       if (res.ok && data.reply) {
         if (data.remainingTokens) setRemainingTokens(data.remainingTokens);
         
+        const cleanedReply = sanitizeText(data.reply);
         const aiMsg = { role: 'assistant', content: '', isTyping: true };
-        const updatedMessages = [...newMessages, { role: 'assistant', content: data.reply }];
+        const updatedMessages = [...newMessages, { role: 'assistant', content: cleanedReply }];
         setMessages(updatedMessages);
         
         const displayIndex = updatedMessages.length - 1;
         setDisplayMessages(prev => [...prev, aiMsg]);
         
-        typeMessageWithAudio(data.reply, displayIndex);
+        typeMessageWithAudio(cleanedReply, displayIndex);
         
       } else {
         const errorMsg = `Error: ${data.error || 'Gagal tersambung.'}`;
@@ -775,17 +782,17 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: KEPALA */}
+            {/* REAKSI: MARAH (KEPALA) */}
             <video
-              ref={videoKepalaRef}
-              src="/Kepala.webm"
+              ref={videoMarahRef}
+              src="/Marah.webm"
               muted
               playsInline
               preload="auto"
               onEnded={() => setActiveReaction(null)}
               style={{
                 ...styles.avatarVideo,
-                opacity: activeReaction === 'kepala' ? 1 : 0,
+                opacity: activeReaction === 'marah' ? 1 : 0,
               }}
             />
 
@@ -800,20 +807,6 @@ export default function Home() {
               style={{
                 ...styles.avatarVideo,
                 opacity: activeReaction === 'peluk' ? 1 : 0,
-              }}
-            />
-
-            {/* REAKSI: MARAH (PERUT KE BAWAH) */}
-            <video
-              ref={videoMarahRef}
-              src="/Marah.webm"
-              muted
-              playsInline
-              preload="auto"
-              onEnded={() => setActiveReaction(null)}
-              style={{
-                ...styles.avatarVideo,
-                opacity: activeReaction === 'marah' ? 1 : 0,
               }}
             />
           </div>
@@ -1160,7 +1153,7 @@ const styles = {
     touchAction: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
-    WebkitTapHighlightColor: 'transparent', // Menghilangkan kotak sorot biru/abu-abu saat disentuh
+    WebkitTapHighlightColor: 'transparent',
   },
   avatarVideo: {
     position: 'absolute',
