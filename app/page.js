@@ -96,7 +96,7 @@ export default function Home() {
   const [inputDisabled, setInputDisabled] = useState(true);
 
   // --- REAKSI INTERAKTIF AVATAR ---
-  const [activeReaction, setActiveReaction] = useState(null); // 'peluk' | 'marah' | null
+  const [activeReaction, setActiveReaction] = useState(null); // 'kepala' | 'peluk' | 'marah' | null
   const activeReactionRef = useRef(null);
   const isInteractingRef = useRef(false);
 
@@ -113,6 +113,7 @@ export default function Home() {
   // Video Refs
   const videoIdleRef = useRef(null);
   const videoARef = useRef(null);
+  const videoKepalaRef = useRef(null);
   const videoPelukRef = useRef(null);
   const videoMarahRef = useRef(null);
   
@@ -165,7 +166,7 @@ export default function Home() {
 
   // --- SWITCH VIDEO TANPA FLICKER ---
   const switchVideo = (activeVideoRef) => {
-    const allVideos = [videoIdleRef, videoARef, videoPelukRef, videoMarahRef];
+    const allVideos = [videoIdleRef, videoARef, videoKepalaRef, videoPelukRef, videoMarahRef];
 
     allVideos.forEach((ref) => {
       if (ref.current && ref.current !== activeVideoRef?.current) {
@@ -184,7 +185,9 @@ export default function Home() {
 
   // --- CONTROL ACTIVE VIDEO ---
   useEffect(() => {
-    if (activeReaction === 'marah') {
+    if (activeReaction === 'kepala') {
+      switchVideo(videoKepalaRef);
+    } else if (activeReaction === 'marah') {
       switchVideo(videoMarahRef);
     } else if (activeReaction === 'peluk') {
       switchVideo(videoPelukRef);
@@ -196,7 +199,7 @@ export default function Home() {
   }, [activeReaction, isSpeaking]);
 
   // --- DETEKSI USAPAN / SENTUHAN ---
-  const handlePointerAction = (clientY) => {
+  const handlePointerAction = (clientX, clientY) => {
     if (activeReactionRef.current) return; // Mencegah restart saat video reaksi sedang berjalan
     if (!avatarContainerRef.current) return;
 
@@ -207,17 +210,19 @@ export default function Home() {
       setActiveReaction('marah'); // KEPALA DISENTUH -> Marah.webm
     } else if (relativeY < 0.65) {
       setActiveReaction('peluk'); // DADA DISENTUH -> Peluk.webm
+    } else {
+      setActiveReaction('kepala'); // KAKI KIRI / KANAN DISENTUH -> Kepala.webm
     }
   };
 
   const handlePointerDown = (e) => {
     isInteractingRef.current = true;
-    handlePointerAction(e.clientY);
+    handlePointerAction(e.clientX, e.clientY);
   };
 
   const handlePointerMove = (e) => {
     if (isInteractingRef.current) {
-      handlePointerAction(e.clientY);
+      handlePointerAction(e.clientX, e.clientY);
     }
   };
 
@@ -782,7 +787,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: MARAH (KEPALA) */}
+            {/* REAKSI: MARAH (KEPALA DISENTUH) */}
             <video
               ref={videoMarahRef}
               src="/Marah.webm"
@@ -796,7 +801,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: PELUK (DADA) */}
+            {/* REAKSI: PELUK (DADA DISENTUH) */}
             <video
               ref={videoPelukRef}
               src="/Peluk.webm"
@@ -807,6 +812,20 @@ export default function Home() {
               style={{
                 ...styles.avatarVideo,
                 opacity: activeReaction === 'peluk' ? 1 : 0,
+              }}
+            />
+
+            {/* REAKSI: KEPALA (KAKI KIRI/KANAN DISENTUH) */}
+            <video
+              ref={videoKepalaRef}
+              src="/Kepala.webm"
+              muted
+              playsInline
+              preload="auto"
+              onEnded={() => setActiveReaction(null)}
+              style={{
+                ...styles.avatarVideo,
+                opacity: activeReaction === 'kepala' ? 1 : 0,
               }}
             />
           </div>
