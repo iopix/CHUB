@@ -71,15 +71,15 @@ const IconAutoVoiceOff = () => (
 // --- TRIAL PRESETS (MENGGUNAKAN DYNAMIC NAME) ---
 const TRIAL_PRESETS: Record<string, TrialPreset> = {
   'Peluk boleh?': {
-    reply: (name: string) => `Boleh banget ${name} sayang, sini aku peluk erat kamu ya...`,
+    reply: (name: string) => `Boleh ${name}, sini saya peluk erat kamu dengan sepenuh jiwa raga.`,
     emotion: 'romantic',
   },
   'Temani saya mengobrol': {
-    reply: (name: string) => `Tentu ${name} sayang, aku selalu siap menemani hari-harimu. Ada cerita apa hari ini?`,
+    reply: (name: string) => `Tentu ${name}, saya akan mengobrol dan menemani hari-harimu.`,
     emotion: 'neutral',
   },
   'Coba kata kasar': {
-    reply: (name: string) => `Maaf ${name} sayang, jangan berkata kasar ya. Nanti aku sedih lho...`,
+    reply: (name: string) => `Maaf ${name}, jangan berkata kasar ya. No no no!`,
     emotion: 'angry',
   },
 };
@@ -89,13 +89,51 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [trialCount, setTrialCount] = useState<number>(0);
 
-  // Helper untuk mendapatkan nama panggilan user (Default: 'kamu')
+  // Helper untuk mendapatkan nama panggilan user
   const getUserName = (): string => {
-    if (!userProfile) return 'kamu';
+    if (!userProfile) return "nama kamu";
     if (userProfile.username) return userProfile.username;
     if (userProfile.email) return userProfile.email.split('@')[0];
-    return 'kamu';
+    return 'sayang';
   };
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    let loadedUser: UserProfile | null = null;
+    if (userData) {
+      try {
+        loadedUser = JSON.parse(userData);
+        setUserProfile(loadedUser);
+      } catch {
+        localStorage.removeItem('user');
+        setUserProfile(null);
+      }
+    } else {
+      setUserProfile(null);
+    }
+
+    const savedTrial = localStorage.getItem('trial_count');
+    if (savedTrial) {
+      setTrialCount(parseInt(savedTrial, 10));
+    }
+
+    // Set Greeting Awal dengan Nama User
+    const name = loadedUser?.username || (loadedUser?.email ? loadedUser.email.split('@')[0] : 'sayang');
+    const initialGreeting = `Halo ${name}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
+    const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
+    
+    setMessages([initialMsg]);
+    setDisplayMessages([initialMsg]);
+    setInputDisabled(true);
+
+    if (autoVoice) {
+      setTimeout(() => {
+        speakText(initialGreeting, 0);
+      }, 500);
+    } else {
+      setInputDisabled(false);
+    }
+  }, []);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
@@ -141,44 +179,6 @@ export default function Home() {
   const isSpeaking = playingIndex !== null;
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    let loadedUser: UserProfile | null = null;
-    if (userData) {
-      try {
-        loadedUser = JSON.parse(userData);
-        setUserProfile(loadedUser);
-      } catch {
-        localStorage.removeItem('user');
-        setUserProfile(null);
-      }
-    } else {
-      setUserProfile(null);
-    }
-
-    const savedTrial = localStorage.getItem('trial_count');
-    if (savedTrial) {
-      setTrialCount(parseInt(savedTrial, 10));
-    }
-
-    // Set Greeting Awal dengan Nama User + Sayang (Fallback: kamu)
-    const name = loadedUser?.username || (loadedUser?.email ? loadedUser.email.split('@')[0] : 'kamu');
-    const initialGreeting = `Hai, ${name} . Kenalin aku SukaChub virtual chat. Ada cerita atau hal yang ingin kamu bagi? Aku selalu menunggu untuk berinteraksi denganmu.`;
-    const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
-    
-    setMessages([initialMsg]);
-    setDisplayMessages([initialMsg]);
-    setInputDisabled(true);
-
-    if (autoVoice) {
-      setTimeout(() => {
-        speakText(initialGreeting, 0);
-      }, 500);
-    } else {
-      setInputDisabled(false);
-    }
-  }, []);
-
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
@@ -210,7 +210,7 @@ export default function Home() {
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const name = getUserName();
-    return `Hari ini ${dayName}, ${date} ${monthName} ${year}, jam ${hours}:${minutes}, ${name} sayang. Ada yang bisa aku bantu?`;
+    return `Hari ini ${dayName}, ${date} ${monthName} ${year}, jam ${hours}.${minutes}, ${name}. Ada yang bisa aku bantu?`;
   };
 
   useEffect(() => {
@@ -322,7 +322,7 @@ export default function Home() {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     const name = getUserName();
-    const initialGreeting = `Hai, ${name} . Kenalin aku SukaChub virtual chat. Ada cerita atau hal yang ingin kamu bagi? Aku selalu menunggu untuk berinteraksi denganmu.`;
+    const initialGreeting = `Halo ${name}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
     const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
@@ -665,7 +665,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          userName: name,
+          userName: name, // Kirim nama user ke backend API
         }),
       });
 
@@ -684,13 +684,14 @@ export default function Home() {
         typeMessageWithAudio(cleanedReply, displayIndex);
 
       } else {
-        const errorMsg = `Maaf ${getUserName()} sayang, ada masalah teknis sedikit: ${data.error || 'Gagal terhubung.'}`;
+        const errorMsg = `Maaf ${getUserName()}, ada masalah teknis: ${data.error || 'Gagal tersambung.'}`;
         setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
         setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
         setLoading(false);
       }
     } catch (err: unknown) {
-      const errorMsg = `Maaf ${getUserName()} sayang, koneksi kita terputus sebentar. Coba lagi yuk!`;
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorMsg = `Maaf ${getUserName()}, koneksi terputus (${errorMessage})`;
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
       setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
       setLoading(false);
@@ -747,31 +748,15 @@ export default function Home() {
 
           <div style={styles.titleWrapper}>
             <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
-              SukaChub virtual chat
+              SukaChub your virtual chat
             </h1>
-            {userProfile ? (
-              <span style={{
-                ...styles.userBadge,
-                backgroundColor: 'rgba(249, 115, 22, 0.15)',
-                color: '#f97316'
-              }}>
-                {getUserName()}
-              </span>
-            ) : (
-              <button
-                onClick={() => router.push('/login')}
-                style={{
-                  ...styles.userBadge,
-                  backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                  color: '#22c55e',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: '600'
-                }}
-              >
-                Login
-              </button>
-            )}
+            <span style={{
+              ...styles.userBadge,
+              backgroundColor: userProfile ? 'rgba(249, 115, 22, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+              color: userProfile ? '#f97316' : '#ef4444'
+            }}>
+              {getUserName()}
+            </span>
           </div>
 
           {userProfile && remainingTokens !== null && !isMobile && (
@@ -938,7 +923,7 @@ export default function Home() {
                   <span style={{ color: '#fb923c' }}>.</span>
                   <span style={{ color: '#fdba74' }}>.</span>
                 </span>
-                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang memikirkan kamu...</span>
+                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang mikir...</span>
               </div>
             </div>
           )}
@@ -972,8 +957,8 @@ export default function Home() {
                   ? `Trial ${3 - trialCount}/3 (Klik tombol saran di atas)...`
                   : "Trial habis. Silakan login..."
                 : inputDisabled
-                  ? "Tunggu sebentar ya..."
-                  : `Ketik pesan manis untuk SukaChub...`
+                  ? "Tunggu AI selesai bicara..."
+                  : `Ketik pesan untuk SukaChub...`
             }
             style={{
               ...styles.input,
