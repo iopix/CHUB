@@ -4,6 +4,14 @@ import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 
 // --- ICONS ---
+const IconMenu = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
 const IconSpeaker = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -106,7 +114,7 @@ export default function Home() {
     }
   }, []);
 
-  // --- SEMUA STATE CHAT ---
+  // --- SEMUA STATE CHAT & MENU ---
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -116,6 +124,7 @@ export default function Home() {
   const [remainingTokens, setRemainingTokens] = useState(null);
   const [emotion, setEmotion] = useState('neutral');
   const [isMobile, setIsMobile] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const [displayMessages, setDisplayMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -127,6 +136,7 @@ export default function Home() {
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const menuRef = useRef(null);
   
   const videoIdleRef = useRef(null);
   const videoARef = useRef(null);
@@ -137,6 +147,17 @@ export default function Home() {
   const abortControllerRef = useRef(null);
 
   const isSpeaking = playingIndex !== null;
+
+  // Click outside listener untuk menutup menu grid
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // --- FUNGSI WAKTU ---
   const isTimeQuestion = (text) => {
@@ -519,18 +540,84 @@ export default function Home() {
       <div style={styles.container}>
         <header style={styles.header}>
           <div style={styles.headerTitleGroup}>
-            <div style={styles.statusDot} />
-            <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
-              SukaChub Virtual Chat
-            </h1>
+            {/* SVG Strip 3 (Hamburger Icon) untuk Toggle Menu */}
+            <div style={{ position: 'relative' }} ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                style={styles.menuBtn}
+                title="Buka Menu"
+              >
+                <IconMenu />
+              </button>
+              
+              {/* Dropdown Menu 1 Kolom ke Bawah */}
+              {isMenuOpen && (
+                <div style={styles.dropdownGrid}>
+                  <a
+                    href="https://ipix.my.id"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.gridItem}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    ipix.my.id
+                  </a>
+                  <a
+                    href="https://ipixchat.my.id"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.gridItem}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    ipixchat.my.id
+                  </a>
+                  <a
+                    href="https://sukachub.my.id"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.gridItem}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    sukachub.my.id
+                  </a>
+                  <a
+                    href="https://ipix.fun"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.gridItem}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    ipix.fun
+                  </a>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleLogout();
+                    }}
+                    style={{ ...styles.gridItem, ...styles.gridLogout }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Title Header & Username tepat di bawahnya */}
+            <div style={styles.titleWrapper}>
+              <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
+                SukaChub your virtual chat
+              </h1>
+              {userProfile && (
+                <span style={styles.userBadge}>
+                  {userProfile.username || userProfile.email || 'User'}
+                </span>
+              )}
+            </div>
+
             {remainingTokens !== null && !isMobile && (
               <span style={styles.tokenBadge}>
                 {Number(remainingTokens).toLocaleString('id-ID')} Tkn
-              </span>
-            )}
-            {userProfile && (
-              <span style={styles.userBadge}>
-                {userProfile.username || userProfile.email || 'User'}
               </span>
             )}
           </div>
@@ -551,10 +638,7 @@ export default function Home() {
               }}
             >
               {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-              <span>{autoVoice ? 'ON' : 'OFF'}</span>
-            </button>
-            <button onClick={handleLogout} style={styles.logoutButton}>
-              Logout
+              <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
             </button>
           </div>
         </header>
@@ -634,11 +718,13 @@ export default function Home() {
                   <div style={styles.roleHeader}>
                     <span style={{ 
                       ...styles.roleLabel, 
-                      color: msg.role === 'assistant' ? '#fb923c' : '#000000',
+                      color: msg.role === 'assistant' ? '#fb923c' : '#ffffff',
                       fontWeight: '700',
                       fontStyle: 'italic',
                     }}>
-                      {msg.role === 'user' ? 'Sayang' : 'SukaChub Virtual Chat'}
+                      {msg.role === 'user' 
+                        ? (userProfile?.username || userProfile?.email || 'User') 
+                        : 'SukaChub Virtual Chat'}
                     </span>
                     {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
                       <button
@@ -764,23 +850,82 @@ const styles = {
   headerTitleGroup: { 
     display: 'flex', 
     alignItems: 'center', 
-    gap: '6px',
+    gap: '10px',
     flex: '1 1 auto',
     minWidth: '120px',
   },
-  statusDot: { 
-    width: '7px', 
-    height: '7px', 
-    borderRadius: '50%', 
-    backgroundColor: '#f97316', 
-    boxShadow: '0 0 8px #f97316',
+  menuBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '2px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    outline: 'none',
     flexShrink: 0,
+  },
+  dropdownGrid: {
+    position: 'absolute',
+    top: 'calc(100% + 12px)',
+    left: 0,
+    backgroundColor: '#18181b',
+    border: '1px solid #3f3f46',
+    borderRadius: '16px',
+    padding: '10px',
+    display: 'grid',
+    gridTemplateColumns: '1fr', // 1 kolom membujur ke bawah
+    gap: '8px',
+    zIndex: 100,
+    boxShadow: '0 12px 32px rgba(0,0,0,0.8)',
+    minWidth: '180px',
+  },
+  gridItem: {
+    backgroundColor: '#27272a',
+    color: '#f4f4f5',
+    padding: '8px 12px',
+    borderRadius: '10px',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    textAlign: 'center',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    border: '1px solid #3f3f46',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridLogout: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    color: '#ef4444',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    fontWeight: '600',
+    marginTop: '2px',
+  },
+  titleWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '2px',
   },
   title: { 
     fontSize: 'clamp(0.75rem, 3vw, 0.88rem)', 
     fontWeight: '600', 
     margin: 0, 
     letterSpacing: '-0.01em',
+    whiteSpace: 'nowrap',
+  },
+  userBadge: {
+    fontSize: '0.65rem',
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
+    color: '#f97316',
+    padding: '1px 8px',
+    borderRadius: '10px',
+    fontWeight: '600',
+    maxWidth: '120px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
   tokenBadge: { 
@@ -791,18 +936,6 @@ const styles = {
     borderRadius: '12px', 
     fontWeight: '600',
     flexShrink: 0,
-  },
-  userBadge: {
-    fontSize: '0.6rem',
-    backgroundColor: 'rgba(249, 115, 22, 0.15)',
-    color: '#f97316',
-    padding: '2px 8px',
-    borderRadius: '12px',
-    fontWeight: '600',
-    maxWidth: '90px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
   },
   voiceControlGroup: { 
     display: 'flex', 
@@ -823,26 +956,15 @@ const styles = {
   autoVoiceBtn: { 
     display: 'flex', 
     alignItems: 'center', 
-    gap: '3px', 
+    gap: '4px', 
     border: '1px solid', 
     borderRadius: '12px', 
-    padding: '4px 8px', 
+    padding: '4px 10px', 
     fontSize: 'clamp(0.55rem, 1.8vw, 0.72rem)', 
     fontWeight: '600', 
     cursor: 'pointer', 
     transition: 'all 0.2s',
     flexShrink: 0,
-  },
-  logoutButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    color: '#ef4444',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
-    borderRadius: '12px',
-    padding: '4px 10px',
-    fontSize: '0.7rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
   },
   chatBoxWrapper: {
     flex: 1,
