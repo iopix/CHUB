@@ -54,62 +54,6 @@ const TRIAL_PRESETS = {
   },
 };
 
-// --- EMOTION LOGIC ---
-const ROMANTIC_WORDS = [
-  'peluk', 'pelukan', 'memeluk', 'cium', 'ciuman', 'mencium', 'sayang', 'sayangku',
-  'hangat', 'kehangatan', 'cinta', 'rindu', 'kangen', 'manja', 'gemas', 'belai',
-  'merindukan', 'menyayangi', 'kasih', 'dekap', 'babe', 'honey', 'sweetheart', 
-  'mesra', 'romantis', 'indah', 'candu'
-];
-
-const ROMANTIC_PHRASES = [
-  'aku sayang kamu', 'aku cinta kamu', 'aku rindu kamu', 'aku kangen kamu',
-  'sayangku', 'cintaku', 'peluk aku', 'peluk saya', 'manja aku', 
-  'kangen banget', 'rindu banget', 'mesra ya', 'candu banget'
-];
-
-const HARSH_WORDS = [
-  'bodoh', 'bego', 'tolol', 'idiot', 'gila', 'kasar', 'jelek', 'babi', 'anjing',
-  'bangsat', 'sialan', 'bajingan', 'jancok', 'jancuk', 'mampus', 'setan', 'iblis',
-  'bacot', 'pantek', 'kontol', 'memek', 'pepek', 'ngentot', 'goblok', 'bebal',
-  'ngentod', 'tai', 'kampret', 'brengsek'
-];
-
-const NEGATION_WORDS = ['tidak', 'bukan', 'jangan', 'nggak', 'enggak', 'tak', 'kurang', 'tanpa', 'ga usah', 'jgn'];
-const MODERATION_PHRASES = ['sopan', 'bahasa seperti itu', 'tidak dapat melanjutkan', 'permintaan tersebut'];
-
-const detectEmotion = (text = '', userText = '') => {
-  if (!text && !userText) return 'neutral';
-  
-  const combinedText = `${text} ${userText}`.toLowerCase().replace(/[.,!?;:]/g, '');
-  const words = combinedText.split(/\s+/);
-
-  for (let i = 0; i < words.length; i++) {
-    if (HARSH_WORDS.includes(words[i])) {
-      const prevWords = words.slice(Math.max(0, i - 2), i);
-      const isNegated = prevWords.some(w => NEGATION_WORDS.includes(w));
-      if (!isNegated) return 'angry';
-    }
-  }
-
-  const lowerAIText = text.toLowerCase();
-  if (MODERATION_PHRASES.some(phrase => lowerAIText.includes(phrase))) {
-    return 'angry';
-  }
-
-  const hasRomanticPhrase = ROMANTIC_PHRASES.some(phrase => combinedText.includes(phrase));
-  let romanticWordCount = 0;
-  ROMANTIC_WORDS.forEach(word => {
-    if (combinedText.includes(word)) romanticWordCount++;
-  });
-
-  if (hasRomanticPhrase || romanticWordCount >= 2) {
-    return 'romantic'; 
-  }
-
-  return 'neutral'; 
-};
-
 export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState(null);
@@ -215,17 +159,11 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // --- SMOOTH VIDEO TRANSITION ---
+  // --- SWITCH VIDEO FUNCTION ---
   const switchVideo = (activeVideoRef) => {
-    const allVideos = [
-      { ref: videoIdleRef, name: 'idle' },
-      { ref: videoARef, name: 'A' },
-      { ref: videoKepalaRef, name: 'kepala' },
-      { ref: videoPelukRef, name: 'peluk' },
-      { ref: videoMarahRef, name: 'marah' }
-    ];
+    const allVideos = [videoIdleRef, videoARef, videoKepalaRef, videoPelukRef, videoMarahRef];
 
-    allVideos.forEach(({ ref }) => {
+    allVideos.forEach((ref) => {
       if (ref.current) {
         ref.current.pause();
         if (ref.current !== activeVideoRef?.current) {
@@ -240,7 +178,7 @@ export default function Home() {
     }
   };
 
-  // --- VIDEO CONTROL LOGIC ---
+  // --- CONTROL ACTIVE VIDEO ---
   useEffect(() => {
     if (activeReaction === 'kepala') {
       switchVideo(videoKepalaRef);
@@ -255,21 +193,18 @@ export default function Home() {
     }
   }, [activeReaction, isSpeaking]);
 
-  // --- SENTUHAN / USAPAN AVATAR LOGIC ---
+  // --- DETEKSI USAPAN / SENTUHAN ---
   const handlePointerAction = (clientY) => {
     if (!avatarContainerRef.current) return;
     const rect = avatarContainerRef.current.getBoundingClientRect();
     const relativeY = (clientY - rect.top) / rect.height;
 
     if (relativeY < 0.35) {
-      // Area Kepala
-      if (activeReaction !== 'kepala') setActiveReaction('kepala');
+      setActiveReaction('kepala');
     } else if (relativeY < 0.65) {
-      // Area Dada
-      if (activeReaction !== 'peluk') setActiveReaction('peluk');
+      setActiveReaction('peluk');
     } else {
-      // Area Perut ke bawah
-      if (activeReaction !== 'marah') setActiveReaction('marah');
+      setActiveReaction('marah');
     }
   };
 
@@ -348,8 +283,7 @@ export default function Home() {
     }
   };
 
-  // --- TYPING EFFECT WITH AUDIO SYNC ---
-  const typeMessageWithAudio = async (fullText, messageIndex, userQuery = '') => {
+  const typeMessageWithAudio = async (fullText, messageIndex) => {
     setDisplayMessages(prev => {
       const updated = [...prev];
       if (updated[messageIndex]) {
@@ -452,7 +386,6 @@ export default function Home() {
     }
   };
 
-  // --- TYPING EFFECT ---
   const startTypingEffect = (fullText, messageIndex) => {
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -522,7 +455,6 @@ export default function Home() {
     typingTimeoutRef.current = setTimeout(typeNextChar, 100);
   };
 
-  // --- SPEAK TEXT ---
   const speakText = async (text, index) => {
     if (!text) return;
     if (playingIndex === index) {
@@ -546,7 +478,6 @@ export default function Home() {
     if (!cleanText) return;
 
     const targetIndex = index;
-    
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -632,7 +563,7 @@ export default function Home() {
     const displayIndex = updatedMessages.length - 1;
     setDisplayMessages(prev => [...prev, aiMsg]);
 
-    typeMessageWithAudio(preset.reply, displayIndex, presetKey);
+    typeMessageWithAudio(preset.reply, displayIndex);
   };
 
   const handleSend = async (textToSend) => {
@@ -689,7 +620,7 @@ export default function Home() {
         const displayIndex = updatedMessages.length - 1;
         setDisplayMessages(prev => [...prev, aiMsg]);
         
-        typeMessageWithAudio(data.reply, displayIndex, query);
+        typeMessageWithAudio(data.reply, displayIndex);
         
       } else {
         const errorMsg = `Error: ${data.error || 'Gagal tersambung.'}`;
@@ -797,6 +728,7 @@ export default function Home() {
       </header>
 
       <div style={styles.chatBoxWrapper}>
+        {/* LAYER AVATAR INTERAKTIF */}
         <div style={styles.avatarLayer}>
           <div 
             ref={avatarContainerRef}
@@ -839,6 +771,7 @@ export default function Home() {
             <video
               ref={videoKepalaRef}
               src="/Kepala.webm"
+              muted
               playsInline
               preload="auto"
               onEnded={() => setActiveReaction(null)}
@@ -852,6 +785,7 @@ export default function Home() {
             <video
               ref={videoPelukRef}
               src="/Peluk.webm"
+              muted
               playsInline
               preload="auto"
               onEnded={() => setActiveReaction(null)}
@@ -865,6 +799,7 @@ export default function Home() {
             <video
               ref={videoMarahRef}
               src="/Marah.webm"
+              muted
               playsInline
               preload="auto"
               onEnded={() => setActiveReaction(null)}
@@ -876,6 +811,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* LAYER CHAT */}
         <div style={styles.chatBox}>
           <div style={styles.topSpacer} />
           {displayMessages.map((msg, index) => (
@@ -1237,14 +1173,18 @@ const styles = {
     maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitOverflowScrolling: 'touch',
-    pointerEvents: 'auto',
+    pointerEvents: 'none', // Menembuskan sentuhan ke avatar
   },
   topSpacer: {
     minHeight: 'clamp(180px, 35vh, 240px)',
     flexShrink: 0,
     pointerEvents: 'none',
   },
-  messageWrapper: { display: 'flex', width: '100%' },
+  messageWrapper: { 
+    display: 'flex', 
+    width: '100%',
+    pointerEvents: 'none',
+  },
   bubble: {
     maxWidth: '88%',
     padding: '10px 14px',
@@ -1254,6 +1194,7 @@ const styles = {
     WebkitBackdropFilter: 'blur(16px)',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     wordBreak: 'break-word',
+    pointerEvents: 'auto', // Mengaktifkan klik kembali hanya pada balon pesan
   },
   userBubble: { 
     backgroundColor: 'rgba(249, 115, 22, 0.9)', 
