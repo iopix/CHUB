@@ -38,19 +38,19 @@ const IconAutoVoiceOff = () => (
   </svg>
 );
 
-// --- TRIAL PRESETS (TANPA MEMICU API AI) ---
+// --- TRIAL PRESETS ---
 const TRIAL_PRESETS = {
   'Peluk boleh?': {
     reply: 'Boleh sayang, sini saya peluk erat kamu dengan sepenuh jiwa raga.',
-    emotion: 'romantic', // Memicu video H.webm
+    emotion: 'romantic',
   },
   'Temani saya mengobrol': {
     reply: 'Baik, saya akan mengobrol dengan kamu,',
-    emotion: 'neutral', // Memicu video A0.webm
+    emotion: 'neutral',
   },
   'Coba kata kasar': {
     reply: 'Kamu. Jangan kasar ya. no no no ,ya.',
-    emotion: 'angry', // Memicu video M.webm
+    emotion: 'angry',
   },
 };
 
@@ -115,7 +115,6 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState(null);
   const [trialCount, setTrialCount] = useState(0);
 
-  // Ambil data user & trial dari localStorage
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
@@ -135,7 +134,6 @@ export default function Home() {
     }
   }, []);
 
-  // --- STATE CHAT & MENU ---
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -154,7 +152,6 @@ export default function Home() {
 
   const [inputDisabled, setInputDisabled] = useState(true);
 
-  // --- REFS ---
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -170,7 +167,6 @@ export default function Home() {
 
   const isSpeaking = playingIndex !== null;
 
-  // Click outside listener
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -181,7 +177,6 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // --- FUNGSI WAKTU ---
   const isTimeQuestion = (text) => {
     const timeKeywords = [
       'hari ini', 'hari apa', 'tanggal berapa', 'jam berapa', 'waktu', 
@@ -206,7 +201,6 @@ export default function Home() {
     return `Hari ini ${dayName}, ${date} ${monthName} ${year}, jam ${hours}.${minutes} sayang. Ada yang bisa aku bantu?`;
   };
 
-  // --- DETECT MOBILE ---
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -216,34 +210,48 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // --- VIDEO CONTROL ---
-  useEffect(() => {
-    const allVideos = [videoIdleRef, videoARef, videoA0Ref, videoHRef, videoMRef];
-    allVideos.forEach(ref => {
+  // --- SMOOTH VIDEO TRANSITION ---
+  const switchVideo = (activeVideoRef) => {
+    const allVideos = [
+      { ref: videoIdleRef, name: 'idle' },
+      { ref: videoARef, name: 'A' },
+      { ref: videoA0Ref, name: 'A0' },
+      { ref: videoHRef, name: 'H' },
+      { ref: videoMRef, name: 'M' }
+    ];
+
+    allVideos.forEach(({ ref }) => {
       if (ref.current) {
         ref.current.pause();
-        if (ref !== videoIdleRef) {
+        if (ref.current !== activeVideoRef?.current) {
           ref.current.currentTime = 0;
         }
       }
     });
 
+    if (activeVideoRef?.current) {
+      activeVideoRef.current.currentTime = 0;
+      activeVideoRef.current.play().catch(() => {});
+    }
+  };
+
+  // --- VIDEO CONTROL WITH SMOOTH TRANSITION ---
+  useEffect(() => {
     if (isSpeaking) {
-      videoARef.current?.play().catch(() => {});
+      switchVideo(videoARef);
     } else if (isTyping) {
       if (emotion === 'romantic') {
-        videoHRef.current?.play().catch(() => {});
+        switchVideo(videoHRef);
       } else if (emotion === 'angry') {
-        videoMRef.current?.play().catch(() => {});
+        switchVideo(videoMRef);
       } else {
-        videoA0Ref.current?.play().catch(() => {});
+        switchVideo(videoA0Ref);
       }
     } else {
-      videoIdleRef.current?.play().catch(() => {});
+      switchVideo(videoIdleRef);
     }
   }, [isSpeaking, isTyping, emotion]);
 
-  // --- INITIAL GREETING ---
   useEffect(() => {
     const initialGreeting = 'Hai, Perkenalkan , Saya SukaChub virtual chat yang akan menemani kamu , merindukan kehangatan dan kehadiran kamu.';
     const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
@@ -285,11 +293,6 @@ export default function Home() {
       audioRef.current = null;
     }
 
-    if (videoARef.current) {
-      videoARef.current.pause();
-      videoARef.current.currentTime = 0;
-    }
-
     setPlayingIndex(null);
   };
 
@@ -315,42 +318,87 @@ export default function Home() {
     }
   };
 
-  // --- TYPING EFFECT ---
-  const typeMessage = (fullText, messageIndex, userQuery = '', forcedEmotion = null) => {
-    setIsTyping(true);
-    setTypingMessageIndex(messageIndex);
-    setTypingText('');
-    
-    let currentIndex = 0;
-    const chars = fullText.split('');
-    
+  // --- TYPING EFFECT WITH AUDIO SYNC (NO EMOJI) ---
+  const typeMessageWithAudio = async (fullText, messageIndex, userQuery = '', forcedEmotion = null) => {
+    // 1. Tampilkan teks penuh dulu
+    setDisplayMessages(prev => {
+      const updated = [...prev];
+      if (updated[messageIndex]) {
+        updated[messageIndex] = { 
+          ...updated[messageIndex], 
+          content: fullText,
+          isTyping: false 
+        };
+      }
+      return updated;
+    });
+
+    // 2. Set emotion untuk video
     const currentEmotion = forcedEmotion || detectEmotion(fullText, userQuery);
     setEmotion(currentEmotion);
-    
-    const typeNextChar = () => {
-      if (currentIndex < chars.length) {
-        const newText = fullText.substring(0, currentIndex + 1);
-        setTypingText(newText);
-        
-        setDisplayMessages(prev => {
-          const updated = [...prev];
-          if (updated[messageIndex]) {
-            updated[messageIndex] = { 
-              ...updated[messageIndex], 
-              content: newText,
-              isTyping: true 
-            };
-          }
-          return updated;
+
+    // 3. Generate audio di background
+    if (autoVoice) {
+      try {
+        const cleanText = fullText.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
+        if (!cleanText) {
+          if (messageIndex === 0) setInputDisabled(false);
+          return;
+        }
+
+        // Fetch audio
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: cleanText, voice: selectedVoice }),
         });
-        
-        currentIndex++;
-        const delay = Math.random() * 40 + 20;
-        typingTimeoutRef.current = setTimeout(typeNextChar, delay);
-      } else {
-        setIsTyping(false);
-        setTypingMessageIndex(null);
-        
+
+        if (!res.ok) throw new Error('TTS gagal');
+
+        const blob = await res.blob();
+        if (blob.size === 0) throw new Error('Audio kosong');
+
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+
+        // Play audio & mulai typing effect bersamaan
+        audio.onplay = () => {
+          setPlayingIndex(messageIndex);
+          
+          // Mulai typing effect SELARAS dengan audio
+          startTypingEffect(fullText, messageIndex);
+        };
+
+        audio.onended = () => {
+          stopAudio();
+          if (messageIndex === 0 && autoVoice) {
+            setInputDisabled(false);
+          }
+        };
+
+        audio.onerror = () => {
+          stopAudio();
+          setDisplayMessages(prev => {
+            const updated = [...prev];
+            if (updated[messageIndex]) {
+              updated[messageIndex] = { 
+                ...updated[messageIndex], 
+                content: fullText,
+                isTyping: false 
+              };
+            }
+            return updated;
+          });
+          if (messageIndex === 0 && autoVoice) {
+            setInputDisabled(false);
+          }
+        };
+
+        await audio.play();
+
+      } catch (err) {
+        console.warn('TTS Error:', err);
         setDisplayMessages(prev => {
           const updated = [...prev];
           if (updated[messageIndex]) {
@@ -362,26 +410,101 @@ export default function Home() {
           }
           return updated;
         });
-        
-        if (autoVoice) {
-          speakText(fullText, messageIndex, userQuery);
-        } else {
-          setTimeout(() => {
-            [videoA0Ref, videoHRef, videoMRef].forEach(ref => {
-              if (ref.current) {
-                ref.current.pause();
-                ref.current.currentTime = 0;
-              }
-            });
-          }, 300);
+        if (messageIndex === 0 && autoVoice) {
+          setInputDisabled(false);
+        }
+      }
+    } else {
+      // Mode tanpa audio
+      setDisplayMessages(prev => {
+        const updated = [...prev];
+        if (updated[messageIndex]) {
+          updated[messageIndex] = { 
+            ...updated[messageIndex], 
+            content: fullText,
+            isTyping: false 
+          };
+        }
+        return updated;
+      });
+      if (messageIndex === 0) {
+        setInputDisabled(false);
+      }
+    }
+  };
+
+  // --- TYPING EFFECT (dipanggil dari audio.onplay) ---
+  const startTypingEffect = (fullText, messageIndex) => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    setIsTyping(true);
+    setTypingMessageIndex(messageIndex);
+    setTypingText('');
+
+    // Reset display ke kosong dulu
+    setDisplayMessages(prev => {
+      const updated = [...prev];
+      if (updated[messageIndex]) {
+        updated[messageIndex] = { 
+          ...updated[messageIndex], 
+          content: '',
+          isTyping: true 
+        };
+      }
+      return updated;
+    });
+
+    let currentIndex = 0;
+    const chars = fullText.split('');
+
+    const typeNextChar = () => {
+      if (currentIndex < chars.length) {
+        const newText = fullText.substring(0, currentIndex + 1);
+        setTypingText(newText);
+
+        setDisplayMessages(prev => {
+          const updated = [...prev];
+          if (updated[messageIndex]) {
+            updated[messageIndex] = { 
+              ...updated[messageIndex], 
+              content: newText,
+              isTyping: true 
+            };
+          }
+          return updated;
+        });
+
+        currentIndex++;
+        const delay = Math.random() * 30 + 15;
+        typingTimeoutRef.current = setTimeout(typeNextChar, delay);
+      } else {
+        setIsTyping(false);
+        setTypingMessageIndex(null);
+
+        setDisplayMessages(prev => {
+          const updated = [...prev];
+          if (updated[messageIndex]) {
+            updated[messageIndex] = { 
+              ...updated[messageIndex], 
+              content: fullText,
+              isTyping: false 
+            };
+          }
+          return updated;
+        });
+
+        if (messageIndex === 0 && autoVoice) {
+          setInputDisabled(false);
         }
       }
     };
-    
-    typingTimeoutRef.current = setTimeout(typeNextChar, 300);
+
+    typingTimeoutRef.current = setTimeout(typeNextChar, 100);
   };
 
-  // --- SPEAK TEXT (TTS) ---
+  // --- SPEAK TEXT (untuk initial greeting & manual play) ---
   const speakText = async (text, index, customUserText = null) => {
     if (!text) return;
     if (playingIndex === index) {
@@ -406,10 +529,6 @@ export default function Home() {
 
     const targetIndex = index;
     
-    const userTextContext = customUserText !== null 
-      ? customUserText 
-      : (targetIndex > 0 && messages[targetIndex - 1]?.role === 'user' ? messages[targetIndex - 1].content : '');
-
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -438,18 +557,10 @@ export default function Home() {
 
       audio.onplay = () => {
         setPlayingIndex(targetIndex);
-        if (videoARef.current) {
-          videoARef.current.currentTime = 0.15;
-          videoARef.current.play().catch(() => {});
-        }
       };
 
       audio.onended = () => {
         stopAudio();
-        if (videoARef.current) {
-          videoARef.current.pause();
-          videoARef.current.currentTime = 0;
-        }
         if (targetIndex === 0 && autoVoice) {
           setInputDisabled(false);
         }
@@ -457,10 +568,6 @@ export default function Home() {
       
       audio.onerror = () => {
         stopAudio();
-        if (videoARef.current) {
-          videoARef.current.pause();
-          videoARef.current.currentTime = 0;
-        }
         if (targetIndex === 0 && autoVoice) {
           setInputDisabled(false);
         }
@@ -470,10 +577,6 @@ export default function Home() {
     } catch (err) {
       if (err.name !== 'AbortError') {
         stopAudio();
-        if (videoARef.current) {
-          videoARef.current.pause();
-          videoARef.current.currentTime = 0;
-        }
         if (targetIndex === 0 && autoVoice) {
           setInputDisabled(false);
         }
@@ -481,15 +584,12 @@ export default function Home() {
     }
   };
 
-  // --- HANDLE PILL / SUGGESTIONS CLICK (TRIAL LOGIC) ---
   const handlePillClick = (presetKey) => {
-    // Jika sudah login, gunakan alur kirim standar
     if (userProfile) {
       handleSend(presetKey);
       return;
     }
 
-    // Jika belum login, cek batasan 3x Trial
     if (trialCount >= 3) {
       router.push('/login');
       return;
@@ -498,18 +598,15 @@ export default function Home() {
     const preset = TRIAL_PRESETS[presetKey];
     if (!preset) return;
 
-    // Increment Trial Count
     const newTrialCount = trialCount + 1;
     setTrialCount(newTrialCount);
     localStorage.setItem('trial_count', newTrialCount.toString());
 
-    // 1. Tambah Pesan User
     const userMsg = { role: 'user', content: presetKey, isTyping: false };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setDisplayMessages(prev => [...prev, userMsg]);
 
-    // 2. Tambah Pesan AI Balasan Preset (Tanpa Panggil API AI)
     const aiMsg = { role: 'assistant', content: '', isTyping: true };
     const updatedMessages = [...newMessages, { role: 'assistant', content: preset.reply }];
     setMessages(updatedMessages);
@@ -517,11 +614,9 @@ export default function Home() {
     const displayIndex = updatedMessages.length - 1;
     setDisplayMessages(prev => [...prev, aiMsg]);
 
-    // Jalankan efek ketik & pemicu video emosi yang sesuai
-    typeMessage(preset.reply, displayIndex, presetKey, preset.emotion);
+    typeMessageWithAudio(preset.reply, displayIndex, presetKey, preset.emotion);
   };
 
-  // --- SEND MESSAGE (LOGIN USER) ---
   const handleSend = async (textToSend) => {
     if (!userProfile) {
       if (trialCount >= 3) {
@@ -576,7 +671,7 @@ export default function Home() {
         const displayIndex = updatedMessages.length - 1;
         setDisplayMessages(prev => [...prev, aiMsg]);
         
-        typeMessage(data.reply, displayIndex, query);
+        typeMessageWithAudio(data.reply, displayIndex, query);
         
       } else {
         const errorMsg = `Error: ${data.error || 'Gagal tersambung.'}`;
@@ -594,7 +689,6 @@ export default function Home() {
     }
   };
 
-  // --- LOGOUT / LOGIN ACTION ---
   const handleAuthAction = () => {
     if (userProfile) {
       localStorage.removeItem('user');
@@ -605,7 +699,6 @@ export default function Home() {
     }
   };
 
-  // --- RENDER ---
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -811,7 +904,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 3 PILL / CHIPS TERBARU */}
       <div style={styles.suggestions}>
         {Object.keys(TRIAL_PRESETS).map((presetKey, i) => (
           <button key={i} onClick={() => handlePillClick(presetKey)} style={styles.chipButton}>
@@ -820,7 +912,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* FORM INPUT TEKS DENGAN INDIKATOR TRIAL */}
       <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
         {userProfile && (
           <button type="button" onClick={handleClearChat} style={styles.clearButton}>
@@ -836,8 +927,8 @@ export default function Home() {
             placeholder={
               !userProfile
                 ? trialCount < 3 
-                  ? `🔒 Trial ${3 - trialCount}/3 (Klik tombol saran di atas)...` 
-                  : "🔒 Trial habis. Silakan login..."
+                  ? `Trial ${3 - trialCount}/3 (Klik tombol saran di atas)...` 
+                  : "Trial habis. Silakan login..."
                 : inputDisabled 
                   ? "Tunggu AI selesai bicara..." 
                   : "Ketik pesan hangat..."
@@ -864,7 +955,6 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Tombol Kirim / Login */}
         {!userProfile ? (
           <button 
             type="button" 
@@ -1098,7 +1188,7 @@ const styles = {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
-    transition: 'opacity 0.3s ease-in-out',
+    transition: 'opacity 0.4s ease-in-out',
   },
   chatBox: {
     flex: 1,
@@ -1208,6 +1298,7 @@ const styles = {
     borderTop: '1px solid rgba(63, 63, 70, 0.3)',
   },
   input: { 
+    flex: 1,
     border: '1px solid #27272a', 
     borderRadius: '20px', 
     padding: '10px 14px', 
@@ -1216,6 +1307,7 @@ const styles = {
     fontSize: 'clamp(0.85rem, 2.8vw, 0.95rem)',
     minHeight: '42px',
     WebkitAppearance: 'none',
+    backgroundColor: '#18181b',
   },
   sendButton: { 
     backgroundColor: '#f97316', 
