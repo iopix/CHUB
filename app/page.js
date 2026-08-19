@@ -141,7 +141,6 @@ export default function Home() {
   const [selectedVoice, setSelectedVoice] = useState('spruce');
   const [autoVoice, setAutoVoice] = useState(true);
   const [remainingTokens, setRemainingTokens] = useState(null);
-  const [emotion, setEmotion] = useState('neutral');
   const [isMobile, setIsMobile] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
@@ -152,16 +151,22 @@ export default function Home() {
 
   const [inputDisabled, setInputDisabled] = useState(true);
 
+  // --- REAKSI INTERAKTIF AVATAR ---
+  const [activeReaction, setActiveReaction] = useState(null); // 'kepala' | 'peluk' | 'marah' | null
+  const isInteractingRef = useRef(false);
+
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
+  const avatarContainerRef = useRef(null);
   
+  // Video Refs
   const videoIdleRef = useRef(null);
   const videoARef = useRef(null);
-  const videoA0Ref = useRef(null);
-  const videoHRef = useRef(null);
-  const videoMRef = useRef(null);
+  const videoKepalaRef = useRef(null);
+  const videoPelukRef = useRef(null);
+  const videoMarahRef = useRef(null);
   
   const abortControllerRef = useRef(null);
 
@@ -215,9 +220,9 @@ export default function Home() {
     const allVideos = [
       { ref: videoIdleRef, name: 'idle' },
       { ref: videoARef, name: 'A' },
-      { ref: videoA0Ref, name: 'A0' },
-      { ref: videoHRef, name: 'H' },
-      { ref: videoMRef, name: 'M' }
+      { ref: videoKepalaRef, name: 'kepala' },
+      { ref: videoPelukRef, name: 'peluk' },
+      { ref: videoMarahRef, name: 'marah' }
     ];
 
     allVideos.forEach(({ ref }) => {
@@ -235,31 +240,59 @@ export default function Home() {
     }
   };
 
-  // --- VIDEO CONTROL WITH SMOOTH TRANSITION ---
+  // --- VIDEO CONTROL LOGIC ---
   useEffect(() => {
-    if (isSpeaking) {
+    if (activeReaction === 'kepala') {
+      switchVideo(videoKepalaRef);
+    } else if (activeReaction === 'peluk') {
+      switchVideo(videoPelukRef);
+    } else if (activeReaction === 'marah') {
+      switchVideo(videoMarahRef);
+    } else if (isSpeaking) {
       switchVideo(videoARef);
-    } else if (isTyping) {
-      if (emotion === 'romantic') {
-        switchVideo(videoHRef);
-      } else if (emotion === 'angry') {
-        switchVideo(videoMRef);
-      } else {
-        switchVideo(videoA0Ref);
-      }
     } else {
       switchVideo(videoIdleRef);
     }
-  }, [isSpeaking, isTyping, emotion]);
+  }, [activeReaction, isSpeaking]);
+
+  // --- SENTUHAN / USAPAN AVATAR LOGIC ---
+  const handlePointerAction = (clientY) => {
+    if (!avatarContainerRef.current) return;
+    const rect = avatarContainerRef.current.getBoundingClientRect();
+    const relativeY = (clientY - rect.top) / rect.height;
+
+    if (relativeY < 0.35) {
+      // Area Kepala
+      if (activeReaction !== 'kepala') setActiveReaction('kepala');
+    } else if (relativeY < 0.65) {
+      // Area Dada
+      if (activeReaction !== 'peluk') setActiveReaction('peluk');
+    } else {
+      // Area Perut ke bawah
+      if (activeReaction !== 'marah') setActiveReaction('marah');
+    }
+  };
+
+  const handlePointerDown = (e) => {
+    isInteractingRef.current = true;
+    handlePointerAction(e.clientY);
+  };
+
+  const handlePointerMove = (e) => {
+    if (isInteractingRef.current) {
+      handlePointerAction(e.clientY);
+    }
+  };
+
+  const handlePointerUp = () => {
+    isInteractingRef.current = false;
+  };
 
   useEffect(() => {
     const initialGreeting = 'Hai, Perkenalkan , Saya SukaChub virtual chat yang akan menemani kamu , merindukan kehangatan dan kehadiran kamu.';
     const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
-    
-    const initialEmotion = detectEmotion(initialGreeting);
-    setEmotion(initialEmotion);
     
     setInputDisabled(true);
 
@@ -307,9 +340,6 @@ export default function Home() {
     setDisplayMessages([initialMsg]);
     setTypingText('');
     
-    const initialEmotion = detectEmotion(initialGreeting);
-    setEmotion(initialEmotion);
-    
     setInputDisabled(true);
     if (autoVoice) {
       setTimeout(() => speakText(initialGreeting, 0), 300);
@@ -318,9 +348,8 @@ export default function Home() {
     }
   };
 
-  // --- TYPING EFFECT WITH AUDIO SYNC (NO EMOJI) ---
-  const typeMessageWithAudio = async (fullText, messageIndex, userQuery = '', forcedEmotion = null) => {
-    // 1. Tampilkan teks penuh dulu
+  // --- TYPING EFFECT WITH AUDIO SYNC ---
+  const typeMessageWithAudio = async (fullText, messageIndex, userQuery = '') => {
     setDisplayMessages(prev => {
       const updated = [...prev];
       if (updated[messageIndex]) {
@@ -333,11 +362,6 @@ export default function Home() {
       return updated;
     });
 
-    // 2. Set emotion untuk video
-    const currentEmotion = forcedEmotion || detectEmotion(fullText, userQuery);
-    setEmotion(currentEmotion);
-
-    // 3. Generate audio di background
     if (autoVoice) {
       try {
         const cleanText = fullText.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
@@ -346,7 +370,6 @@ export default function Home() {
           return;
         }
 
-        // Fetch audio
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -362,11 +385,8 @@ export default function Home() {
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
 
-        // Play audio & mulai typing effect bersamaan
         audio.onplay = () => {
           setPlayingIndex(messageIndex);
-          
-          // Mulai typing effect SELARAS dengan audio
           startTypingEffect(fullText, messageIndex);
         };
 
@@ -415,7 +435,6 @@ export default function Home() {
         }
       }
     } else {
-      // Mode tanpa audio
       setDisplayMessages(prev => {
         const updated = [...prev];
         if (updated[messageIndex]) {
@@ -433,7 +452,7 @@ export default function Home() {
     }
   };
 
-  // --- TYPING EFFECT (dipanggil dari audio.onplay) ---
+  // --- TYPING EFFECT ---
   const startTypingEffect = (fullText, messageIndex) => {
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -443,7 +462,6 @@ export default function Home() {
     setTypingMessageIndex(messageIndex);
     setTypingText('');
 
-    // Reset display ke kosong dulu
     setDisplayMessages(prev => {
       const updated = [...prev];
       if (updated[messageIndex]) {
@@ -504,8 +522,8 @@ export default function Home() {
     typingTimeoutRef.current = setTimeout(typeNextChar, 100);
   };
 
-  // --- SPEAK TEXT (untuk initial greeting & manual play) ---
-  const speakText = async (text, index, customUserText = null) => {
+  // --- SPEAK TEXT ---
+  const speakText = async (text, index) => {
     if (!text) return;
     if (playingIndex === index) {
       stopAudio();
@@ -614,7 +632,7 @@ export default function Home() {
     const displayIndex = updatedMessages.length - 1;
     setDisplayMessages(prev => [...prev, aiMsg]);
 
-    typeMessageWithAudio(preset.reply, displayIndex, presetKey, preset.emotion);
+    typeMessageWithAudio(preset.reply, displayIndex, presetKey);
   };
 
   const handleSend = async (textToSend) => {
@@ -780,7 +798,15 @@ export default function Home() {
 
       <div style={styles.chatBoxWrapper}>
         <div style={styles.avatarLayer}>
-          <div style={styles.avatarContainer}>
+          <div 
+            ref={avatarContainerRef}
+            style={styles.avatarContainer}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            {/* IDLE VIDEO */}
             <video
               ref={videoIdleRef}
               src="/D.webm"
@@ -791,45 +817,11 @@ export default function Home() {
               preload="auto"
               style={{
                 ...styles.avatarVideo,
-                opacity: !isSpeaking && !isTyping ? 1 : 0,
+                opacity: !isSpeaking && !activeReaction ? 1 : 0,
               }}
             />
-            <video
-              ref={videoA0Ref}
-              src="/A0.webm"
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                ...styles.avatarVideo,
-                opacity: isTyping && emotion === 'neutral' ? 1 : 0,
-              }}
-            />
-            <video
-              ref={videoHRef}
-              src="/H.webm"
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                ...styles.avatarVideo,
-                opacity: isTyping && emotion === 'romantic' ? 1 : 0,
-              }}
-            />
-            <video
-              ref={videoMRef}
-              src="/M.webm"
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                ...styles.avatarVideo,
-                opacity: isTyping && emotion === 'angry' ? 1 : 0,
-              }}
-            />
+
+            {/* SPEAKING VIDEO */}
             <video
               ref={videoARef}
               src="/A.webm"
@@ -839,7 +831,46 @@ export default function Home() {
               preload="auto"
               style={{
                 ...styles.avatarVideo,
-                opacity: isSpeaking ? 1 : 0,
+                opacity: isSpeaking && !activeReaction ? 1 : 0,
+              }}
+            />
+
+            {/* REAKSI: KEPALA */}
+            <video
+              ref={videoKepalaRef}
+              src="/Kepala.webm"
+              playsInline
+              preload="auto"
+              onEnded={() => setActiveReaction(null)}
+              style={{
+                ...styles.avatarVideo,
+                opacity: activeReaction === 'kepala' ? 1 : 0,
+              }}
+            />
+
+            {/* REAKSI: PELUK (DADA) */}
+            <video
+              ref={videoPelukRef}
+              src="/Peluk.webm"
+              playsInline
+              preload="auto"
+              onEnded={() => setActiveReaction(null)}
+              style={{
+                ...styles.avatarVideo,
+                opacity: activeReaction === 'peluk' ? 1 : 0,
+              }}
+            />
+
+            {/* REAKSI: MARAH (PERUT KE BAWAH) */}
+            <video
+              ref={videoMarahRef}
+              src="/Marah.webm"
+              playsInline
+              preload="auto"
+              onEnded={() => setActiveReaction(null)}
+              style={{
+                ...styles.avatarVideo,
+                opacity: activeReaction === 'marah' ? 1 : 0,
               }}
             />
           </div>
@@ -1180,6 +1211,10 @@ const styles = {
     transform: 'scale(1.02)',
     transition: 'transform 0.3s ease',
     marginTop: 'clamp(30px, 8vh, 80px)',
+    pointerEvents: 'auto',
+    cursor: 'pointer',
+    touchAction: 'none',
+    userSelect: 'none',
   },
   avatarVideo: {
     position: 'absolute',
@@ -1188,7 +1223,7 @@ const styles = {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
-    transition: 'opacity 0.4s ease-in-out',
+    transition: 'opacity 0.3s ease-in-out',
   },
   chatBox: {
     flex: 1,
@@ -1202,10 +1237,12 @@ const styles = {
     maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
     WebkitOverflowScrolling: 'touch',
+    pointerEvents: 'auto',
   },
   topSpacer: {
     minHeight: 'clamp(180px, 35vh, 240px)',
     flexShrink: 0,
+    pointerEvents: 'none',
   },
   messageWrapper: { display: 'flex', width: '100%' },
   bubble: {
