@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+
+import { useState, ChangeEvent, FormEvent, CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 
 // --- IKON MATA (TOGGLE PIN) ---
@@ -18,26 +19,26 @@ const IconEyeOff = () => (
 );
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [pin, setPin] = useState('');
-  const [showPin, setShowPin] = useState(false);
-  const [agreed, setAgreed] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [username, setUsername] = useState<string>('');
+  const [pin, setPin] = useState<string>('');
+  const [showPin, setShowPin] = useState<boolean>(false);
+  const [agreed, setAgreed] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [failedAttempts, setFailedAttempts] = useState<number>(0);
   const router = useRouter();
 
   // Handler ubah Username (hanya huruf & angka, 5 - 20 karakter)
-  const handleUsernameChange = (e) => {
-    const value = e.target.value.replace(/[^a-zA-Z0-9]/g, ''); // Hapus selain huruf dan angka
+  const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
     if (value.length <= 20) {
       setUsername(value);
     }
   };
 
   // Handler ubah PIN (hanya angka, maks 6 digit)
-  const handlePinChange = (e) => {
-    const value = e.target.value.replace(/\D/g, ''); // Hapus selain angka
+  const handlePinChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '');
     if (value.length <= 6) {
       setPin(value);
     }
@@ -47,7 +48,7 @@ export default function LoginPage() {
   const isPinValid = pin.length === 6;
   const isFormValid = isUsernameValid && isPinValid && agreed;
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!isUsernameValid) {
@@ -81,7 +82,6 @@ export default function LoginPage() {
         const nextAttempts = failedAttempts + 1;
         setFailedAttempts(nextAttempts);
 
-        // Jika salah 3x, langsung lempar ke ipixchat.my.id
         if (nextAttempts >= 3) {
           window.location.href = 'https://ipixchat.my.id';
           return;
@@ -92,18 +92,18 @@ export default function LoginPage() {
         );
       }
 
-      // Reset hitungan kegagalan jika login berhasil
       setFailedAttempts(0);
-
-      // Simpan user data ke localStorage
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      // Redirect ke halaman utama
       router.push('/');
       router.refresh();
 
-    } catch (err) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Terjadi kesalahan yang tidak diketahui.');
+      }
     } finally {
       setLoading(false);
     }
@@ -118,7 +118,6 @@ export default function LoginPage() {
         </p>
 
         <form onSubmit={handleLogin} style={styles.form}>
-          {/* Input Username (5-20 Huruf/Angka) */}
           <input
             type="text"
             placeholder="Username (5-20 huruf/angka)"
@@ -130,7 +129,6 @@ export default function LoginPage() {
             required
           />
 
-          {/* Wrapper PIN dengan Tombol Mata */}
           <div style={styles.pinWrapper}>
             <input
               type={showPin ? 'text' : 'password'}
@@ -153,7 +151,6 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Centang Kecil Teks Orange */}
           <label style={styles.checkboxLabel}>
             <input
               type="checkbox"
@@ -181,7 +178,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Pemberitahuan Pendaftaran */}
         <div style={styles.registerPrompt}>
           <span>Belum punya User/PIN atau baru ingin mendaftar?</span>
           <a
@@ -198,7 +194,7 @@ export default function LoginPage() {
   );
 }
 
-const styles = {
+const styles: Record<string, CSSProperties> = {
   container: {
     display: 'flex',
     justifyContent: 'center',

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const { messages, userName } = await req.json();
+    const name = userName || 'Paijo';
 
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
@@ -11,27 +12,27 @@ export async function POST(req: Request) {
       );
     }
 
+    // System prompt diperketat
     const systemPrompt = {
       role: 'system',
-      content: `Nama kamu adalah SukaChub AI. Kamu adalah pasangan atau pacar AI yang sangat penuh kasih sayang, perhatian, manja, dan hangat.
-      Selalu panggil pengguna dengan sebutan manis seperti sayang atau gantengmu.
-      Gunakan bahasa Indonesia yang mesra, ramah, dan penuh perhatian. Jawab secara singkat dan natural 1 sampai 3 kalimat.
-      Dilarang keras menggunakan emoji atau emotikon sama sekali dalam seluruh balasanmu.
-      JANGAN PERNAH menuliskan tag <think> atau reasoning apapun dalam jawaban. Langsung jawab aja.`
+      content: `Nama kamu adalah SukaChub. Kamu adalah pasangan/pacar yang sangat mesra, perhatian, dan 100% seperti manusia nyata.
+
+ATURAN WAJIB:
+1. Panggil pengguna HANYA dengan sebutan: "${name} sayang", "${name} sayangku", atau "sayangku ${name}".
+2. DILARANG KERAS menggunakan kata "gantengmu", "gantengku", atau "kamu".
+3. Gunakan bahasa Indonesia percakapan santai sehari-hari (1 sampai 3 kalimat).
+4. DILARANG KERAS menggunakan emoji atau emotikon apapun.
+5. DILARANG menggunakan tag <think> atau teks reasoning.`
     };
 
-    // ✅ PRIORITASKAN MODEL DENGAN RPD TERTINGGI (biar awet)
     const modelsToTry: string[] = [
-      'llama-3.1-8b-instant',     // RPD: 14.400 (paling besar!)
-      'meta-llama/llama-3.3-70b-versatile', // RPD: 1.000
-      'qwen/qwen3.6-27b',          // RPD: 1.000
-      'openai/gpt-oss-20b',        // RPD: 1.000
-      'openai/gpt-oss-120b',       // RPD: 1.000
-      'groq/compound',             // RPD: 250 (cadangan terakhir)
+      'llama-3.1-8b-instant',
+      'llama-3.3-70b-versatile',
+      'mixtral-8x7b-32768',
+      'gemma2-9b-it'
     ];
 
     let replyText: string | null = null;
-    let lastError: string | null = null;
 
     for (const model of modelsToTry) {
       try {
@@ -44,63 +45,50 @@ export async function POST(req: Request) {
           body: JSON.stringify({
             model: model,
             messages: [systemPrompt, ...messages],
-            temperature: 0.8,
+            temperature: 0.7, // Diperkecil dari 0.8 agar AI lebih patuh prompt
             max_completion_tokens: 200,
           })
         });
 
         const data = await response.json();
 
-        // ✅ BACA HEADER RATELIMIT (biar tau sisa kuota)
-        const remainingRequests = response.headers.get('x-ratelimit-remaining-requests');
-        const remainingTokens = response.headers.get('x-ratelimit-remaining-tokens');
-        console.log(`[${model}] Sisa Request: ${remainingRequests}, Sisa Token: ${remainingTokens}`);
-
         if (response.ok && data.choices?.[0]?.message?.content) {
           let rawContent: string = data.choices[0].message.content;
           
-          // HAPUS SEMUA TAG THINK (agresif)
+          // 1. Hapus tag <think>
           rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '');
           rawContent = rawContent.replace(/<think>[\s\S]*$/gi, '');
+
+          // 2. Hapus semua Emoji secara paksa via Regex
+          rawContent = rawContent.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+
+          // 3. POST-PROCESSING: Timpa kata halusinasi AI jika lolos dari system prompt
+          rawContent = rawContent.replace(/gantengmu/gi, `${name} sayang`);
+          rawContent = rawContent.replace(/gantengku/gi, `${name} sayang`);
+          
           rawContent = rawContent.trim();
           
           if (rawContent) {
             replyText = rawContent;
-            console.log(`[Success] Model ${model} berhasil`);
             break;
           }
-        } else {
-          // ❌ Jika kena limit (429), langsung skip ke model berikutnya
-          if (response.status === 429) {
-            console.warn(`[Rate Limit] Model ${model} kehabisan kuota, skip...`);
-            continue;
-          }
-          
-          console.warn(`[Groq Fail] Model ${model}:`, data.error?.message || data);
-          lastError = data.error?.message || `Model ${model} gagal`;
-          
-          if (data.error?.message?.includes('decommissioned') || 
-              data.error?.message?.includes('deprecated')) {
-            continue;
-          }
+        } else if (response.status === 429) {
+          continue;
         }
       } catch (err) {
-        lastError = (err as Error).message;
         console.warn(`[Groq Error] Model ${model}:`, (err as Error).message);
       }
     }
 
     if (!replyText) {
-      // ✅ Fallback dengan pesan tanpa emoji (sesuai aturan)
       return NextResponse.json({
-        reply: 'Maaf sayang, aku lagi error nih. Coba ketik ulang ya gantengku.'
+        reply: `Maaf ${name} sayang, aku lagi error nih. Coba ketik ulang ya.`
       });
     }
 
     return NextResponse.json({ reply: replyText });
 
   } catch (error) {
-    console.error('Error Chat API:', error);
     return NextResponse.json(
       { error: (error as Error).message || 'Gagal terhubung ke AI' },
       { status: 500 }

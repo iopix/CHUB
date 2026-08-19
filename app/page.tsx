@@ -1,6 +1,36 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+
+import {
+  useState,
+  useRef,
+  useEffect,
+  ChangeEvent,
+  FormEvent,
+  PointerEvent,
+  CSSProperties,
+  RefObject,
+} from 'react';
 import { useRouter } from 'next/navigation';
+
+// --- INTERFACES & TYPES ---
+interface UserProfile {
+  username?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  isTyping?: boolean;
+}
+
+interface TrialPreset {
+  reply: (name: string) => string;
+  emotion: string;
+}
+
+type ActiveReaction = 'kepala' | 'peluk' | 'marah' | null;
 
 // --- ICONS ---
 const IconMenu = () => (
@@ -38,32 +68,85 @@ const IconAutoVoiceOff = () => (
   </svg>
 );
 
-// --- TRIAL PRESETS ---
-const TRIAL_PRESETS = {
+// --- TRIAL PRESETS (MENGGUNAKAN DYNAMIC NAME) ---
+const TRIAL_PRESETS: Record<string, TrialPreset> = {
   'Peluk boleh?': {
-    reply: 'Boleh sayang, sini saya peluk erat kamu dengan sepenuh jiwa raga.',
+    reply: (name: string) => `Boleh banget ${name} sayang, sini aku peluk erat kamu ya...`,
     emotion: 'romantic',
   },
   'Temani saya mengobrol': {
-    reply: 'Baik, saya akan mengobrol dengan kamu,',
+    reply: (name: string) => `Tentu ${name} sayang, aku selalu siap menemani hari-harimu. Ada cerita apa hari ini?`,
     emotion: 'neutral',
   },
   'Coba kata kasar': {
-    reply: 'Kamu. Jangan kasar ya. no no no ,ya.',
+    reply: (name: string) => `Maaf ${name} sayang, jangan berkata kasar ya. Nanti aku sedih lho...`,
     emotion: 'angry',
   },
 };
 
 export default function Home() {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState(null);
-  const [trialCount, setTrialCount] = useState(0);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [trialCount, setTrialCount] = useState<number>(0);
+
+  // Helper untuk mendapatkan nama panggilan user (Default: 'kamu')
+  const getUserName = (): string => {
+    if (!userProfile) return 'kamu';
+    if (userProfile.username) return userProfile.username;
+    if (userProfile.email) return userProfile.email.split('@')[0];
+    return 'kamu';
+  };
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string>('spruce');
+  const [autoVoice, setAutoVoice] = useState<boolean>(true);
+  const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+
+  const [displayMessages, setDisplayMessages] = useState<Message[]>([]);
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
+  const [, setTypingText] = useState<string>('');
+
+  const [inputDisabled, setInputDisabled] = useState<boolean>(true);
+
+  // --- REAKSI INTERAKTIF AVATAR ---
+  const [activeReaction, setActiveReaction] = useState<ActiveReaction>(null);
+  const activeReactionRef = useRef<ActiveReaction>(null);
+  const isInteractingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    activeReactionRef.current = activeReaction;
+  }, [activeReaction]);
+
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const avatarContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Video Refs
+  const videoIdleRef = useRef<HTMLVideoElement | null>(null);
+  const videoARef = useRef<HTMLVideoElement | null>(null);
+  const videoKepalaRef = useRef<HTMLVideoElement | null>(null);
+  const videoPelukRef = useRef<HTMLVideoElement | null>(null);
+  const videoMarahRef = useRef<HTMLVideoElement | null>(null);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const isSpeaking = playingIndex !== null;
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
+    let loadedUser: UserProfile | null = null;
     if (userData) {
       try {
-        setUserProfile(JSON.parse(userData));
+        loadedUser = JSON.parse(userData);
+        setUserProfile(loadedUser);
       } catch {
         localStorage.removeItem('user');
         setUserProfile(null);
@@ -76,54 +159,28 @@ export default function Home() {
     if (savedTrial) {
       setTrialCount(parseInt(savedTrial, 10));
     }
+
+    // Set Greeting Awal dengan Nama User + Sayang (Fallback: kamu)
+    const name = loadedUser?.username || (loadedUser?.email ? loadedUser.email.split('@')[0] : 'kamu');
+    const initialGreeting = `Hai, ${name} . Kenalin aku SukaChub virtual chat. Ada cerita atau hal yang ingin kamu bagi? Aku selalu menunggu untuk berinteraksi denganmu.`;
+    const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
+    
+    setMessages([initialMsg]);
+    setDisplayMessages([initialMsg]);
+    setInputDisabled(true);
+
+    if (autoVoice) {
+      setTimeout(() => {
+        speakText(initialGreeting, 0);
+      }, 500);
+    } else {
+      setInputDisabled(false);
+    }
   }, []);
 
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [playingIndex, setPlayingIndex] = useState(null);
-  const [selectedVoice, setSelectedVoice] = useState('spruce');
-  const [autoVoice, setAutoVoice] = useState(true);
-  const [remainingTokens, setRemainingTokens] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
-  const [displayMessages, setDisplayMessages] = useState([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingMessageIndex, setTypingMessageIndex] = useState(null);
-  const [typingText, setTypingText] = useState('');
-
-  const [inputDisabled, setInputDisabled] = useState(true);
-
-  // --- REAKSI INTERAKTIF AVATAR ---
-  const [activeReaction, setActiveReaction] = useState(null); // 'kepala' | 'peluk' | 'marah' | null
-  const activeReactionRef = useRef(null);
-  const isInteractingRef = useRef(false);
-
   useEffect(() => {
-    activeReactionRef.current = activeReaction;
-  }, [activeReaction]);
-
-  const chatEndRef = useRef(null);
-  const audioRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
-  const menuRef = useRef(null);
-  const avatarContainerRef = useRef(null);
-  
-  // Video Refs
-  const videoIdleRef = useRef(null);
-  const videoARef = useRef(null);
-  const videoKepalaRef = useRef(null);
-  const videoPelukRef = useRef(null);
-  const videoMarahRef = useRef(null);
-  
-  const abortControllerRef = useRef(null);
-
-  const isSpeaking = playingIndex !== null;
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
       }
     };
@@ -131,9 +188,9 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isTimeQuestion = (text) => {
+  const isTimeQuestion = (text: string): boolean => {
     const timeKeywords = [
-      'hari ini', 'hari apa', 'tanggal berapa', 'jam berapa', 'waktu', 
+      'hari ini', 'hari apa', 'tanggal berapa', 'jam berapa', 'waktu',
       'pukul', 'jam', 'hari', 'tanggal', 'bulan', 'tahun',
       'hr ini', 'hr apa', 'tgl berapa', 'j berapa',
       'tgl', 'tanggal', 'jam', 'pukul', 'waktu'
@@ -142,7 +199,7 @@ export default function Home() {
     return timeKeywords.some(keyword => lowerText.includes(keyword));
   };
 
-  const getLocalTimeResponse = () => {
+  const getLocalTimeResponse = (): string => {
     const now = new Date();
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -152,7 +209,8 @@ export default function Home() {
     const year = now.getFullYear();
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `Hari ini ${dayName}, ${date} ${monthName} ${year}, jam ${hours}.${minutes} sayang. Ada yang bisa aku bantu?`;
+    const name = getUserName();
+    return `Hari ini ${dayName}, ${date} ${monthName} ${year}, jam ${hours}:${minutes}, ${name} sayang. Ada yang bisa aku bantu?`;
   };
 
   useEffect(() => {
@@ -165,7 +223,7 @@ export default function Home() {
   }, []);
 
   // --- SWITCH VIDEO TANPA FLICKER ---
-  const switchVideo = (activeVideoRef) => {
+  const switchVideo = (activeVideoRef: RefObject<HTMLVideoElement | null>) => {
     const allVideos = [videoIdleRef, videoARef, videoKepalaRef, videoPelukRef, videoMarahRef];
 
     allVideos.forEach((ref) => {
@@ -199,28 +257,28 @@ export default function Home() {
   }, [activeReaction, isSpeaking]);
 
   // --- DETEKSI USAPAN / SENTUHAN ---
-  const handlePointerAction = (clientX, clientY) => {
-    if (activeReactionRef.current) return; // Mencegah restart saat video reaksi sedang berjalan
+  const handlePointerAction = (clientX: number, clientY: number) => {
+    if (activeReactionRef.current) return;
     if (!avatarContainerRef.current) return;
 
     const rect = avatarContainerRef.current.getBoundingClientRect();
     const relativeY = (clientY - rect.top) / rect.height;
 
     if (relativeY < 0.35) {
-      setActiveReaction('marah'); // KEPALA DISENTUH -> Marah.webm
+      setActiveReaction('marah');
     } else if (relativeY < 0.65) {
-      setActiveReaction('peluk'); // DADA DISENTUH -> Peluk.webm
+      setActiveReaction('peluk');
     } else {
-      setActiveReaction('kepala'); // KAKI KIRI / KANAN DISENTUH -> Kepala.webm
+      setActiveReaction('kepala');
     }
   };
 
-  const handlePointerDown = (e) => {
+  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     isInteractingRef.current = true;
     handlePointerAction(e.clientX, e.clientY);
   };
 
-  const handlePointerMove = (e) => {
+  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (isInteractingRef.current) {
       handlePointerAction(e.clientX, e.clientY);
     }
@@ -230,36 +288,14 @@ export default function Home() {
     isInteractingRef.current = false;
   };
 
-  // --- CLEANUP TEKS (MENGHAPUS 'IM SORRY' / 'MAAF') ---
-  const sanitizeText = (text) => {
+  // --- CLEANUP TEKS ---
+  const sanitizeText = (text: string): string => {
     if (!text) return '';
     return text
-      .replace(/i'm sorry|im sorry|sorry|maaf/gi, '')
+      .replace(/i'm sorry|im sorry|sorry|maaf/gi, 'Maaf')
       .replace(/\s+/g, ' ')
       .trim();
   };
-
-  useEffect(() => {
-    const initialGreeting = 'Hai, Perkenalkan , Saya SukaChub virtual chat yang akan menemani kamu , merindukan kehangatan dan kehadiran kamu.';
-    const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
-    setMessages([initialMsg]);
-    setDisplayMessages([initialMsg]);
-    
-    setInputDisabled(true);
-
-    if (!autoVoice) {
-      setInputDisabled(false);
-    } else {
-      setTimeout(() => {
-        if (autoVoice) speakText(initialGreeting, 0);
-      }, 500);
-    }
-
-    return () => {
-      stopAudio();
-      clearTimeout(typingTimeoutRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -283,14 +319,15 @@ export default function Home() {
   const handleClearChat = () => {
     stopAudio();
     setIsTyping(false);
-    clearTimeout(typingTimeoutRef.current);
-    
-    const initialGreeting = 'Hai, Perkenalkan , Saya SukaChub virtual chat yang akan menemani kamu , merindukan kehangatan dan kehadiran kamu.';
-    const initialMsg = { role: 'assistant', content: initialGreeting, isTyping: false };
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    const name = getUserName();
+    const initialGreeting = `Hai, ${name} . Kenalin aku SukaChub virtual chat. Ada cerita atau hal yang ingin kamu bagi? Aku selalu menunggu untuk berinteraksi denganmu.`;
+    const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
     setTypingText('');
-    
+
     setInputDisabled(true);
     if (autoVoice) {
       setTimeout(() => speakText(initialGreeting, 0), 300);
@@ -299,16 +336,85 @@ export default function Home() {
     }
   };
 
-  const typeMessageWithAudio = async (fullText, messageIndex) => {
+  const startTypingEffect = (fullText: string, messageIndex: number) => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    setIsTyping(true);
+    setTypingMessageIndex(messageIndex);
+    setTypingText('');
+
+    setDisplayMessages(prev => {
+      const updated = [...prev];
+      if (updated[messageIndex]) {
+        updated[messageIndex] = {
+          ...updated[messageIndex],
+          content: '',
+          isTyping: true
+        };
+      }
+      return updated;
+    });
+
+    let currentIndex = 0;
+    const chars = fullText.split('');
+
+    const typeNextChar = () => {
+      if (currentIndex < chars.length) {
+        const newText = fullText.substring(0, currentIndex + 1);
+        setTypingText(newText);
+
+        setDisplayMessages(prev => {
+          const updated = [...prev];
+          if (updated[messageIndex]) {
+            updated[messageIndex] = {
+              ...updated[messageIndex],
+              content: newText,
+              isTyping: true
+            };
+          }
+          return updated;
+        });
+
+        currentIndex++;
+        const delay = Math.random() * 30 + 15;
+        typingTimeoutRef.current = setTimeout(typeNextChar, delay);
+      } else {
+        setIsTyping(false);
+        setTypingMessageIndex(null);
+
+        setDisplayMessages(prev => {
+          const updated = [...prev];
+          if (updated[messageIndex]) {
+            updated[messageIndex] = {
+              ...updated[messageIndex],
+              content: fullText,
+              isTyping: false
+            };
+          }
+          return updated;
+        });
+
+        if (messageIndex === 0 && autoVoice) {
+          setInputDisabled(false);
+        }
+      }
+    };
+
+    typingTimeoutRef.current = setTimeout(typeNextChar, 100);
+  };
+
+  const typeMessageWithAudio = async (fullText: string, messageIndex: number) => {
     const cleanedFullText = sanitizeText(fullText);
 
     setDisplayMessages(prev => {
       const updated = [...prev];
       if (updated[messageIndex]) {
-        updated[messageIndex] = { 
-          ...updated[messageIndex], 
+        updated[messageIndex] = {
+          ...updated[messageIndex],
           content: cleanedFullText,
-          isTyping: false 
+          isTyping: false
         };
       }
       return updated;
@@ -354,10 +460,10 @@ export default function Home() {
           setDisplayMessages(prev => {
             const updated = [...prev];
             if (updated[messageIndex]) {
-              updated[messageIndex] = { 
-                ...updated[messageIndex], 
+              updated[messageIndex] = {
+                ...updated[messageIndex],
                 content: cleanedFullText,
-                isTyping: false 
+                isTyping: false
               };
             }
             return updated;
@@ -374,10 +480,10 @@ export default function Home() {
         setDisplayMessages(prev => {
           const updated = [...prev];
           if (updated[messageIndex]) {
-            updated[messageIndex] = { 
-              ...updated[messageIndex], 
+            updated[messageIndex] = {
+              ...updated[messageIndex],
               content: cleanedFullText,
-              isTyping: false 
+              isTyping: false
             };
           }
           return updated;
@@ -390,10 +496,10 @@ export default function Home() {
       setDisplayMessages(prev => {
         const updated = [...prev];
         if (updated[messageIndex]) {
-          updated[messageIndex] = { 
-            ...updated[messageIndex], 
+          updated[messageIndex] = {
+            ...updated[messageIndex],
             content: cleanedFullText,
-            isTyping: false 
+            isTyping: false
           };
         }
         return updated;
@@ -404,76 +510,7 @@ export default function Home() {
     }
   };
 
-  const startTypingEffect = (fullText, messageIndex) => {
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    setIsTyping(true);
-    setTypingMessageIndex(messageIndex);
-    setTypingText('');
-
-    setDisplayMessages(prev => {
-      const updated = [...prev];
-      if (updated[messageIndex]) {
-        updated[messageIndex] = { 
-          ...updated[messageIndex], 
-          content: '',
-          isTyping: true 
-        };
-      }
-      return updated;
-    });
-
-    let currentIndex = 0;
-    const chars = fullText.split('');
-
-    const typeNextChar = () => {
-      if (currentIndex < chars.length) {
-        const newText = fullText.substring(0, currentIndex + 1);
-        setTypingText(newText);
-
-        setDisplayMessages(prev => {
-          const updated = [...prev];
-          if (updated[messageIndex]) {
-            updated[messageIndex] = { 
-              ...updated[messageIndex], 
-              content: newText,
-              isTyping: true 
-            };
-          }
-          return updated;
-        });
-
-        currentIndex++;
-        const delay = Math.random() * 30 + 15;
-        typingTimeoutRef.current = setTimeout(typeNextChar, delay);
-      } else {
-        setIsTyping(false);
-        setTypingMessageIndex(null);
-
-        setDisplayMessages(prev => {
-          const updated = [...prev];
-          if (updated[messageIndex]) {
-            updated[messageIndex] = { 
-              ...updated[messageIndex], 
-              content: fullText,
-              isTyping: false 
-            };
-          }
-          return updated;
-        });
-
-        if (messageIndex === 0 && autoVoice) {
-          setInputDisabled(false);
-        }
-      }
-    };
-
-    typingTimeoutRef.current = setTimeout(typeNextChar, 100);
-  };
-
-  const speakText = async (text, index) => {
+  const speakText = async (text: string, index: number) => {
     if (!text) return;
     if (playingIndex === index) {
       stopAudio();
@@ -511,7 +548,7 @@ export default function Home() {
         stopAudio();
         return;
       }
-      
+
       const blob = await res.blob();
       if (blob.size === 0) {
         stopAudio();
@@ -532,7 +569,7 @@ export default function Home() {
           setInputDisabled(false);
         }
       };
-      
+
       audio.onerror = () => {
         stopAudio();
         if (targetIndex === 0 && autoVoice) {
@@ -541,8 +578,8 @@ export default function Home() {
       };
 
       await audio.play();
-    } catch (err) {
-      if (err.name !== 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
         stopAudio();
         if (targetIndex === 0 && autoVoice) {
           setInputDisabled(false);
@@ -551,7 +588,9 @@ export default function Home() {
     }
   };
 
-  const handlePillClick = (presetKey) => {
+  const handlePillClick = (presetKey: string) => {
+    const name = getUserName();
+
     if (userProfile) {
       handleSend(presetKey);
       return;
@@ -569,14 +608,14 @@ export default function Home() {
     setTrialCount(newTrialCount);
     localStorage.setItem('trial_count', newTrialCount.toString());
 
-    const userMsg = { role: 'user', content: presetKey, isTyping: false };
+    const userMsg: Message = { role: 'user', content: presetKey, isTyping: false };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setDisplayMessages(prev => [...prev, userMsg]);
 
-    const cleanedReply = sanitizeText(preset.reply);
-    const aiMsg = { role: 'assistant', content: '', isTyping: true };
-    const updatedMessages = [...newMessages, { role: 'assistant', content: cleanedReply }];
+    const cleanedReply = sanitizeText(preset.reply(name));
+    const aiMsg: Message = { role: 'assistant', content: '', isTyping: true };
+    const updatedMessages: Message[] = [...newMessages, { role: 'assistant', content: cleanedReply }];
     setMessages(updatedMessages);
 
     const displayIndex = updatedMessages.length - 1;
@@ -585,7 +624,7 @@ export default function Home() {
     typeMessageWithAudio(cleanedReply, displayIndex);
   };
 
-  const handleSend = async (textToSend) => {
+  const handleSend = async (textToSend?: string) => {
     if (!userProfile) {
       if (trialCount >= 3) {
         router.push('/login');
@@ -597,22 +636,22 @@ export default function Home() {
     if (!query.trim() || loading || isTyping || inputDisabled) return;
 
     if (isTimeQuestion(query)) {
-      const userMsg = { role: 'user', content: query, isTyping: false };
+      const userMsg: Message = { role: 'user', content: query, isTyping: false };
       const newMessages = [...messages, userMsg];
       setMessages(newMessages);
       setDisplayMessages(prev => [...prev, userMsg]);
       if (!textToSend) setInput('');
-      
+
       const timeReply = getLocalTimeResponse();
-      const aiMsg = { role: 'assistant', content: timeReply, isTyping: false };
+      const aiMsg: Message = { role: 'assistant', content: timeReply, isTyping: false };
       setMessages(prev => [...prev, { role: 'assistant', content: timeReply }]);
       setDisplayMessages(prev => [...prev, aiMsg]);
-      
+
       if (autoVoice) speakText(timeReply, newMessages.length);
       return;
     }
 
-    const userMsg = { role: 'user', content: query, isTyping: false };
+    const userMsg: Message = { role: 'user', content: query, isTyping: false };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setDisplayMessages(prev => [...prev, userMsg]);
@@ -620,36 +659,38 @@ export default function Home() {
     setLoading(true);
 
     try {
+      const name = getUserName();
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: newMessages.map(m => ({ role: m.role, content: m.content }))
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          userName: name,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.reply) {
         if (data.remainingTokens) setRemainingTokens(data.remainingTokens);
-        
+
         const cleanedReply = sanitizeText(data.reply);
-        const aiMsg = { role: 'assistant', content: '', isTyping: true };
-        const updatedMessages = [...newMessages, { role: 'assistant', content: cleanedReply }];
+        const aiMsg: Message = { role: 'assistant', content: '', isTyping: true };
+        const updatedMessages: Message[] = [...newMessages, { role: 'assistant', content: cleanedReply }];
         setMessages(updatedMessages);
-        
+
         const displayIndex = updatedMessages.length - 1;
         setDisplayMessages(prev => [...prev, aiMsg]);
-        
+
         typeMessageWithAudio(cleanedReply, displayIndex);
-        
+
       } else {
-        const errorMsg = `Error: ${data.error || 'Gagal tersambung.'}`;
+        const errorMsg = `Maaf ${getUserName()} sayang, ada masalah teknis sedikit: ${data.error || 'Gagal terhubung.'}`;
         setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
         setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
         setLoading(false);
       }
-    } catch (err) {
-      const errorMsg = `Error Network: ${err.message}`;
+    } catch (err: unknown) {
+      const errorMsg = `Maaf ${getUserName()} sayang, koneksi kita terputus sebentar. Coba lagi yuk!`;
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
       setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
       setLoading(false);
@@ -681,7 +722,7 @@ export default function Home() {
             >
               <IconMenu />
             </button>
-            
+
             {isMenuOpen && (
               <div style={styles.dropdownGrid}>
                 <a href="https://ipix.my.id" target="_blank" rel="noopener noreferrer" style={styles.gridItem} onClick={() => setIsMenuOpen(false)}>ipix.my.id</a>
@@ -693,9 +734,9 @@ export default function Home() {
                     setIsMenuOpen(false);
                     handleAuthAction();
                   }}
-                  style={{ 
-                    ...styles.gridItem, 
-                    ...(userProfile ? styles.gridLogout : styles.gridLogin) 
+                  style={{
+                    ...styles.gridItem,
+                    ...(userProfile ? styles.gridLogout : styles.gridLogin)
                   }}
                 >
                   {userProfile ? 'Logout' : 'Login'}
@@ -706,17 +747,31 @@ export default function Home() {
 
           <div style={styles.titleWrapper}>
             <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
-              SukaChub your virtual chat
+              SukaChub virtual chat
             </h1>
-            <span style={{
-              ...styles.userBadge,
-              backgroundColor: userProfile ? 'rgba(249, 115, 22, 0.15)' : 'rgba(239, 68, 68, 0.2)',
-              color: userProfile ? '#f97316' : '#ef4444'
-            }}>
-              {userProfile 
-                ? (userProfile.username || userProfile.email || 'User') 
-                : 'Belum Login'}
-            </span>
+            {userProfile ? (
+              <span style={{
+                ...styles.userBadge,
+                backgroundColor: 'rgba(249, 115, 22, 0.15)',
+                color: '#f97316'
+              }}>
+                {getUserName()}
+              </span>
+            ) : (
+              <button
+                onClick={() => router.push('/login')}
+                style={{
+                  ...styles.userBadge,
+                  backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                  color: '#22c55e',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Login
+              </button>
+            )}
           </div>
 
           {userProfile && remainingTokens !== null && !isMobile && (
@@ -727,7 +782,7 @@ export default function Home() {
         </div>
 
         <div style={styles.voiceControlGroup}>
-          <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
+          <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
             <option value="spruce">Deep Voice</option>
             <option value="arbor">Man Voice</option>
           </select>
@@ -750,7 +805,7 @@ export default function Home() {
       <div style={styles.chatBoxWrapper}>
         {/* LAYER AVATAR INTERAKTIF */}
         <div style={styles.avatarLayer}>
-          <div 
+          <div
             ref={avatarContainerRef}
             style={styles.avatarContainer}
             onPointerDown={handlePointerDown}
@@ -787,7 +842,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: MARAH (KEPALA DISENTUH) */}
+            {/* REAKSI: MARAH */}
             <video
               ref={videoMarahRef}
               src="/Marah.webm"
@@ -801,7 +856,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: PELUK (DADA DISENTUH) */}
+            {/* REAKSI: PELUK */}
             <video
               ref={videoPelukRef}
               src="/Peluk.webm"
@@ -815,7 +870,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: KEPALA (KAKI KIRI/KANAN DISENTUH) */}
+            {/* REAKSI: KEPALA */}
             <video
               ref={videoKepalaRef}
               src="/Kepala.webm"
@@ -838,14 +893,14 @@ export default function Home() {
             <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
                 <div style={styles.roleHeader}>
-                  <span style={{ 
-                    ...styles.roleLabel, 
+                  <span style={{
+                    ...styles.roleLabel,
                     color: msg.role === 'assistant' ? '#fb923c' : '#ffffff',
                     fontWeight: '700',
                     fontStyle: 'italic',
                   }}>
-                    {msg.role === 'user' 
-                      ? (userProfile?.username || userProfile?.email || 'User') 
+                    {msg.role === 'user'
+                      ? getUserName()
                       : 'SukaChub Virtual Chat'}
                   </span>
                   {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
@@ -883,7 +938,7 @@ export default function Home() {
                   <span style={{ color: '#fb923c' }}>.</span>
                   <span style={{ color: '#fdba74' }}>.</span>
                 </span>
-                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang mikir...</span>
+                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang memikirkan kamu...</span>
               </div>
             </div>
           )}
@@ -899,30 +954,30 @@ export default function Home() {
         ))}
       </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
+      <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
         {userProfile && (
           <button type="button" onClick={handleClearChat} style={styles.clearButton}>
             Hapus
           </button>
         )}
-        
+
         <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
           <input
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
             placeholder={
               !userProfile
-                ? trialCount < 3 
-                  ? `Trial ${3 - trialCount}/3 (Klik tombol saran di atas)...` 
+                ? trialCount < 3
+                  ? `Trial ${3 - trialCount}/3 (Klik tombol saran di atas)...`
                   : "Trial habis. Silakan login..."
-                : inputDisabled 
-                  ? "Tunggu AI selesai bicara..." 
-                  : "Ketik pesan hangat..."
+                : inputDisabled
+                  ? "Tunggu sebentar ya..."
+                  : `Ketik pesan manis untuk SukaChub...`
             }
-            style={{ 
-              ...styles.input, 
-              paddingRight: '55px', 
+            style={{
+              ...styles.input,
+              paddingRight: '55px',
               width: '100%',
               backgroundColor: !userProfile ? '#27272a' : '#18181b',
               cursor: !userProfile ? 'not-allowed' : 'text'
@@ -943,17 +998,17 @@ export default function Home() {
         </div>
 
         {!userProfile ? (
-          <button 
-            type="button" 
-            onClick={() => router.push('/login')} 
+          <button
+            type="button"
+            onClick={() => router.push('/login')}
             style={styles.loginSubmitButton}
           >
             Login
           </button>
         ) : (
-          <button 
-            type="submit" 
-            disabled={loading || isTyping || inputDisabled} 
+          <button
+            type="submit"
+            disabled={loading || isTyping || inputDisabled}
             style={styles.sendButton}
           >
             {loading || isTyping ? '...' : 'Kirim'}
@@ -985,7 +1040,7 @@ export default function Home() {
 }
 
 // ===== STYLES =====
-const styles = {
+const styles: Record<string, CSSProperties> = {
   container: {
     display: 'flex',
     flexDirection: 'column',
@@ -1015,9 +1070,9 @@ const styles = {
     gap: '6px',
     flexWrap: 'wrap',
   },
-  headerTitleGroup: { 
-    display: 'flex', 
-    alignItems: 'center', 
+  headerTitleGroup: {
+    display: 'flex',
+    alignItems: 'center',
     gap: '10px',
     flex: '1 1 auto',
     minWidth: '120px',
@@ -1084,10 +1139,10 @@ const styles = {
     alignItems: 'flex-start',
     gap: '2px',
   },
-  title: { 
-    fontSize: 'clamp(0.75rem, 3vw, 0.88rem)', 
-    fontWeight: '600', 
-    margin: 0, 
+  title: {
+    fontSize: 'clamp(0.75rem, 3vw, 0.88rem)',
+    fontWeight: '600',
+    margin: 0,
     letterSpacing: '-0.01em',
     whiteSpace: 'nowrap',
   },
@@ -1101,41 +1156,41 @@ const styles = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  tokenBadge: { 
-    fontSize: '0.6rem', 
-    backgroundColor: 'rgba(39, 39, 42, 0.9)', 
-    color: '#f97316', 
-    padding: '2px 7px', 
-    borderRadius: '12px', 
+  tokenBadge: {
+    fontSize: '0.6rem',
+    backgroundColor: 'rgba(39, 39, 42, 0.9)',
+    color: '#f97316',
+    padding: '2px 7px',
+    borderRadius: '12px',
     fontWeight: '600',
     flexShrink: 0,
   },
-  voiceControlGroup: { 
-    display: 'flex', 
-    alignItems: 'center', 
+  voiceControlGroup: {
+    display: 'flex',
+    alignItems: 'center',
     gap: '5px',
     flexShrink: 0,
   },
-  voiceSelect: { 
-    backgroundColor: '#18181b', 
-    color: '#f4f4f5', 
-    border: '1px solid #3f3f46', 
-    borderRadius: '12px', 
-    padding: '4px 8px', 
-    fontSize: 'clamp(0.6rem, 2vw, 0.75rem)', 
+  voiceSelect: {
+    backgroundColor: '#18181b',
+    color: '#f4f4f5',
+    border: '1px solid #3f3f46',
+    borderRadius: '12px',
+    padding: '4px 8px',
+    fontSize: 'clamp(0.6rem, 2vw, 0.75rem)',
     outline: 'none',
     maxWidth: '90px',
   },
-  autoVoiceBtn: { 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '4px', 
-    border: '1px solid', 
-    borderRadius: '12px', 
-    padding: '4px 10px', 
-    fontSize: 'clamp(0.55rem, 1.8vw, 0.72rem)', 
-    fontWeight: '600', 
-    cursor: 'pointer', 
+  autoVoiceBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    border: '1px solid',
+    borderRadius: '12px',
+    padding: '4px 10px',
+    fontSize: 'clamp(0.55rem, 1.8vw, 0.72rem)',
+    fontWeight: '600',
+    cursor: 'pointer',
     transition: 'all 0.2s',
     flexShrink: 0,
   },
@@ -1204,8 +1259,8 @@ const styles = {
     flexShrink: 0,
     pointerEvents: 'none',
   },
-  messageWrapper: { 
-    display: 'flex', 
+  messageWrapper: {
+    display: 'flex',
     width: '100%',
     pointerEvents: 'none',
   },
@@ -1220,40 +1275,40 @@ const styles = {
     wordBreak: 'break-word',
     pointerEvents: 'auto',
   },
-  userBubble: { 
-    backgroundColor: 'rgba(249, 115, 22, 0.9)', 
-    color: '#ffffff', 
-    borderRadius: '18px 18px 4px 18px' 
+  userBubble: {
+    backgroundColor: 'rgba(249, 115, 22, 0.9)',
+    color: '#ffffff',
+    borderRadius: '18px 18px 4px 18px'
   },
-  aiBubble: { 
-    backgroundColor: 'rgba(24, 24, 27, 0.85)', 
-    color: '#f4f4f5', 
-    border: '1px solid rgba(63, 63, 70, 0.5)', 
-    borderRadius: '18px 18px 18px 4px' 
+  aiBubble: {
+    backgroundColor: 'rgba(24, 24, 27, 0.85)',
+    color: '#f4f4f5',
+    border: '1px solid rgba(63, 63, 70, 0.5)',
+    borderRadius: '18px 18px 18px 4px'
   },
-  roleHeader: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: '3px', 
-    gap: '6px' 
+  roleHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '3px',
+    gap: '6px'
   },
-  roleLabel: { 
-    fontSize: 'clamp(0.6rem, 1.8vw, 0.7rem)', 
-    opacity: 0.9, 
+  roleLabel: {
+    fontSize: 'clamp(0.6rem, 1.8vw, 0.7rem)',
+    opacity: 0.9,
   },
-  speakerBtn: { 
-    background: 'none', 
-    border: 'none', 
-    cursor: 'pointer', 
-    padding: '2px', 
-    display: 'flex', 
+  speakerBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '2px',
+    display: 'flex',
     alignItems: 'center',
     touchAction: 'manipulation',
   },
-  textContent: { 
-    whiteSpace: 'pre-wrap', 
-    lineHeight: '1.45', 
+  textContent: {
+    whiteSpace: 'pre-wrap',
+    lineHeight: '1.45',
     wordBreak: 'break-word',
     fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)',
   },
@@ -1264,62 +1319,62 @@ const styles = {
     letterSpacing: '2px',
     alignItems: 'center',
   },
-  suggestions: { 
-    display: 'flex', 
-    gap: '6px', 
-    padding: '6px 12px', 
-    overflowX: 'auto', 
+  suggestions: {
+    display: 'flex',
+    gap: '6px',
+    padding: '6px 12px',
+    overflowX: 'auto',
     zIndex: 3,
     scrollbarWidth: 'none',
     msOverflowStyle: 'none',
     WebkitOverflowScrolling: 'touch',
     backgroundColor: '#000000',
   },
-  chipButton: { 
-    backgroundColor: 'rgba(24, 24, 27, 0.8)', 
-    border: '1px solid rgba(63, 63, 70, 0.6)', 
-    color: '#d4d4d8', 
-    padding: '6px 14px', 
-    borderRadius: '9999px', 
-    fontSize: 'clamp(0.7rem, 2.2vw, 0.78rem)', 
+  chipButton: {
+    backgroundColor: 'rgba(24, 24, 27, 0.8)',
+    border: '1px solid rgba(63, 63, 70, 0.6)',
+    color: '#d4d4d8',
+    padding: '6px 14px',
+    borderRadius: '9999px',
+    fontSize: 'clamp(0.7rem, 2.2vw, 0.78rem)',
     fontWeight: '500',
-    cursor: 'pointer', 
+    cursor: 'pointer',
     whiteSpace: 'nowrap',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
     touchAction: 'manipulation',
     minHeight: '36px',
   },
-  inputContainer: { 
-    display: 'flex', 
-    alignItems: 'center', 
-    padding: '8px 12px calc(8px + env(safe-area-inset-bottom)) 12px', 
-    gap: '6px', 
+  inputContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '8px 12px calc(8px + env(safe-area-inset-bottom)) 12px',
+    gap: '6px',
     backgroundColor: '#000000',
     zIndex: 3,
     borderTop: '1px solid rgba(63, 63, 70, 0.3)',
   },
-  input: { 
+  input: {
     flex: 1,
-    border: '1px solid #27272a', 
-    borderRadius: '20px', 
-    padding: '10px 14px', 
-    color: '#fff', 
-    outline: 'none', 
+    border: '1px solid #27272a',
+    borderRadius: '20px',
+    padding: '10px 14px',
+    color: '#fff',
+    outline: 'none',
     fontSize: 'clamp(0.85rem, 2.8vw, 0.95rem)',
     minHeight: '42px',
     WebkitAppearance: 'none',
     backgroundColor: '#18181b',
   },
-  sendButton: { 
-    backgroundColor: '#f97316', 
-    color: '#fff', 
-    border: 'none', 
-    borderRadius: '20px', 
-    padding: '0 16px', 
-    height: '42px', 
+  sendButton: {
+    backgroundColor: '#f97316',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '20px',
+    padding: '0 16px',
+    height: '42px',
     minWidth: '60px',
-    fontWeight: '600', 
+    fontWeight: '600',
     cursor: 'pointer',
     fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
     boxShadow: '0 2px 10px rgba(249, 115, 22, 0.4)',
@@ -1327,30 +1382,30 @@ const styles = {
     flexShrink: 0,
   },
   loginSubmitButton: {
-    backgroundColor: '#22c55e', 
-    color: '#fff', 
-    border: 'none', 
-    borderRadius: '20px', 
-    padding: '0 18px', 
-    height: '42px', 
+    backgroundColor: '#22c55e',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '20px',
+    padding: '0 18px',
+    height: '42px',
     minWidth: '65px',
-    fontWeight: '600', 
+    fontWeight: '600',
     cursor: 'pointer',
     fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
     boxShadow: '0 2px 10px rgba(34, 197, 94, 0.4)',
     touchAction: 'manipulation',
     flexShrink: 0,
   },
-  clearButton: { 
-    backgroundColor: 'rgba(239, 68, 68, 0.15)', 
-    color: '#ef4444', 
-    border: '1px solid rgba(239, 68, 68, 0.3)', 
-    borderRadius: '20px', 
-    padding: '0 12px', 
-    height: '42px', 
-    fontSize: 'clamp(0.7rem, 2.2vw, 0.78rem)', 
-    fontWeight: '600', 
-    cursor: 'pointer', 
+  clearButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    color: '#ef4444',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    borderRadius: '20px',
+    padding: '0 12px',
+    height: '42px',
+    fontSize: 'clamp(0.7rem, 2.2vw, 0.78rem)',
+    fontWeight: '600',
+    cursor: 'pointer',
     whiteSpace: 'nowrap',
     touchAction: 'manipulation',
     flexShrink: 0,
