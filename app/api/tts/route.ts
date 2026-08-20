@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
-const VOICE_CONFIG = {
+type VoiceType = 'spruce' | 'arbor';
+
+interface VoiceConfig {
+  voice: string;
+  pitch: string;
+  rate: string;
+  volume: string;
+}
+
+const VOICE_CONFIG: Record<VoiceType, VoiceConfig> = {
   spruce: { 
     voice: 'id-ID-ArdiNeural', 
     pitch: '-34Hz',
@@ -16,7 +25,7 @@ const VOICE_CONFIG = {
   },
 };
 
-function enhanceEmotionalText(text) {
+function enhanceEmotionalText(text: string): string {
   if (!text) return '';
   return text
     .replace(/\[Error:.*?\]/g, '')
@@ -27,7 +36,7 @@ function enhanceEmotionalText(text) {
     .trim();
 }
 
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
     const { text, voice = 'spruce' } = await req.json();
     const cleanText = enhanceEmotionalText(text);
@@ -37,7 +46,8 @@ export async function POST(req) {
     }
 
     const tts = new MsEdgeTTS();
-    const config = VOICE_CONFIG[voice] || VOICE_CONFIG.spruce;
+    const voiceKey: VoiceType = (voice in VOICE_CONFIG) ? voice : 'spruce';
+    const config = VOICE_CONFIG[voiceKey];
 
     await tts.setMetadata(config.voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
 
@@ -47,8 +57,6 @@ export async function POST(req) {
       volume: config.volume,
     });
 
-    // Mengubah stream Node.js / AsyncIterable menjadi Web ReadableStream
-    // agar data dikirim langsung secara chunked (realtime streaming)
     const stream = new ReadableStream({
       async start(controller) {
         try {
@@ -66,12 +74,14 @@ export async function POST(req) {
       headers: {
         'Content-Type': 'audio/mpeg',
         'Cache-Control': 'no-cache, no-transform',
-        'Transfer-Encoding': 'chunked',
       },
     });
 
   } catch (err) {
     console.error('Edge TTS Server Error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: (err as Error).message || 'Gagal memproses TTS' },
+      { status: 500 }
+    );
   }
 }

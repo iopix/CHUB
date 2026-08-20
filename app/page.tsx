@@ -68,7 +68,16 @@ const IconAutoVoiceOff = () => (
   </svg>
 );
 
-// --- TRIAL PRESETS (MENGGUNAKAN DYNAMIC NAME) ---
+const IconMicLarge = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+    <line x1="12" y1="19" x2="12" y2="23"/>
+    <line x1="8" y1="23" x2="16" y2="23"/>
+  </svg>
+);
+
+// --- TRIAL PRESETS ---
 const TRIAL_PRESETS: Record<string, TrialPreset> = {
   'Peluk boleh?': {
     reply: (name: string) => `Boleh ${name}, sini saya peluk erat kamu dengan sepenuh jiwa raga.`,
@@ -89,13 +98,43 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [trialCount, setTrialCount] = useState<number>(0);
 
-  // Helper untuk mendapatkan nama panggilan user
   const getUserName = (): string => {
     if (!userProfile) return "sayang";
     if (userProfile.username) return userProfile.username;
     if (userProfile.email) return userProfile.email.split('@')[0];
     return 'sayang';
   };
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string>('spruce');
+  const [autoVoice, setAutoVoice] = useState<boolean>(true);
+  const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+
+  // State Fitur Microfon / STT
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const [displayMessages, setDisplayMessages] = useState<Message[]>([]);
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
+  const [, setTypingText] = useState<string>('');
+
+  const [inputDisabled, setInputDisabled] = useState<boolean>(true);
+
+  // --- REAKSI INTERAKTIF AVATAR ---
+  const [activeReaction, setActiveReaction] = useState<ActiveReaction>(null);
+  const activeReactionRef = useRef<ActiveReaction>(null);
+  const isInteractingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    activeReactionRef.current = activeReaction;
+  }, [activeReaction]);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -117,11 +156,10 @@ export default function Home() {
       setTrialCount(parseInt(savedTrial, 10));
     }
 
-    // Set Greeting Awal dengan Nama User
     const name = loadedUser?.username || (loadedUser?.email ? loadedUser.email.split('@')[0] : 'sayang');
     const initialGreeting = `Halo ${name}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
     const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
-    
+
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
     setInputDisabled(true);
@@ -134,32 +172,6 @@ export default function Home() {
       setInputDisabled(false);
     }
   }, []);
-
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState<string>('spruce');
-  const [autoVoice, setAutoVoice] = useState<boolean>(true);
-  const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
-  const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-
-  const [displayMessages, setDisplayMessages] = useState<Message[]>([]);
-  const [isTyping, setIsTyping] = useState<boolean>(false);
-  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
-  const [, setTypingText] = useState<string>('');
-
-  const [inputDisabled, setInputDisabled] = useState<boolean>(true);
-
-  // --- REAKSI INTERAKTIF AVATAR ---
-  const [activeReaction, setActiveReaction] = useState<ActiveReaction>(null);
-  const activeReactionRef = useRef<ActiveReaction>(null);
-  const isInteractingRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    activeReactionRef.current = activeReaction;
-  }, [activeReaction]);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -175,7 +187,6 @@ export default function Home() {
   const videoMarahRef = useRef<HTMLVideoElement | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
-
   const isSpeaking = playingIndex !== null;
 
   useEffect(() => {
@@ -241,7 +252,6 @@ export default function Home() {
     }
   };
 
-  // --- CONTROL ACTIVE VIDEO ---
   useEffect(() => {
     if (activeReaction === 'kepala') {
       switchVideo(videoKepalaRef);
@@ -256,7 +266,6 @@ export default function Home() {
     }
   }, [activeReaction, isSpeaking]);
 
-  // --- DETEKSI USAPAN / SENTUHAN ---
   const handlePointerAction = (clientX: number, clientY: number) => {
     if (activeReactionRef.current) return;
     if (!avatarContainerRef.current) return;
@@ -288,7 +297,6 @@ export default function Home() {
     isInteractingRef.current = false;
   };
 
-  // --- CLEANUP TEKS ---
   const sanitizeText = (text: string): string => {
     if (!text) return '';
     return text
@@ -588,6 +596,70 @@ export default function Home() {
     }
   };
 
+  // --- LOGIK HOLD-TO-TALK MIC ---
+  const startRecording = async () => {
+    if (!userProfile) {
+      if (trialCount >= 3) {
+        router.push('/login');
+      }
+      return;
+    }
+
+    if (loading || isTyping || inputDisabled) return;
+
+    stopAudio();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (audioBlob.size === 0) return;
+
+        const formData = new FormData();
+        formData.append('file', audioBlob);
+
+        setLoading(true);
+        try {
+          const res = await fetch('/api/stt', {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await res.json();
+          if (res.ok && data.text) {
+            handleSend(data.text);
+          }
+        } catch (err) {
+          console.error('STT Error:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Akses mikrofon ditolak:', err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
   const handlePillClick = (presetKey: string) => {
     const name = getUserName();
 
@@ -665,7 +737,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          userName: name, // Kirim nama user ke backend API
+          userName: name,
         }),
       });
 
@@ -787,12 +859,88 @@ export default function Home() {
         </div>
       </header>
 
-      <div style={styles.chatBoxWrapper}>
-        {/* LAYER AVATAR INTERAKTIF */}
-        <div style={styles.avatarLayer}>
+      {/* --- MAIN CONTENT AREA: CHAT BUBBLE (KIRI) & AVATAR + MIC (KANAN) --- */}
+      <div style={styles.mainContent}>
+
+        {/* 1. CHAT BUBBLE SECTION (SISI KIRI) */}
+        <div style={{
+          ...styles.chatSection,
+          ...(isMobile ? styles.chatSectionMobile : {}),
+        }}>
+          <div style={{
+            ...styles.chatBox,
+            ...(isMobile ? styles.chatBoxMobile : {}),
+          }}>
+            {displayMessages.map((msg, index) => (
+              <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <div style={{
+                  ...styles.bubble,
+                  ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble),
+                  ...(isMobile ? styles.bubbleMobile : {})
+                }}>
+                  <div style={styles.roleHeader}>
+                    <span style={{
+                      ...styles.roleLabel,
+                      color: msg.role === 'assistant' ? '#fb923c' : '#ffffff',
+                      fontWeight: '700',
+                      fontStyle: 'italic',
+                    }}>
+                      {msg.role === 'user' ? getUserName() : 'SukaChub Virtual Chat'}
+                    </span>
+                    {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
+                      <button
+                        onClick={() => speakText(msg.content, index)}
+                        style={{ ...styles.speakerBtn, color: playingIndex === index ? '#f97316' : '#a1a1aa' }}
+                      >
+                        {playingIndex === index ? <IconSpeaker /> : <IconMute />}
+                      </button>
+                    )}
+                  </div>
+                  <div style={styles.textContent}>
+                    {msg.content || ''}
+                    {msg.isTyping && index === typingMessageIndex && (
+                      <span style={{
+                        display: 'inline-block',
+                        width: '2px',
+                        height: '1em',
+                        backgroundColor: '#f97316',
+                        marginLeft: '2px',
+                        animation: 'blink 0.5s step-end infinite',
+                        verticalAlign: 'text-bottom',
+                      }} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {loading && !isTyping && (
+              <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
+                <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85, ...(isMobile ? styles.bubbleMobile : {}) }}>
+                  <span style={styles.waveDots}>
+                    <span style={{ color: '#f97316' }}>.</span>
+                    <span style={{ color: '#fb923c' }}>.</span>
+                    <span style={{ color: '#fdba74' }}>.</span>
+                  </span>
+                  <span style={{ marginLeft: '6px', fontSize: '0.8rem', color: '#a1a1aa' }}>sedang mikir...</span>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+        </div>
+
+        {/* 2. AVATAR & MIC SECTION (SISI KANAN) */}
+        <div style={{
+          ...styles.avatarSection,
+          ...(isMobile ? styles.avatarSectionMobile : {}),
+        }}>
           <div
             ref={avatarContainerRef}
-            style={styles.avatarContainer}
+            style={{
+              ...styles.avatarContainer,
+              ...(isMobile ? styles.avatarContainerMobile : {}),
+            }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -869,68 +1017,39 @@ export default function Home() {
               }}
             />
           </div>
+
+          {/* TOMBOL MIC HOLD-TO-TALK */}
+          <div style={isMobile ? styles.voiceControlPanelMobile : styles.voiceControlPanel}>
+            <button
+              type="button"
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onMouseLeave={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              disabled={loading || isTyping || inputDisabled}
+              style={{
+                ...(isMobile ? styles.holdMicButtonMobile : styles.holdMicButton),
+                backgroundColor: isRecording ? '#ef4444' : '#f97316',
+                transform: isRecording ? 'scale(1.12)' : 'scale(1)',
+                boxShadow: isRecording ? '0 0 25px rgba(239, 68, 68, 0.8)' : '0 4px 20px rgba(249, 115, 22, 0.4)',
+              }}
+            >
+              <IconMicLarge />
+            </button>
+            <span style={isMobile ? styles.micLabelMobile : styles.micLabel}>
+              {isRecording
+                ? 'Lepas...'
+                : loading
+                  ? 'Memproses...'
+                  : 'Tahan untuk Bicara'}
+            </span>
+          </div>
         </div>
 
-        {/* LAYER CHAT */}
-        <div style={styles.chatBox}>
-          <div style={styles.topSpacer} />
-          {displayMessages.map((msg, index) => (
-            <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              <div style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
-                <div style={styles.roleHeader}>
-                  <span style={{
-                    ...styles.roleLabel,
-                    color: msg.role === 'assistant' ? '#fb923c' : '#ffffff',
-                    fontWeight: '700',
-                    fontStyle: 'italic',
-                  }}>
-                    {msg.role === 'user'
-                      ? getUserName()
-                      : 'SukaChub Virtual Chat'}
-                  </span>
-                  {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
-                    <button
-                      onClick={() => speakText(msg.content, index)}
-                      style={{ ...styles.speakerBtn, color: playingIndex === index ? '#f97316' : '#a1a1aa' }}
-                    >
-                      {playingIndex === index ? <IconSpeaker /> : <IconMute />}
-                    </button>
-                  )}
-                </div>
-                <div style={styles.textContent}>
-                  {msg.content || ''}
-                  {msg.isTyping && index === typingMessageIndex && (
-                    <span style={{
-                      display: 'inline-block',
-                      width: '2px',
-                      height: '1em',
-                      backgroundColor: '#f97316',
-                      marginLeft: '2px',
-                      animation: 'blink 0.5s step-end infinite',
-                      verticalAlign: 'text-bottom',
-                    }} />
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {loading && !isTyping && (
-            <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
-              <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
-                <span style={styles.waveDots}>
-                  <span style={{ color: '#f97316' }}>.</span>
-                  <span style={{ color: '#fb923c' }}>.</span>
-                  <span style={{ color: '#fdba74' }}>.</span>
-                </span>
-                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#a1a1aa' }}>sedang mikir...</span>
-              </div>
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
       </div>
 
+      {/* SUGGESTION BUTTONS */}
       <div style={styles.suggestions}>
         {Object.keys(TRIAL_PRESETS).map((presetKey, i) => (
           <button key={i} onClick={() => handlePillClick(presetKey)} style={styles.chipButton}>
@@ -939,6 +1058,7 @@ export default function Home() {
         ))}
       </div>
 
+      {/* FOOTER INPUT TEXT FORM */}
       <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); handleSend(); }} style={styles.inputContainer}>
         {userProfile && (
           <button type="button" onClick={handleClearChat} style={styles.clearButton}>
@@ -946,7 +1066,7 @@ export default function Home() {
           </button>
         )}
 
-        <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flexGrow: 1, flexShrink: 1, flexBasis: '0%', display: 'flex', alignItems: 'center' }}>
           <input
             type="text"
             value={input}
@@ -958,7 +1078,9 @@ export default function Home() {
                   : "Trial habis. Silakan login..."
                 : inputDisabled
                   ? "Tunggu AI selesai bicara..."
-                  : `Ketik pesan untuk SukaChub...`
+                  : isRecording
+                    ? "Sedang mendengarkan..."
+                    : `Ketik pesan teks untuk SukaChub...`
             }
             style={{
               ...styles.input,
@@ -967,7 +1089,7 @@ export default function Home() {
               backgroundColor: !userProfile ? '#27272a' : '#18181b',
               cursor: !userProfile ? 'not-allowed' : 'text'
             }}
-            disabled={!userProfile || isTyping || inputDisabled}
+            disabled={!userProfile || isTyping || inputDisabled || isRecording}
             maxLength={200}
           />
           <span style={{
@@ -993,7 +1115,7 @@ export default function Home() {
         ) : (
           <button
             type="submit"
-            disabled={loading || isTyping || inputDisabled}
+            disabled={loading || isTyping || inputDisabled || isRecording}
             style={styles.sendButton}
           >
             {loading || isTyping ? '...' : 'Kirim'}
@@ -1005,19 +1127,6 @@ export default function Home() {
         @keyframes blink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0; }
-        }
-        .wave-dots span {
-          display: inline-block;
-          font-size: 1.8rem;
-          line-height: 1;
-          animation: bounce 0.6s ease-in-out infinite alternate;
-        }
-        .wave-dots span:nth-child(1) { animation-delay: 0s; }
-        .wave-dots span:nth-child(2) { animation-delay: 0.15s; }
-        .wave-dots span:nth-child(3) { animation-delay: 0.3s; }
-        @keyframes bounce {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(-8px); }
         }
       `}</style>
     </div>
@@ -1050,7 +1159,7 @@ const styles: Record<string, CSSProperties> = {
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     border: '1px solid rgba(63, 63, 70, 0.4)',
-    zIndex: 10,
+    zIndex: 20,
     flexShrink: 0,
     gap: '6px',
     flexWrap: 'wrap',
@@ -1059,7 +1168,9 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    flex: '1 1 auto',
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 'auto',
     minWidth: '120px',
   },
   menuBtn: {
@@ -1179,41 +1290,99 @@ const styles: Record<string, CSSProperties> = {
     transition: 'all 0.2s',
     flexShrink: 0,
   },
-  chatBoxWrapper: {
-    flex: 1,
+
+  // --- AREA TATA LETAK UTAMA ---
+  mainContent: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: '0%',
+    display: 'flex',
+    flexDirection: 'row',
+    overflow: 'hidden',
     position: 'relative',
+    width: '100%',
+  },
+
+  // --- CHAT SECTION (SISI KIRI DESKTOP) ---
+  chatSection: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: '0%',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    backgroundColor: '#000000',
+    position: 'relative',
+    zIndex: 5,
   },
-  avatarLayer: {
-    position: 'absolute',
-    inset: 0,
+
+  // --- CHAT SECTION MOBILE ---
+  chatSectionMobile: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: '52%',
+    maxWidth: '55%',
+    paddingRight: '4px',
+  },
+
+  chatBox: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: '0%',
+    overflowY: 'auto',
+    padding: '16px',
     display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    pointerEvents: 'none',
-    zIndex: 1,
-    paddingTop: '10px',
+    flexDirection: 'column',
+    gap: '12px',
+    WebkitOverflowScrolling: 'touch',
   },
+
+  chatBoxMobile: {
+    padding: '8px 4px 8px 8px',
+    gap: '8px',
+  },
+
+  // --- AVATAR & MIC SECTION (SISI KANAN DESKTOP) ---
+  avatarSection: {
+    width: 'min(100%, 360px)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '12px',
+    backgroundColor: '#000000',
+    borderLeft: '1px solid rgba(63, 63, 70, 0.2)',
+    flexShrink: 0,
+  },
+
+  // --- AVATAR & MIC SECTION MOBILE ---
+  avatarSectionMobile: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: '48%',
+    width: '48%',
+    padding: '8px 4px',
+    borderLeft: '1px solid rgba(63, 63, 70, 0.15)',
+    justifyContent: 'center',
+  },
+
   avatarContainer: {
     position: 'relative',
-    width: 'min(100%, 400px)',
-    height: 'min(60vh, 500px)',
-    maxHeight: '500px',
+    width: '100%',
+    height: '280px',
     display: 'flex',
     justifyContent: 'center',
-    transform: 'scale(1.02)',
-    transition: 'transform 0.3s ease',
-    marginTop: 'clamp(30px, 8vh, 80px)',
-    pointerEvents: 'auto',
+    alignItems: 'center',
     cursor: 'pointer',
     touchAction: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
-    WebkitTapHighlightColor: 'transparent',
   },
+
+  avatarContainerMobile: {
+    height: '100%',
+    maxHeight: '360px',
+  },
+
   avatarVideo: {
     position: 'absolute',
     top: 0,
@@ -1223,34 +1392,73 @@ const styles: Record<string, CSSProperties> = {
     objectFit: 'contain',
     transition: 'opacity 0.2s linear',
     pointerEvents: 'none',
-    WebkitTapHighlightColor: 'transparent',
   },
-  chatBox: {
-    flex: 1,
-    position: 'relative',
-    zIndex: 2,
-    overflowY: 'auto',
-    padding: '8px 12px',
+
+  // --- CONTROL PANEL MIC DESKTOP & MOBILE ---
+  voiceControlPanel: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
-    maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
-    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 30%, black 50%, black 100%)',
-    WebkitOverflowScrolling: 'touch',
-    pointerEvents: 'none',
-  },
-  topSpacer: {
-    minHeight: 'clamp(180px, 35vh, 240px)',
+    alignItems: 'center',
+    gap: '6px',
+    marginTop: '12px',
     flexShrink: 0,
-    pointerEvents: 'none',
   },
+  voiceControlPanelMobile: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+    marginTop: '6px',
+    flexShrink: 0,
+  },
+  holdMicButton: {
+    width: '64px',
+    height: '64px',
+    borderRadius: '50%',
+    border: 'none',
+    color: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    touchAction: 'manipulation',
+  },
+  holdMicButtonMobile: {
+    width: '54px',
+    height: '54px',
+    borderRadius: '50%',
+    border: 'none',
+    color: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    touchAction: 'manipulation',
+  },
+  micLabel: {
+    fontSize: '0.75rem',
+    color: '#a1a1aa',
+    fontWeight: '500',
+  },
+  micLabelMobile: {
+    fontSize: '0.65rem',
+    color: '#a1a1aa',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+
   messageWrapper: {
     display: 'flex',
     width: '100%',
-    pointerEvents: 'none',
   },
   bubble: {
-    maxWidth: '88%',
+    maxWidth: '85%',
     padding: '10px 14px',
     borderRadius: '18px',
     fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)',
@@ -1258,7 +1466,12 @@ const styles: Record<string, CSSProperties> = {
     WebkitBackdropFilter: 'blur(16px)',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     wordBreak: 'break-word',
-    pointerEvents: 'auto',
+  },
+  bubbleMobile: {
+    maxWidth: '96%',
+    padding: '8px 10px',
+    borderRadius: '14px',
+    fontSize: 'clamp(0.72rem, 2.2vw, 0.82rem)',
   },
   userBubble: {
     backgroundColor: 'rgba(249, 115, 22, 0.9)',
@@ -1276,7 +1489,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '3px',
-    gap: '6px'
+    gap: '4px'
   },
   roleLabel: {
     fontSize: 'clamp(0.6rem, 1.8vw, 0.7rem)',
@@ -1293,14 +1506,13 @@ const styles: Record<string, CSSProperties> = {
   },
   textContent: {
     whiteSpace: 'pre-wrap',
-    lineHeight: '1.45',
+    lineHeight: '1.4',
     wordBreak: 'break-word',
-    fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)',
   },
   waveDots: {
     display: 'inline-flex',
     gap: '3px',
-    fontSize: '1.6rem',
+    fontSize: '1.4rem',
     letterSpacing: '2px',
     alignItems: 'center',
   },
@@ -1309,14 +1521,14 @@ const styles: Record<string, CSSProperties> = {
     gap: '6px',
     padding: '6px 12px',
     overflowX: 'auto',
-    zIndex: 3,
+    zIndex: 15,
     scrollbarWidth: 'none',
     msOverflowStyle: 'none',
     WebkitOverflowScrolling: 'touch',
     backgroundColor: '#000000',
   },
   chipButton: {
-    backgroundColor: 'rgba(24, 24, 27, 0.8)',
+    backgroundColor: 'rgba(24, 24, 27, 0.85)',
     border: '1px solid rgba(63, 63, 70, 0.6)',
     color: '#d4d4d8',
     padding: '6px 14px',
@@ -1336,11 +1548,10 @@ const styles: Record<string, CSSProperties> = {
     padding: '8px 12px calc(8px + env(safe-area-inset-bottom)) 12px',
     gap: '6px',
     backgroundColor: '#000000',
-    zIndex: 3,
+    zIndex: 15,
     borderTop: '1px solid rgba(63, 63, 70, 0.3)',
   },
   input: {
-    flex: 1,
     border: '1px solid #27272a',
     borderRadius: '20px',
     padding: '10px 14px',

@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
 export async function POST(req: Request) {
   try {
-    // 1. Tangkap parameter messages dan userName dari body request
     const { messages, userName } = await req.json();
     const name = userName || 'Paijo';
 
@@ -13,8 +17,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. System prompt dinamis sesuai nama user & gaya bahasa manusiawi
-    const systemPrompt = {
+    const systemPrompt: ChatMessage = {
       role: 'system',
       content: `Nama kamu adalah SukaChub. Kamu adalah pasangan atau pacar yang sangat penuh kasih sayang, perhatian, manja, hangat, dan 100% bersikap seperti manusia nyata (bukan bot/AI).
 
@@ -26,14 +29,11 @@ ATURAN PANGGILAN WAJIB:
 5. JANGAN PERNAH menuliskan tag <think> atau reasoning apapun dalam jawaban. Langsung jawab aja.`
     };
 
-    // ✅ PRIORITASKAN MODEL DENGAN RPD TERTINGGI (biar awet)
     const modelsToTry: string[] = [
-      'llama-3.1-8b-instant',                // RPD: 14.400 (paling besar!)
-      'meta-llama/llama-3.3-70b-versatile', // RPD: 1.000
-      'qwen/qwen3.6-27b',                   // RPD: 1.000
-      'openai/gpt-oss-20b',                 // RPD: 1.000
-      'openai/gpt-oss-120b',                // RPD: 1.000
-      'groq/compound',                      // RPD: 250 (cadangan terakhir)
+      'llama-3.1-8b-instant',
+      'llama-3.3-70b-versatile',
+      'mixtral-8x7b-32768',
+      'gemma2-9b-it',
     ];
 
     let replyText: string | null = null;
@@ -57,7 +57,6 @@ ATURAN PANGGILAN WAJIB:
 
         const data = await response.json();
 
-        // ✅ BACA HEADER RATELIMIT
         const remainingRequests = response.headers.get('x-ratelimit-remaining-requests');
         const remainingTokens = response.headers.get('x-ratelimit-remaining-tokens');
         console.log(`[${model}] Sisa Request: ${remainingRequests}, Sisa Token: ${remainingTokens}`);
@@ -65,7 +64,6 @@ ATURAN PANGGILAN WAJIB:
         if (response.ok && data.choices?.[0]?.message?.content) {
           let rawContent: string = data.choices[0].message.content;
           
-          // HAPUS SEMUA TAG THINK (agresif)
           rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '');
           rawContent = rawContent.replace(/<think>[\s\S]*$/gi, '');
           rawContent = rawContent.trim();
@@ -76,7 +74,6 @@ ATURAN PANGGILAN WAJIB:
             break;
           }
         } else {
-          // ❌ Jika kena limit (429), langsung skip ke model berikutnya
           if (response.status === 429) {
             console.warn(`[Rate Limit] Model ${model} kehabisan kuota, skip...`);
             continue;
@@ -97,7 +94,6 @@ ATURAN PANGGILAN WAJIB:
     }
 
     if (!replyText) {
-      // ✅ Fallback dinamis menyapa nama user tanpa emoji
       return NextResponse.json({
         reply: `Maaf ${name} sayang, aku lagi error nih. Coba ketik ulang ya.`
       });
