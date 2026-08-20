@@ -597,9 +597,9 @@ export default function Home() {
     }
   };
 
-  // --- LOGIK POINTER (TAHAN - LEPAS DENGAN JARI) ---
-  const startRecording = (e?: PointerEvent<HTMLButtonElement>) => {
-    if (e) e.preventDefault();
+  // Menggunakan tipe any untuk membypass conflict TypeScript antara PointerEvent & TouchEvent
+  const startRecording = (e?: any) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
 
     if (!userProfile) {
       if (trialCount >= 3) {
@@ -655,8 +655,8 @@ export default function Home() {
     });
   };
 
-  const stopRecording = (e?: PointerEvent<HTMLButtonElement>) => {
-    if (e) e.preventDefault();
+  const stopRecording = (e?: any) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -862,27 +862,17 @@ export default function Home() {
         </div>
       </header>
 
-      {/* --- MAIN CONTENT AREA --- */}
-      <div style={{
-        ...styles.mainContent,
-        ...(isMobile ? styles.mainContentMobile : {})
-      }}>
+      {/* --- MAIN CONTENT AREA: DIBIKIN KIRI KANAN FIX --- */}
+      <div style={styles.mainContent}>
 
-        {/* 1. CHAT BUBBLE SECTION */}
-        <div style={{
-          ...styles.chatSection,
-          ...(isMobile ? styles.chatSectionMobile : {}),
-        }}>
-          <div style={{
-            ...styles.chatBox,
-            ...(isMobile ? styles.chatBoxMobile : {}),
-          }}>
+        {/* 1. CHAT BUBBLE SECTION (KIRI) */}
+        <div style={styles.chatSection}>
+          <div style={styles.chatBox}>
             {displayMessages.map((msg, index) => (
               <div key={index} style={{ ...styles.messageWrapper, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
                   ...styles.bubble,
                   ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble),
-                  ...(isMobile ? styles.bubbleMobile : {})
                 }}>
                   <div style={styles.roleHeader}>
                     <span style={{
@@ -922,7 +912,7 @@ export default function Home() {
 
             {loading && !isTyping && (
               <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
-                <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85, ...(isMobile ? styles.bubbleMobile : {}) }}>
+                <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
                   <span style={styles.waveDots}>
                     <span style={{ color: '#f97316' }}>.</span>
                     <span style={{ color: '#fb923c' }}>.</span>
@@ -936,17 +926,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 2. AVATAR & MIC SECTION (LEBIH BESAR) */}
+        {/* 2. AVATAR & MIC SECTION (KANAN) */}
         <div style={{
           ...styles.avatarSection,
           ...(isMobile ? styles.avatarSectionMobile : {}),
         }}>
+          {/* AVATAR (ATAS) */}
           <div
             ref={avatarContainerRef}
-            style={{
-              ...styles.avatarContainer,
-              ...(isMobile ? styles.avatarContainerMobile : {}),
-            }}
+            style={styles.avatarContainer}
             onPointerDown={handlePointerDownAvatar}
             onPointerMove={handlePointerMoveAvatar}
             onPointerUp={handlePointerUpAvatar}
@@ -1025,18 +1013,22 @@ export default function Home() {
             />
           </div>
 
-          {/* TOMBOL MIC HOLD-TO-TALK DENGAN LOGIK POINTER JARI */}
-          <div style={isMobile ? styles.voiceControlPanelMobile : styles.voiceControlPanel}>
+          {/* MIC BAWAH AVATAR */}
+          <div style={styles.voiceControlPanel}>
             <button
               type="button"
               onPointerDown={startRecording}
               onPointerUp={stopRecording}
               onPointerLeave={stopRecording}
               onPointerCancel={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              onTouchCancel={stopRecording}
               onContextMenu={(e) => e.preventDefault()}
               disabled={loading || isTyping || inputDisabled}
               style={{
-                ...(isMobile ? styles.holdMicButtonMobile : styles.holdMicButton),
+                ...styles.holdMicButton,
+                ...(isMobile ? styles.holdMicButtonMobile : {}),
                 backgroundColor: isRecording ? '#ef4444' : '#f97316',
                 transform: isRecording ? 'scale(1.15)' : 'scale(1)',
                 boxShadow: isRecording ? '0 0 30px rgba(239, 68, 68, 0.9)' : '0 4px 25px rgba(249, 115, 22, 0.5)',
@@ -1044,7 +1036,7 @@ export default function Home() {
             >
               <IconMicLarge />
             </button>
-            <span style={isMobile ? styles.micLabelMobile : styles.micLabel}>
+            <span style={styles.micLabel}>
               {isRecording
                 ? 'Lepas untuk kirim...'
                 : loading
@@ -1307,41 +1299,29 @@ const styles: Record<string, CSSProperties> = {
     WebkitTapHighlightColor: 'transparent',
   },
 
-  // --- LAYOUT UTAMA ---
+  // --- LAYOUT KIRI (CHAT) - KANAN (AVATAR) FIX ---
   mainContent: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: '0%',
     display: 'flex',
-    flexDirection: 'row',
+    flexDirection: 'row', // MAKSA ROW KIRI KANAN
     overflow: 'hidden',
     position: 'relative',
     width: '100%',
   },
-  mainContentMobile: {
-    flexDirection: 'column-reverse', // Mobile: Chat di atas, Avatar besar di tengah/bawah
-  },
 
-  // --- CHAT SECTION ---
+  // --- KIRI: CHAT SECTION ---
   chatSection: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: '0%',
+    flexGrow: 1, // Ngambil porsi sisa layar
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
     position: 'relative',
     zIndex: 5,
   },
-  chatSectionMobile: {
-    flexBasis: '40%',
-    height: '40%',
-  },
-
   chatBox: {
     flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: '0%',
     overflowY: 'auto',
     padding: '16px',
     display: 'flex',
@@ -1349,16 +1329,12 @@ const styles: Record<string, CSSProperties> = {
     gap: '12px',
     WebkitOverflowScrolling: 'touch',
   },
-  chatBoxMobile: {
-    padding: '10px 12px',
-    gap: '8px',
-  },
 
-  // --- AVATAR SECTION (DIBUAT LEBIH BESAR) ---
+  // --- KANAN: AVATAR + MIC SECTION ---
   avatarSection: {
-    width: 'min(100%, 420px)',
+    width: 'min(45%, 450px)', // Ngambil porsi kanan (maksimal 450px)
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'column', // Avatar atas, Mic Bawah
     alignItems: 'center',
     justifyContent: 'center',
     padding: '16px',
@@ -1367,19 +1343,16 @@ const styles: Record<string, CSSProperties> = {
     flexShrink: 0,
   },
   avatarSectionMobile: {
-    flexBasis: '60%',
-    width: '100%',
-    height: '60%',
-    padding: '10px 8px',
-    borderLeft: 'none',
-    borderBottom: '1px solid rgba(63, 63, 70, 0.2)',
-    justifyContent: 'space-between',
+    width: '45%', // Buat HP, porsinya dikecilin biar tetep muat sebelahan sama chat
+    padding: '10px 4px',
   },
 
   avatarContainer: {
     position: 'relative',
     width: '100%',
-    height: '380px',
+    height: '40vh', // Responsive tinggi avatar
+    minHeight: '200px',
+    maxHeight: '400px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1389,11 +1362,6 @@ const styles: Record<string, CSSProperties> = {
     WebkitUserSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
     outline: 'none',
-  },
-  avatarContainerMobile: {
-    height: '100%',
-    maxHeight: '400px',
-    width: '100%',
   },
 
   avatarVideo: {
@@ -1408,22 +1376,14 @@ const styles: Record<string, CSSProperties> = {
     WebkitTapHighlightColor: 'transparent',
   },
 
-  // --- CONTROL PANEL MIC DENGAN TOUCH HIGH PRECISION ---
+  // --- CONTROL PANEL MIC (DI BAWAH AVATAR) ---
   voiceControlPanel: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     gap: '8px',
-    marginTop: '12px',
-    flexShrink: 0,
-  },
-  voiceControlPanelMobile: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '6px',
-    marginTop: '4px',
-    marginBottom: '4px',
+    marginTop: '16px',
+    zIndex: 10,
     flexShrink: 0,
   },
   holdMicButton: {
@@ -1444,29 +1404,11 @@ const styles: Record<string, CSSProperties> = {
     outline: 'none',
   },
   holdMicButtonMobile: {
-    width: '68px',
-    height: '68px',
-    borderRadius: '50%',
-    border: 'none',
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, box-shadow 0.2s ease',
-    userSelect: 'none',
-    WebkitUserSelect: 'none',
-    touchAction: 'none',
-    WebkitTapHighlightColor: 'transparent',
-    outline: 'none',
+    width: '56px', // Agak dikecilin kalau di hp biar ga nutupin layar
+    height: '56px',
   },
   micLabel: {
-    fontSize: '0.78rem',
-    color: '#a1a1aa',
-    fontWeight: '500',
-  },
-  micLabelMobile: {
-    fontSize: '0.7rem',
+    fontSize: 'clamp(0.6rem, 1.5vw, 0.78rem)', // Responsive text buat mic
     color: '#a1a1aa',
     fontWeight: '500',
     textAlign: 'center',
@@ -1477,20 +1419,14 @@ const styles: Record<string, CSSProperties> = {
     width: '100%',
   },
   bubble: {
-    maxWidth: '85%',
+    maxWidth: '90%',
     padding: '10px 14px',
     borderRadius: '18px',
-    fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)',
+    fontSize: 'clamp(0.75rem, 2vw, 0.9rem)', // Skala text dinamis
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     wordBreak: 'break-word',
-  },
-  bubbleMobile: {
-    maxWidth: '92%',
-    padding: '8px 12px',
-    borderRadius: '14px',
-    fontSize: '0.82rem',
   },
   userBubble: {
     backgroundColor: 'rgba(249, 115, 22, 0.9)',
