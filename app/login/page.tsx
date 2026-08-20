@@ -28,9 +28,9 @@ export default function LoginPage() {
   const [failedAttempts, setFailedAttempts] = useState<number>(0);
   const router = useRouter();
 
-  // Handler ubah Username (hanya huruf & angka, 5 - 20 karakter)
+  // Handler ubah Username (otomatis huruf kecil & angka, 5 - 20 karakter)
   const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '');
     if (value.length <= 20) {
       setUsername(value);
     }
@@ -125,7 +125,10 @@ export default function LoginPage() {
             onChange={handleUsernameChange}
             minLength={5}
             maxLength={20}
-            style={styles.input}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            style={styles.usernameInput}
             required
           />
 
@@ -188,6 +191,35 @@ export default function LoginPage() {
           >
             Daftar akun di ipixchat.my.id/chat
           </a>
+
+          <div style={styles.networkLinks}>
+            <a
+              href="https://sukachub.my.id"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.networkLink}
+            >
+              sukachub.my.id
+            </a>
+            <span style={styles.bulletDivider}>•</span>
+            <a
+              href="https://ipix.my.id"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.networkLink}
+            >
+              ipix.my.id
+            </a>
+            <span style={styles.bulletDivider}>•</span>
+            <a
+              href="https://ipixchat.my.id"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.networkLink}
+            >
+              ipixchat.my.id
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -233,7 +265,7 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: 'column',
     gap: '14px',
   },
-  input: {
+  usernameInput: {
     backgroundColor: '#27272a',
     border: '1px solid #3f3f46',
     borderRadius: '12px',
@@ -241,6 +273,7 @@ const styles: Record<string, CSSProperties> = {
     color: '#fff',
     fontSize: '0.95rem',
     outline: 'none',
+    textTransform: 'lowercase',
   },
   pinWrapper: {
     position: 'relative',
@@ -312,7 +345,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '6px',
+    gap: '8px',
     fontSize: '0.8rem',
     color: '#a1a1aa',
     textAlign: 'center',
@@ -321,5 +354,23 @@ const styles: Record<string, CSSProperties> = {
     color: '#f97316',
     fontWeight: '600',
     textDecoration: 'underline',
+  },
+  networkLinks: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    marginTop: '6px',
+    flexWrap: 'wrap',
+  },
+  networkLink: {
+    color: '#71717a',
+    fontSize: '0.75rem',
+    textDecoration: 'none',
+    fontWeight: '500',
+  },
+  bulletDivider: {
+    color: '#3f3f46',
+    fontSize: '0.75rem',
   },
 };

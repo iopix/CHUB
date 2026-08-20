@@ -1119,7 +1119,7 @@ export default function Home() {
           {/* MIC BAWAH AVATAR */}
           <div style={styles.voiceControlPanel}>
             
-            {/* OPSI SUARA (Pindah dari header ke atas tombol mik) */}
+            {/* OPSI SUARA */}
             <div style={styles.voiceControlGroup}>
               <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
                 <option value="spruce">Deep Voice</option>
@@ -1147,23 +1147,31 @@ export default function Home() {
               onPointerLeave={stopRecording}
               onPointerCancel={stopRecording}
               onContextMenu={(e) => e.preventDefault()}
-              disabled={loading || isTyping}
+              disabled={!userProfile || loading || isTyping}
               style={{
                 ...styles.holdMicButton,
                 ...(isMobile ? styles.holdMicButtonMobile : {}),
-                backgroundColor: isRecording ? '#ef4444' : '#f97316',
+                backgroundColor: !userProfile ? '#27272a' : isRecording ? '#ef4444' : '#f97316',
+                opacity: !userProfile ? 0.5 : 1,
+                cursor: !userProfile ? 'not-allowed' : 'pointer',
                 transform: isRecording ? 'scale(1.15)' : 'scale(1)',
-                boxShadow: isRecording ? '0 0 30px rgba(239, 68, 68, 0.9)' : '0 4px 25px rgba(249, 115, 22, 0.5)',
+                boxShadow: !userProfile 
+                  ? 'none' 
+                  : isRecording 
+                    ? '0 0 30px rgba(239, 68, 68, 0.9)' 
+                    : '0 4px 25px rgba(249, 115, 22, 0.5)',
               }}
             >
               <IconMicLarge />
             </button>
             <span style={styles.micLabel}>
-              {isRecording
-                ? 'Lepas untuk kirim...'
-                : loading
-                  ? 'Memproses...'
-                  : 'Tahan jari untuk bicara'}
+              {!userProfile
+                ? 'Login untuk bicara'
+                : isRecording
+                  ? 'Lepas untuk kirim...'
+                  : loading
+                    ? 'Memproses...'
+                    : 'Tahan jari untuk bicara'}
             </span>
           </div>
         </div>
@@ -1628,8 +1636,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    cursor: 'pointer',
-    transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, box-shadow 0.2s ease',
+    transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease',
     userSelect: 'none',
     WebkitUserSelect: 'none',
     touchAction: 'none',
