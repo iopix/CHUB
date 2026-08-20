@@ -31,6 +31,7 @@ interface TrialPreset {
 }
 
 type ActiveReaction = 'kepala' | 'perut' | 'kaki' | 'peluk' | 'marah' | null;
+type StatusIcon = 'smile' | 'angry' | 'laugh' | 'confused';
 
 interface RippleEffect {
   id: number;
@@ -80,6 +81,43 @@ const IconMicLarge = () => (
     <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
     <line x1="12" y1="19" x2="12" y2="23"/>
     <line x1="8" y1="23" x2="16" y2="23"/>
+  </svg>
+);
+
+// --- EMOTION ICONS (Pengganti Emoji) ---
+const IconSmile = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+  </svg>
+);
+
+const IconAngry = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
+    <path d="M7 9l2 1"></path>
+    <path d="M17 9l-2 1"></path>
+  </svg>
+);
+
+const IconLaugh = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <path d="M8 13s1.5 3 4 3 4-3 4-3"></path>
+    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+  </svg>
+);
+
+const IconConfused = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <path d="M8 15h8"></path>
+    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+    <line x1="15" y1="9" x2="15.01" y2="9"></line>
   </svg>
 );
 
@@ -142,10 +180,12 @@ export default function Home() {
   const isInteractingRef = useRef<boolean>(false);
 
   // State Info Dinamis di atas Avatar
-  const [dynamicStatus, setDynamicStatus] = useState<{ text: string; bg: string; border: string }>({
+  const [dynamicStatus, setDynamicStatus] = useState<{ text: string; bg: string; border: string; icon: StatusIcon; iconColor: string }>({
     text: 'Siap mengobrol dan menemani harimu!',
     bg: 'rgba(249, 115, 22, 0.15)',
     border: 'rgba(249, 115, 22, 0.4)',
+    icon: 'smile',
+    iconColor: '#f97316'
   });
 
   // ASMR Wave Ripples
@@ -286,7 +326,6 @@ export default function Home() {
 
   // --- INTERAKSI SENTUH BAGIAN TUBUH AVATAR ---
   const triggerBodyPartTouch = (part: 'kepala' | 'perut' | 'kaki', e?: React.MouseEvent) => {
-    // 1. ASMR Ripple Effect
     if (e && avatarContainerRef.current) {
       const rect = avatarContainerRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -298,39 +337,45 @@ export default function Home() {
       }, 600);
     }
 
-    // 2. Tentukan Reaksi dan Update Info Dinamis
     if (part === 'kepala') {
       setActiveReaction('marah');
       setDynamicStatus({
-        text: '😡 Sentuh Kepala: Dia MARAH!',
+        text: 'Sentuh Kepala: Dia MARAH!',
         bg: 'rgba(239, 68, 68, 0.25)',
         border: 'rgba(239, 68, 68, 0.6)',
+        icon: 'angry',
+        iconColor: '#ef4444'
       });
       speakText('Aduh! Jangan pegang-pegang kepala dong!', 0);
     } else if (part === 'perut') {
       setActiveReaction('perut');
       setDynamicStatus({
-        text: '😂 Sentuh Perut: Dia GOYANG!',
+        text: 'Sentuh Perut: Dia GOYANG!',
         bg: 'rgba(249, 115, 22, 0.25)',
         border: 'rgba(249, 115, 22, 0.6)',
+        icon: 'laugh',
+        iconColor: '#f97316'
       });
       speakText('Haha geli banget! Perut buncitku jadi goyang!', 0);
     } else if (part === 'kaki') {
       setActiveReaction('kaki');
       setDynamicStatus({
-        text: '😕 Sentuh Kaki: Dia BINGUNG!',
+        text: 'Sentuh Kaki: Dia BINGUNG!',
         bg: 'rgba(59, 130, 246, 0.25)',
         border: 'rgba(59, 130, 246, 0.6)',
+        icon: 'confused',
+        iconColor: '#3b82f6'
       });
       speakText('Eh? Kenapa kamu pegang-pegang kakiku?', 0);
     }
 
-    // Reset Info Dinamis Setelah 3.5 Detik
     setTimeout(() => {
       setDynamicStatus({
         text: 'Siap mengobrol dan menemani harimu!',
         bg: 'rgba(249, 115, 22, 0.15)',
         border: 'rgba(249, 115, 22, 0.4)',
+        icon: 'smile',
+        iconColor: '#f97316'
       });
     }, 3500);
   };
@@ -770,7 +815,6 @@ export default function Home() {
       if (res.ok && data.reply) {
         if (data.remainingTokens) setRemainingTokens(data.remainingTokens);
         
-        // Update Nama Model AI jika dikembalikan dari backend
         if (data.model) {
           setActiveModel(data.model);
         }
@@ -853,7 +897,6 @@ export default function Home() {
               SukaChub your virtual chat
             </h1>
             
-            {/* Teks Model Aktif & User Badge di bawah Teks Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
               <span style={{
                 ...styles.userBadge,
@@ -873,26 +916,6 @@ export default function Home() {
               {Number(remainingTokens).toLocaleString('id-ID')} Tkn
             </span>
           )}
-        </div>
-
-        <div style={styles.voiceControlGroup}>
-          <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
-            <option value="spruce">Deep Voice</option>
-            <option value="arbor">Man Voice</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => setAutoVoice(!autoVoice)}
-            style={{
-              ...styles.autoVoiceBtn,
-              backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.2)' : '#18181b',
-              borderColor: autoVoice ? '#f97316' : '#3f3f46',
-              color: autoVoice ? '#f97316' : '#a1a1aa',
-            }}
-          >
-            {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-            <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
-          </button>
         </div>
       </header>
 
@@ -973,7 +996,12 @@ export default function Home() {
             backgroundColor: dynamicStatus.bg,
             borderColor: dynamicStatus.border,
           }}>
-            <span style={styles.dynamicStatusDot} />
+            <span style={{ display: 'flex', color: dynamicStatus.iconColor }}>
+              {dynamicStatus.icon === 'smile' && <IconSmile />}
+              {dynamicStatus.icon === 'angry' && <IconAngry />}
+              {dynamicStatus.icon === 'laugh' && <IconLaugh />}
+              {dynamicStatus.icon === 'confused' && <IconConfused />}
+            </span>
             <span style={styles.dynamicStatusText}>{dynamicStatus.text}</span>
           </div>
 
@@ -1090,6 +1118,28 @@ export default function Home() {
 
           {/* MIC BAWAH AVATAR */}
           <div style={styles.voiceControlPanel}>
+            
+            {/* OPSI SUARA (Pindah dari header ke atas tombol mik) */}
+            <div style={styles.voiceControlGroup}>
+              <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} style={styles.voiceSelect}>
+                <option value="spruce">Deep Voice</option>
+                <option value="arbor">Man Voice</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setAutoVoice(!autoVoice)}
+                style={{
+                  ...styles.autoVoiceBtn,
+                  backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.2)' : '#18181b',
+                  borderColor: autoVoice ? '#f97316' : '#3f3f46',
+                  color: autoVoice ? '#f97316' : '#a1a1aa',
+                }}
+              >
+                {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
+                <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
+              </button>
+            </div>
+
             <button
               type="button"
               onPointerDown={startRecording}
@@ -1409,8 +1459,10 @@ const styles: Record<string, CSSProperties> = {
   voiceControlGroup: {
     display: 'flex',
     alignItems: 'center',
-    gap: '5px',
+    justifyContent: 'center',
+    gap: '8px',
     flexShrink: 0,
+    marginBottom: '8px',
   },
   voiceSelect: {
     backgroundColor: '#18181b',
@@ -1464,7 +1516,7 @@ const styles: Record<string, CSSProperties> = {
     WebkitOverflowScrolling: 'touch',
   },
   avatarSection: {
-    width: 'min(45%, 450px)',
+    width: 'min(50%, 500px)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -1476,7 +1528,7 @@ const styles: Record<string, CSSProperties> = {
     position: 'relative',
   },
   avatarSectionMobile: {
-    width: '45%',
+    width: '50%',
     padding: '10px 4px',
   },
   dynamicStatusBubble: {
@@ -1493,13 +1545,6 @@ const styles: Record<string, CSSProperties> = {
     textAlign: 'center',
     zIndex: 15,
   },
-  dynamicStatusDot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    backgroundColor: '#f97316',
-    flexShrink: 0,
-  },
   dynamicStatusText: {
     fontSize: 'clamp(0.6rem, 1.8vw, 0.72rem)',
     fontWeight: '600',
@@ -1511,9 +1556,9 @@ const styles: Record<string, CSSProperties> = {
   avatarContainer: {
     position: 'relative',
     width: '100%',
-    height: '40vh',
-    minHeight: '200px',
-    maxHeight: '400px',
+    height: '45vh',
+    minHeight: '250px',
+    maxHeight: '450px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
