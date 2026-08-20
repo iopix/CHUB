@@ -1,6 +1,50 @@
 /* ==========================================================================
-   PAGE.MODULE.CSS - Updated Speech Bubble (5-Line Capacity)
+   PAGE.MODULE.CSS - Updated Speech Bubble Welcome Layout & Orange Blink Effect
    ========================================================================== */
+
+/* --- BLINKING ANIMATION FOR LINK --- */
+@keyframes orangeBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.98); }
+}
+
+.blinkingOrangeLink {
+  color: var(--accent-orange);
+  font-weight: 700;
+  font-size: clamp(0.72rem, 1.9vw, 0.82rem);
+  text-decoration: none;
+  animation: orangeBlink 1.2s infinite ease-in-out;
+  display: inline-block;
+}
+
+.blinkingOrangeLink:hover {
+  text-decoration: underline;
+}
+
+/* SPEECH BUBBLE WELCOME LAYOUT */
+.welcomeContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  gap: 2px;
+}
+
+.welcomeTitle {
+  font-size: clamp(0.75rem, 2vw, 0.85rem);
+  font-weight: 800;
+  color: var(--text-white);
+  letter-spacing: 0.5px;
+}
+
+.welcomeSubtitle {
+  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
+  font-weight: 500;
+  color: var(--text-muted);
+}
 
 /* --- SCROLLBAR STYLE --- */
 .chatBox::-webkit-scrollbar,
@@ -182,11 +226,12 @@
   padding: 10px 4px;
 }
 
-/* SPEECH BUBBLE AVA 5 BARIS DINAMIS */
+/* SPEECH BUBBLE AVA */
 .dynamicStatusBubble {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   padding: 10px 14px;
   border-radius: 18px;
   border: 1px solid var(--accent-orange-border);
@@ -196,7 +241,7 @@
   margin-bottom: 12px;
   width: 92%;
   max-width: 340px;
-  height: 98px; /* Diperbesar muat ~5 baris */
+  height: 98px;
   box-sizing: border-box;
   z-index: 15;
 }
@@ -215,7 +260,6 @@
   scroll-behavior: smooth;
 }
 
-/* Ekor Speech Bubble */
 .speechTail {
   position: absolute;
   bottom: -7px;

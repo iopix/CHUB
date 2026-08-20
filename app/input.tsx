@@ -9,7 +9,8 @@ interface InputProps {
   input: string;
   setInput: (value: string) => void;
   userProfile: UserProfile | null;
-  trialCount: number;
+  textTrialCount: number;
+  voiceTrialCount: number;
   loading: boolean;
   isTyping: boolean;
   isRecording: boolean;
@@ -57,7 +58,8 @@ export default function InputSection({
   input,
   setInput,
   userProfile,
-  trialCount,
+  textTrialCount,
+  voiceTrialCount,
   loading,
   isTyping,
   isRecording,
@@ -75,9 +77,12 @@ export default function InputSection({
 
   const startYRef = useRef<number | null>(null);
 
-  // --- LOGIKA MOUSE & TOUCH EVENT UNTUK REKAMAN ---
   const handleStartInteraction = (clientY: number) => {
-    if (!userProfile || loading || isTyping || !startRecording) return;
+    if (!userProfile && voiceTrialCount >= 2) {
+      router.push('/login');
+      return;
+    }
+    if (loading || isTyping || !startRecording) return;
     startYRef.current = clientY;
     setIsCancelDrag(false);
     startRecording();
@@ -105,22 +110,23 @@ export default function InputSection({
     setIsCancelDrag(false);
   };
 
-  // Touch handlers
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => handleStartInteraction(e.touches[0].clientY);
   const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => handleMoveInteraction(e.touches[0].clientY);
 
-  // Mouse handlers
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return; // Hanya klik kiri
+    if (e.button !== 0) return;
     handleStartInteraction(e.clientY);
   };
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => handleMoveInteraction(e.clientY);
 
   const presetKeys = Object.keys(trialPresets).slice(0, 3);
 
+  // LOGIKA CEK BISAKAH KIRIM PADA MODE AKTIF
+  const isTextTrialEnded = !userProfile && textTrialCount >= 2;
+  const isVoiceTrialEnded = !userProfile && voiceTrialCount >= 2;
+
   return (
     <div className={styles.footerWrapper}>
-      {/* 1. ROW CAPSULE REKOMENDASI + CAPSULE HAPUS CHAT */}
       <div className={styles.capsuleRow}>
         {presetKeys.map((presetKey, i) => (
           <button
@@ -145,7 +151,6 @@ export default function InputSection({
         )}
       </div>
 
-      {/* 2. OVERLAY ANIMASI SAAT MEREKAM SUARA */}
       {isRecording && (
         <div className={`${styles.recordingOverlay} ${isCancelDrag ? styles.recordingOverlayCancel : ''}`}>
           <div className={styles.recordingText}>
@@ -166,13 +171,12 @@ export default function InputSection({
         </div>
       )}
 
-      {/* 3. INPUT BAR UTAMA */}
       <div className={styles.mainInputBox}>
         <div className={styles.inputBodyContainer}>
           {!isKeyboardMode ? (
-            /* MODE HOLD TO TALK (MOUSE & TOUCH) */
+            /* MODE HOLD TO TALK (VOICE) */
             <div
-              className={`${styles.holdToTalkButton} ${!userProfile ? styles.disabledHold : ''}`}
+              className={`${styles.holdToTalkButton} ${isVoiceTrialEnded ? styles.disabledHold : ''}`}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleEndInteraction}
@@ -186,14 +190,16 @@ export default function InputSection({
                 {!isInitialized
                   ? 'Memuat...'
                   : !userProfile
-                    ? 'Login untuk berbicara'
+                    ? voiceTrialCount < 2
+                      ? `Trial Voice ${2 - voiceTrialCount}/2...`
+                      : 'Login untuk kirim voice'
                     : loading
                       ? 'Memproses...'
                       : 'Tahan untuk berbicara'}
               </span>
             </div>
           ) : (
-            /* MODE KEYBOARD (INPUT TEKS) */
+            /* MODE INPUT TEKS */
             <form
               onSubmit={(e: FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
@@ -207,13 +213,13 @@ export default function InputSection({
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
                 placeholder={
                   !userProfile
-                    ? trialCount < 3
-                      ? `Trial ${3 - trialCount}/3...`
+                    ? textTrialCount < 2
+                      ? `Trial Teks ${2 - textTrialCount}/2...`
                       : 'Silakan login...'
                     : 'Ketik pesan...'
                 }
                 className={styles.inputField}
-                disabled={!isInitialized || !userProfile || isTyping || isRecording}
+                disabled={!isInitialized || isTextTrialEnded || isTyping || isRecording}
                 maxLength={200}
                 autoFocus
               />
@@ -224,9 +230,8 @@ export default function InputSection({
           )}
         </div>
 
-        {/* 4. TOGGLE KEYBOARD / MIC / KIRIM */}
         <div className={styles.rightActionGroup}>
-          {!userProfile && isInitialized ? (
+          {!userProfile && isInitialized && ((isKeyboardMode && isTextTrialEnded) || (!isKeyboardMode && isVoiceTrialEnded)) ? (
             <button
               type="button"
               onClick={() => router.push('/login')}

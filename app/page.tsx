@@ -26,7 +26,11 @@ const TRIAL_PRESETS: Record<string, TrialPreset> = {
 export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [trialCount, setTrialCount] = useState<number>(0);
+  
+  // LOGIKA TRIAL DIPISAHKAN: 2 TEKS & 2 VOICE
+  const [textTrialCount, setTextTrialCount] = useState<number>(0);
+  const [voiceTrialCount, setVoiceTrialCount] = useState<number>(0);
+  
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   const getUserName = (): string => {
@@ -41,7 +45,8 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<string>('spruce');
-  const [autoVoice, setAutoVoice] = useState<boolean>(true);
+  const [autoVoice, setAutoVoice] = useState<boolean>(false);
+  
   const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
@@ -54,8 +59,8 @@ export default function Home() {
   const [activeReaction, setActiveReaction] = useState<ActiveReaction>(null);
   const activeReactionRef = useRef<ActiveReaction>(null);
 
-  // --- SPEECH BUBBLE & SINKRONISASI KETIKAN DENGAN MULT/SUARA ---
-  const [displayedStatusText, setDisplayedStatusText] = useState<string>('Siap mengobrol dan menemani harimu!');
+  const [isWelcomeBubble, setIsWelcomeBubble] = useState<boolean>(true);
+  const [displayedStatusText, setDisplayedStatusText] = useState<string>('');
   const statusTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const bubbleScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -72,8 +77,12 @@ export default function Home() {
       catch { localStorage.removeItem('user'); setUserProfile(null); }
     } else { setUserProfile(null); }
 
-    const savedTrial = localStorage.getItem('trial_count');
-    if (savedTrial) setTrialCount(parseInt(savedTrial, 10));
+    // BACA TERPISAH TRIAL TEKS & VOICE DARI LOCALSTORAGE
+    const savedTextTrial = localStorage.getItem('text_trial_count');
+    if (savedTextTrial) setTextTrialCount(parseInt(savedTextTrial, 10));
+
+    const savedVoiceTrial = localStorage.getItem('voice_trial_count');
+    if (savedVoiceTrial) setVoiceTrialCount(parseInt(savedVoiceTrial, 10));
 
     const name = loadedUser?.username || (loadedUser?.email ? loadedUser.email.split('@')[0] : 'sayang');
     const initialGreeting = `Halo ${name}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
@@ -81,12 +90,7 @@ export default function Home() {
 
     setMessages([initialMsg]);
     setIsInitialized(true);
-
-    if (autoVoice) {
-      setTimeout(() => startSyncSpeechAndTyping(initialGreeting, 0), 500);
-    } else {
-      setDisplayedStatusText(initialGreeting);
-    }
+    setIsWelcomeBubble(true);
   }, []);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -166,9 +170,9 @@ export default function Home() {
     setPlayingIndex(null);
   };
 
-  // --- LOGIKA UTAMA SINKRONISASI SUARA, MULUT AVA, DAN KETIKAN SPEECH BUBBLE ---
   const startSyncSpeechAndTyping = async (text: string, index: number) => {
     if (!text) return;
+    setIsWelcomeBubble(false);
     stopAudio();
 
     const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
@@ -191,8 +195,6 @@ export default function Home() {
 
       audio.onplay = () => {
         setPlayingIndex(index);
-
-        // Mulai animasi ngetik tepat saat audio & mulut Ava bergerak
         let charIndex = 0;
         setDisplayedStatusText('');
 
@@ -217,7 +219,6 @@ export default function Home() {
 
       await audio.play();
     } catch {
-      // Fallback jika audio gagal: tetap tampilkan teks
       setDisplayedStatusText(cleanText);
       stopAudio();
     }
@@ -261,12 +262,15 @@ export default function Home() {
     if (autoVoice) {
       startSyncSpeechAndTyping(initialGreeting, 0);
     } else {
-      setDisplayedStatusText(initialGreeting);
+      setIsWelcomeBubble(true);
     }
   };
 
+  // --- REKAMAN SUARA (MAX 2 VOICE TRIAL) ---
   const startRecording = async () => {
-    if (!userProfile) { if (trialCount >= 3) router.push('/login'); return; }
+    if (!userProfile) {
+      if (voiceTrialCount >= 2) { router.push('/login'); return; }
+    }
     if (loading || isRecording) return;
     stopAudio();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert("Akses mic diblokir atau tidak didukung!"); return; }
@@ -289,7 +293,15 @@ export default function Home() {
         try {
           const res = await fetch('/api/stt', { method: 'POST', body: formData });
           const data = await res.json();
-          if (res.ok && data.text) handleSend(data.text);
+          if (res.ok && data.text) {
+            // INCREMENT TRIAL VOICE BILA BELUM LOGIN
+            if (!userProfile) {
+              const newVoiceCount = voiceTrialCount + 1;
+              setVoiceTrialCount(newVoiceCount);
+              localStorage.setItem('voice_trial_count', newVoiceCount.toString());
+            }
+            handleSend(data.text);
+          }
         } catch (err) { console.error('STT Error:', err); }
         finally { setLoading(false); }
       };
@@ -315,13 +327,13 @@ export default function Home() {
   const handlePillClick = (presetKey: string) => {
     const name = getUserName();
     if (userProfile) { handleSend(presetKey); return; }
-    if (trialCount >= 3) { router.push('/login'); return; }
+    if (textTrialCount >= 2) { router.push('/login'); return; }
     const preset = TRIAL_PRESETS[presetKey];
     if (!preset) return;
 
-    const newTrialCount = trialCount + 1;
-    setTrialCount(newTrialCount);
-    localStorage.setItem('trial_count', newTrialCount.toString());
+    const newTextTrialCount = textTrialCount + 1;
+    setTextTrialCount(newTextTrialCount);
+    localStorage.setItem('text_trial_count', newTextTrialCount.toString());
 
     const userMsg: Message = { role: 'user', content: presetKey };
     const cleanedReply = sanitizeText(preset.reply(name));
@@ -333,12 +345,20 @@ export default function Home() {
     if (autoVoice) {
       startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
     } else {
+      setIsWelcomeBubble(false);
       setDisplayedStatusText(cleanedReply);
     }
   };
 
+  // --- KIRIM TEKS (MAX 2 TEXT TRIAL) ---
   const handleSend = async (textToSend?: string) => {
-    if (!userProfile) { if (trialCount >= 3) router.push('/login'); return; }
+    if (!userProfile) {
+      if (textTrialCount >= 2) { router.push('/login'); return; }
+      const newTextTrialCount = textTrialCount + 1;
+      setTextTrialCount(newTextTrialCount);
+      localStorage.setItem('text_trial_count', newTextTrialCount.toString());
+    }
+
     const query = textToSend || input;
     if (!query.trim() || loading) return;
 
@@ -353,6 +373,7 @@ export default function Home() {
       if (autoVoice) {
         startSyncSpeechAndTyping(timeReply, updatedMessages.length - 1);
       } else {
+        setIsWelcomeBubble(false);
         setDisplayedStatusText(timeReply);
       }
       return;
@@ -381,16 +402,19 @@ export default function Home() {
         if (autoVoice) {
           startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
         } else {
+          setIsWelcomeBubble(false);
           setDisplayedStatusText(cleanedReply);
         }
       } else {
         const errorMsg = `Maaf ${getUserName()}, ada masalah teknis: ${data.error || 'Gagal tersambung.'}`;
         setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+        setIsWelcomeBubble(false);
         setDisplayedStatusText(errorMsg);
       }
     } catch (err: unknown) {
       const errorMsg = `Maaf ${getUserName()}, koneksi terputus (${err instanceof Error ? err.message : 'Unknown error'})`;
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+      setIsWelcomeBubble(false);
       setDisplayedStatusText(errorMsg);
     } finally { setLoading(false); }
   };
@@ -410,21 +434,21 @@ export default function Home() {
 
       <div className={styles.mainContent}>
         <div className={styles.chatSection}>
-          {/* CONTROL PANEL DI ATAS CHAT BOX */}
           <div className={styles.topControlPanel}>
             <div className={styles.voiceControlGroup}>
               <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
                 <option value="spruce">Deep Voice</option>
                 <option value="arbor">Man Voice</option>
               </select>
+
+              {/* 1. NAMA TOMBOL DIUBAH MENJADI AUTO VOICE ON / AUTO VOICE OFF */}
               <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
                 {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-                <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
+                <span>{autoVoice ? 'Auto Voice ON' : 'Auto Voice OFF'}</span>
               </button>
             </div>
           </div>
 
-          {/* CHAT BOX WITH GRADIENT MASK */}
           <div className={styles.chatBox}>
             {messages.map((msg, index) => (
               <div key={index} className={styles.messageWrapper} style={{ justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -459,12 +483,21 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* BUBBLE SPEECH AVA 5 BARIS DINAMIS TANPA EMOJI */}
           <div className={styles.dynamicStatusBubble}>
-            <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
-              <span>{displayedStatusText}</span>
-              <span style={{ opacity: 0.6, marginLeft: '2px' }}>|</span>
-            </div>
+            {isWelcomeBubble ? (
+              <div className={styles.welcomeContainer}>
+                <div className={styles.welcomeTitle}>SELAMAT DATANG</div>
+                <a href="https://sukachub.my.id" target="_blank" rel="noopener noreferrer" className={styles.blinkingOrangeLink}>
+                  sukachub.my.id
+                </a>
+                <div className={styles.welcomeSubtitle}>sukachub virtual chat</div>
+              </div>
+            ) : (
+              <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
+                <span>{displayedStatusText}</span>
+                <span style={{ opacity: 0.6, marginLeft: '2px' }}>|</span>
+              </div>
+            )}
             <div className={styles.speechTail} />
           </div>
 
@@ -493,11 +526,13 @@ export default function Home() {
         </div>
       </div>
 
+      {/* COMPONENT INPUT DENGAN LOGIKA TRIAL BARU */}
       <InputSection
         input={input}
         setInput={setInput}
         userProfile={userProfile}
-        trialCount={trialCount}
+        textTrialCount={textTrialCount}
+        voiceTrialCount={voiceTrialCount}
         loading={loading}
         isTyping={false}
         isRecording={isRecording}
