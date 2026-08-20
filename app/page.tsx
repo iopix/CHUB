@@ -27,10 +27,8 @@ export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
-  // LOGIKA TRIAL DIPISAHKAN: 2 TEKS & 2 VOICE
   const [textTrialCount, setTextTrialCount] = useState<number>(0);
   const [voiceTrialCount, setVoiceTrialCount] = useState<number>(0);
-  
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   const getUserName = (): string => {
@@ -65,7 +63,6 @@ export default function Home() {
   const bubbleScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
-  const lastTapRef = useRef<number>(0);
 
   useEffect(() => { activeReactionRef.current = activeReaction; }, [activeReaction]);
 
@@ -77,7 +74,6 @@ export default function Home() {
       catch { localStorage.removeItem('user'); setUserProfile(null); }
     } else { setUserProfile(null); }
 
-    // BACA TERPISAH TRIAL TEKS & VOICE DARI LOCALSTORAGE
     const savedTextTrial = localStorage.getItem('text_trial_count');
     if (savedTextTrial) setTextTrialCount(parseInt(savedTextTrial, 10));
 
@@ -224,8 +220,9 @@ export default function Home() {
     }
   };
 
-  const triggerBodyPartTouch = (part: 'kepala' | 'perut' | 'kaki', e?: React.MouseEvent) => {
-    if (e && avatarContainerRef.current) {
+  // 2. LOGIKA REAKSI CUKUP SENTUH 1X SAJA
+  const handleAvatarSingleClick = (part: 'kepala' | 'perut' | 'kaki', e: React.MouseEvent) => {
+    if (avatarContainerRef.current) {
       const rect = avatarContainerRef.current.getBoundingClientRect();
       const id = Date.now();
       setRipples(prev => [...prev, { id, x: e.clientX - rect.left, y: e.clientY - rect.top }]);
@@ -244,15 +241,6 @@ export default function Home() {
     }
   };
 
-  const handleAvatarDoubleClick = (part: 'kepala' | 'perut' | 'kaki', e: React.MouseEvent) => {
-    const now = Date.now();
-    const DOUBLE_TAP_DELAY = 300;
-    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      triggerBodyPartTouch(part, e);
-    }
-    lastTapRef.current = now;
-  };
-
   const handleClearChat = () => {
     stopAudio();
     const initialGreeting = `Halo ${getUserName()}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
@@ -266,7 +254,6 @@ export default function Home() {
     }
   };
 
-  // --- REKAMAN SUARA (MAX 2 VOICE TRIAL) ---
   const startRecording = async () => {
     if (!userProfile) {
       if (voiceTrialCount >= 2) { router.push('/login'); return; }
@@ -294,7 +281,6 @@ export default function Home() {
           const res = await fetch('/api/stt', { method: 'POST', body: formData });
           const data = await res.json();
           if (res.ok && data.text) {
-            // INCREMENT TRIAL VOICE BILA BELUM LOGIN
             if (!userProfile) {
               const newVoiceCount = voiceTrialCount + 1;
               setVoiceTrialCount(newVoiceCount);
@@ -350,7 +336,6 @@ export default function Home() {
     }
   };
 
-  // --- KIRIM TEKS (MAX 2 TEXT TRIAL) ---
   const handleSend = async (textToSend?: string) => {
     if (!userProfile) {
       if (textTrialCount >= 2) { router.push('/login'); return; }
@@ -434,6 +419,7 @@ export default function Home() {
 
       <div className={styles.mainContent}>
         <div className={styles.chatSection}>
+          {/* 1. CONTROL PANEL TERDIRI DARI VOICE CONTROL & CAPSULE PANDUAN SENTUH (RESPONSIF/MOBILE FRIENDLY) */}
           <div className={styles.topControlPanel}>
             <div className={styles.voiceControlGroup}>
               <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
@@ -441,11 +427,20 @@ export default function Home() {
                 <option value="arbor">Man Voice</option>
               </select>
 
-              {/* 1. NAMA TOMBOL DIUBAH MENJADI AUTO VOICE ON / AUTO VOICE OFF */}
               <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
                 {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
                 <span>{autoVoice ? 'Auto Voice ON' : 'Auto Voice OFF'}</span>
               </button>
+
+              {/* CAPSULE PANDUAN SENTUH SEJAJAR DI ATAS */}
+              <div className={styles.avatarTouchGuideHeader}>
+                <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh ava:</span>
+                <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}>Kepala</span>
+                <span className={styles.dotSep}>•</span>
+                <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}>Badan</span>
+                <span className={styles.dotSep}>•</span>
+                <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeOrange : ''}`}>Kaki</span>
+              </div>
             </div>
           </div>
 
@@ -501,10 +496,12 @@ export default function Home() {
             <div className={styles.speechTail} />
           </div>
 
+          {/* 4. UKURAN AVATAR LEBIH BESAR & RESPONSIF */}
           <div ref={avatarContainerRef} className={styles.avatarContainer} onContextMenu={(e) => e.preventDefault()}>
-            <div className={styles.hitboxHead} title="Sentuh 2x Kepala (Marah)" onClick={(e) => handleAvatarDoubleClick('kepala', e)} />
-            <div className={styles.hitboxBelly} title="Sentuh 2x Perut (Goyang)" onClick={(e) => handleAvatarDoubleClick('perut', e)} />
-            <div className={styles.hitboxLegs} title="Sentuh 2x Kaki (Bingung)" onClick={(e) => handleAvatarDoubleClick('kaki', e)} />
+            {/* 2. HITBOX DENGAN CLICK 1X */}
+            <div className={styles.hitboxHead} title="Sentuh Kepala (Marah)" onClick={(e) => handleAvatarSingleClick('kepala', e)} />
+            <div className={styles.hitboxBelly} title="Sentuh Perut (Goyang)" onClick={(e) => handleAvatarSingleClick('perut', e)} />
+            <div className={styles.hitboxLegs} title="Sentuh Kaki (Bingung)" onClick={(e) => handleAvatarSingleClick('kaki', e)} />
 
             {ripples.map((r) => (<span key={r.id} className={styles.asmrRipple} style={{ left: `${r.x}px`, top: `${r.y}px` }} />))}
 
@@ -514,19 +511,9 @@ export default function Home() {
             <video ref={videoPelukRef} src="/Peluk.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'peluk' || activeReaction === 'perut' ? 1 : 0 }} />
             <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
           </div>
-
-          <div className={styles.avatarTouchGuide}>
-            <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh 2x ava:</span>
-            <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeHead : ''}`}>Kepala</span>
-            <span className={styles.dotSep}>•</span>
-            <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeBelly : ''}`}>Badan</span>
-            <span className={styles.dotSep}>•</span>
-            <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeLegs : ''}`}>Kaki</span>
-          </div>
         </div>
       </div>
 
-      {/* COMPONENT INPUT DENGAN LOGIKA TRIAL BARU */}
       <InputSection
         input={input}
         setInput={setInput}

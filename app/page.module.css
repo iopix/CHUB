@@ -1,5 +1,5 @@
 /* ==========================================================================
-   PAGE.MODULE.CSS - Updated Speech Bubble Welcome Layout & Orange Blink Effect
+   PAGE.MODULE.CSS - Updated Header Touch Guide & Larger Responsive Avatar
    ========================================================================== */
 
 /* --- BLINKING ANIMATION FOR LINK --- */
@@ -148,20 +148,24 @@
   z-index: 5;
 }
 
+/* 1. CONTROL PANEL TERINTEGRASI DI ATAS CHAT BOX (RESPONSIF MOBILE FRIENDLY) */
 .topControlPanel {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 8px 16px;
+  padding: 8px 12px;
   z-index: 10;
   background-color: var(--bg-black);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .voiceControlGroup {
   display: flex;
   align-items: center;
+  flex-wrap: wrap; /* Menyesuaikan layar HP bila sempit */
   gap: 8px;
-  max-width: 240px;
+  width: 100%;
 }
 
 .voiceSelect,
@@ -195,6 +199,40 @@
   flex-shrink: 0;
 }
 
+/* CAPSULE PANDUAN SENTUH HEADER */
+.avatarTouchGuideHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: clamp(0.6rem, 1.6vw, 0.72rem);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  height: 32px;
+  background: var(--bg-dark-1);
+  border: 1px solid var(--border-zinc-subtle);
+  border-radius: 9999px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.guideChip {
+  transition: all 0.2s ease;
+  padding: 2px 6px;
+  border-radius: 9999px;
+}
+
+.dotSep {
+  opacity: 0.4;
+}
+
+/* 3. WARNA CHIP INDIKATOR SENTUH SERBA ORANGE */
+.activeOrange {
+  color: var(--accent-orange);
+  font-weight: 700;
+  background: var(--accent-orange-subtle);
+  border: 1px solid var(--accent-orange-border);
+}
+
 .chatBox {
   flex-grow: 1;
   overflow-y: auto;
@@ -209,12 +247,12 @@
 
 /* --- AVATAR SECTION --- */
 .avatarSection {
-  width: min(50%, 500px);
+  width: min(50%, 520px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px 8px;
+  padding: 12px 8px;
   background-color: var(--bg-black);
   border-left: 1px solid var(--border-zinc-divider);
   flex-shrink: 0;
@@ -223,7 +261,7 @@
 
 .avatarSectionMobile {
   width: 50%;
-  padding: 10px 4px;
+  padding: 8px 4px;
 }
 
 /* SPEECH BUBBLE AVA */
@@ -238,10 +276,10 @@
   background-color: var(--accent-orange-subtle);
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
-  margin-bottom: 12px;
-  width: 92%;
-  max-width: 340px;
-  height: 98px;
+  margin-bottom: 8px;
+  width: 95%;
+  max-width: 360px;
+  height: 90px;
   box-sizing: border-box;
   z-index: 15;
 }
@@ -272,12 +310,13 @@
   border-top: 7px solid var(--accent-orange-border);
 }
 
+/* 4. KONTAINER & VIDEO AVATAR LEBIH BESAR RESPONSIF */
 .avatarContainer {
   position: relative;
   width: 100%;
-  height: 45vh;
-  min-height: 250px;
-  max-height: 450px;
+  height: 60vh;
+  min-height: 320px;
+  max-height: 560px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -296,9 +335,9 @@
   cursor: pointer;
 }
 
-.hitboxHead { top: 2%; width: 60%; height: 28%; border-radius: 50%; }
-.hitboxBelly { top: 32%; width: 70%; height: 35%; border-radius: 40%; }
-.hitboxLegs { top: 68%; width: 65%; height: 30%; border-radius: 20px; }
+.hitboxHead { top: 2%; width: 65%; height: 28%; border-radius: 50%; }
+.hitboxBelly { top: 30%; width: 75%; height: 38%; border-radius: 40%; }
+.hitboxLegs { top: 68%; width: 70%; height: 32%; border-radius: 20px; }
 
 .avatarVideo {
   position: absolute;
@@ -310,26 +349,6 @@
   transition: opacity 0.2s linear;
   pointer-events: none;
 }
-
-.avatarTouchGuide {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: clamp(0.6rem, 1.6vw, 0.7rem);
-  color: var(--text-muted);
-  margin: 6px 0;
-  padding: 6px 14px;
-  background: var(--bg-ai-bubble);
-  border: 1px solid var(--border-zinc-subtle);
-  border-radius: 9999px;
-  z-index: 10;
-}
-
-.guideChip { transition: all 0.2s ease; padding: 2px 6px; border-radius: 9999px; }
-.dotSep { opacity: 0.4; }
-.activeHead { color: var(--color-danger); font-weight: 700; background: var(--color-danger-subtle); }
-.activeBelly { color: var(--accent-orange); font-weight: 700; background: var(--accent-orange-subtle); }
-.activeLegs { color: var(--color-info); font-weight: 700; background: var(--color-info-subtle); }
 
 /* --- CHAT BUBBLES --- */
 .messageWrapper { display: flex; width: 100%; }
