@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect, ChangeEvent, PointerEvent, RefObject } from 'react';
+import { useState, useRef, useEffect, ChangeEvent, RefObject } from 'react';
 import { useRouter } from 'next/navigation';
 import Header, { UserProfile } from './header';
 import InputSection from './input';
 import styles from './page.module.css';
 
-interface Message { role: 'user' | 'assistant'; content: string; isTyping?: boolean; }
+interface Message { role: 'user' | 'assistant'; content: string; }
 interface TrialPreset { reply: (name: string) => string; emotion: string; }
 type ActiveReaction = 'kepala' | 'perut' | 'kaki' | 'peluk' | 'marah' | null;
-type StatusIcon = 'smile' | 'angry' | 'laugh' | 'confused';
 interface RippleEffect { id: number; x: number; y: number; }
 
 // --- SVG ICONS ---
@@ -17,43 +16,6 @@ const IconSpeaker = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill=
 const IconMute = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>);
 const IconAutoVoiceOn = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4" /><path d="M6 6v12" /><path d="M10 3v18" /><path d="M14 8v8" /><path d="M18 5v14" /><path d="M22 10v4" /></svg>);
 const IconAutoVoiceOff = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4" /><path d="M6 6v12" /><line x1="2" y1="2" x2="22" y2="22" /></svg>);
-
-const IconSmile = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-    <line x1="9" y1="9" x2="9.01" y2="9" />
-    <line x1="15" y1="9" x2="15.01" y2="9" />
-  </svg>
-);
-
-const IconLaugh = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M8 13s1.5 3.5 4 3.5 4-3.5 4-3.5" fill="currentColor" opacity="0.3" />
-    <path d="M8 13s1.5 3.5 4 3.5 4-3.5 4-3.5" />
-    <line x1="9" y1="9" x2="9.01" y2="9" />
-    <line x1="15" y1="9" x2="15.01" y2="9" />
-  </svg>
-);
-
-const IconAngry = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M16 16s-1.5-2-4-2-4 2-4 2" />
-    <path d="M7.5 8.5l3 1.5" />
-    <path d="M16.5 8.5l-3 1.5" />
-  </svg>
-);
-
-const IconConfused = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M8 15h8" />
-    <circle cx="9" cy="9" r="1" fill="currentColor" />
-    <line x1="15" y1="8" x2="15" y2="10" />
-  </svg>
-);
 
 const TRIAL_PRESETS: Record<string, TrialPreset> = {
   'Peluk boleh?': { reply: (name: string) => `Boleh ${name}, sini saya peluk erat kamu dengan sepenuh jiwa raga.`, emotion: 'romantic' },
@@ -89,42 +51,16 @@ export default function Home() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const [displayMessages, setDisplayMessages] = useState<Message[]>([]);
-  const [isTyping, setIsTyping] = useState<boolean>(false);
-  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
-  const [, setTypingText] = useState<string>('');
-  const [, setInputDisabled] = useState<boolean>(false);
-
   const [activeReaction, setActiveReaction] = useState<ActiveReaction>(null);
   const activeReactionRef = useRef<ActiveReaction>(null);
-  const isInteractingRef = useRef<boolean>(false);
 
-  const [dynamicStatus, setDynamicStatus] = useState<{ text: string; bg: string; border: string; icon: StatusIcon; iconColor: string }>({
-    text: 'Siap mengobrol dan menemani harimu!', bg: 'var(--accent-orange-subtle)', border: 'var(--accent-orange-border)', icon: 'smile', iconColor: 'var(--accent-orange)'
-  });
+  // --- SPEECH BUBBLE & SINKRONISASI KETIKAN DENGAN MULT/SUARA ---
   const [displayedStatusText, setDisplayedStatusText] = useState<string>('Siap mengobrol dan menemani harimu!');
   const statusTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const animateStatusText = (targetText: string) => {
-    if (statusTypingTimeoutRef.current) clearTimeout(statusTypingTimeoutRef.current);
-    let index = 0;
-    setDisplayedStatusText('');
-    const type = () => {
-      if (index <= targetText.length) {
-        setDisplayedStatusText(targetText.slice(0, index));
-        index++;
-        statusTypingTimeoutRef.current = setTimeout(type, 25);
-      }
-    };
-    type();
-  };
-
-  const updateDynamicStatus = (newStatus: { text: string; bg: string; border: string; icon: StatusIcon; iconColor: string }) => {
-    setDynamicStatus(newStatus);
-    animateStatusText(newStatus.text);
-  };
+  const bubbleScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
+  const lastTapRef = useRef<number>(0);
 
   useEffect(() => { activeReactionRef.current = activeReaction; }, [activeReaction]);
 
@@ -141,19 +77,20 @@ export default function Home() {
 
     const name = loadedUser?.username || (loadedUser?.email ? loadedUser.email.split('@')[0] : 'sayang');
     const initialGreeting = `Halo ${name}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
-    const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
+    const initialMsg: Message = { role: 'assistant', content: initialGreeting };
 
     setMessages([initialMsg]);
-    setDisplayMessages([initialMsg]);
     setIsInitialized(true);
 
-    if (autoVoice) { setTimeout(() => speakText(initialGreeting, 0), 500); }
-    else { setInputDisabled(false); }
+    if (autoVoice) {
+      setTimeout(() => startSyncSpeechAndTyping(initialGreeting, 0), 500);
+    } else {
+      setDisplayedStatusText(initialGreeting);
+    }
   }, []);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const avatarContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -215,6 +152,77 @@ export default function Home() {
     else switchVideo(videoIdleRef);
   }, [activeReaction, isSpeaking]);
 
+  const sanitizeText = (text: string): string => {
+    if (!text) return '';
+    return text.replace(/i'm sorry|im sorry|sorry|maaf/gi, 'Maaf').replace(/\s+/g, ' ').trim();
+  };
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
+
+  const stopAudio = () => {
+    if (statusTypingTimeoutRef.current) clearTimeout(statusTypingTimeoutRef.current);
+    if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; audioRef.current = null; }
+    setPlayingIndex(null);
+  };
+
+  // --- LOGIKA UTAMA SINKRONISASI SUARA, MULUT AVA, DAN KETIKAN SPEECH BUBBLE ---
+  const startSyncSpeechAndTyping = async (text: string, index: number) => {
+    if (!text) return;
+    stopAudio();
+
+    const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
+    if (!cleanText) return;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cleanText, voice: selectedVoice }), signal: controller.signal,
+      });
+      if (!res.ok) throw new Error('TTS Failed');
+      const blob = await res.blob();
+      if (blob.size === 0) throw new Error('Audio Empty');
+
+      const audio = new Audio(URL.createObjectURL(blob));
+      audioRef.current = audio;
+
+      audio.onplay = () => {
+        setPlayingIndex(index);
+
+        // Mulai animasi ngetik tepat saat audio & mulut Ava bergerak
+        let charIndex = 0;
+        setDisplayedStatusText('');
+
+        const audioDurationMs = (audio.duration || 3) * 1000;
+        const typingSpeed = Math.max(15, Math.floor(audioDurationMs / cleanText.length));
+
+        const typeNextChar = () => {
+          if (charIndex <= cleanText.length) {
+            setDisplayedStatusText(cleanText.slice(0, charIndex));
+            charIndex++;
+            if (bubbleScrollRef.current) {
+              bubbleScrollRef.current.scrollTop = bubbleScrollRef.current.scrollHeight;
+            }
+            statusTypingTimeoutRef.current = setTimeout(typeNextChar, typingSpeed);
+          }
+        };
+        typeNextChar();
+      };
+
+      audio.onended = () => stopAudio();
+      audio.onerror = () => stopAudio();
+
+      await audio.play();
+    } catch {
+      // Fallback jika audio gagal: tetap tampilkan teks
+      setDisplayedStatusText(cleanText);
+      stopAudio();
+    }
+  };
+
   const triggerBodyPartTouch = (part: 'kepala' | 'perut' | 'kaki', e?: React.MouseEvent) => {
     if (e && avatarContainerRef.current) {
       const rect = avatarContainerRef.current.getBoundingClientRect();
@@ -225,172 +233,41 @@ export default function Home() {
 
     if (part === 'kepala') {
       setActiveReaction('marah');
-      updateDynamicStatus({ text: 'Sentuh Kepala: Dia MARAH!', bg: 'var(--color-danger-bg)', border: 'var(--color-danger-border)', icon: 'angry', iconColor: 'var(--color-danger)' });
-      speakText('Aduh! Jangan pegang-pegang kepala dong!', 0);
+      startSyncSpeechAndTyping('Aduh! Jangan pegang-pegang kepala dong!', 0);
     } else if (part === 'perut') {
       setActiveReaction('perut');
-      updateDynamicStatus({ text: 'Sentuh Perut: Dia GOYANG geli!', bg: 'var(--accent-orange-subtle)', border: 'var(--accent-orange-border)', icon: 'laugh', iconColor: 'var(--accent-orange)' });
-      speakText('Haha geli banget! Perut buncitku jadi goyang!', 0);
+      startSyncSpeechAndTyping('Haha geli banget! Perut buncitku jadi goyang!', 0);
     } else if (part === 'kaki') {
       setActiveReaction('kaki');
-      updateDynamicStatus({ text: 'Sentuh Kaki: Dia BINGUNG!', bg: 'var(--color-info-subtle)', border: 'var(--color-info-subtle)', icon: 'confused', iconColor: 'var(--color-info)' });
-      speakText('Eh? Kenapa kamu pegang-pegang kakiku?', 0);
+      startSyncSpeechAndTyping('Eh? Kenapa kamu pegang-pegang kakiku?', 0);
     }
-
-    setTimeout(() => {
-      updateDynamicStatus({ text: 'Siap mengobrol dan menemani harimu!', bg: 'var(--accent-orange-subtle)', border: 'var(--accent-orange-border)', icon: 'smile', iconColor: 'var(--accent-orange)' });
-    }, 3500);
   };
 
-  const handlePointerAction = (clientX: number, clientY: number) => {
-    if (activeReactionRef.current || !avatarContainerRef.current) return;
-    const rect = avatarContainerRef.current.getBoundingClientRect();
-    const relativeY = (clientY - rect.top) / rect.height;
-    if (relativeY < 0.35) triggerBodyPartTouch('kepala');
-    else if (relativeY < 0.68) triggerBodyPartTouch('perut');
-    else triggerBodyPartTouch('kaki');
-  };
-
-  const handlePointerDownAvatar = (e: PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    isInteractingRef.current = true;
-    handlePointerAction(e.clientX, e.clientY);
-  };
-
-  const handlePointerMoveAvatar = (e: PointerEvent<HTMLDivElement>) => {
-    if (isInteractingRef.current) handlePointerAction(e.clientX, e.clientY);
-  };
-
-  const handlePointerUpAvatar = () => { isInteractingRef.current = false; };
-
-  const sanitizeText = (text: string): string => {
-    if (!text) return '';
-    return text.replace(/i'm sorry|im sorry|sorry|maaf/gi, 'Maaf').replace(/\s+/g, ' ').trim();
-  };
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [displayMessages, loading]);
-
-  const stopAudio = () => {
-    if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; }
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; audioRef.current = null; }
-    setPlayingIndex(null);
+  const handleAvatarDoubleClick = (part: 'kepala' | 'perut' | 'kaki', e: React.MouseEvent) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      triggerBodyPartTouch(part, e);
+    }
+    lastTapRef.current = now;
   };
 
   const handleClearChat = () => {
     stopAudio();
-    setIsTyping(false);
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     const initialGreeting = `Halo ${getUserName()}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
-    const initialMsg: Message = { role: 'assistant', content: initialGreeting, isTyping: false };
+    const initialMsg: Message = { role: 'assistant', content: initialGreeting };
     setMessages([initialMsg]);
-    setDisplayMessages([initialMsg]);
-    setTypingText('');
-    setInputDisabled(false);
-    if (autoVoice) setTimeout(() => speakText(initialGreeting, 0), 300);
-  };
-
-  const startTypingEffect = (fullText: string, messageIndex: number) => {
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    setIsTyping(true);
-    setTypingMessageIndex(messageIndex);
-    setTypingText('');
-    setDisplayMessages(prev => {
-      const updated = [...prev];
-      if (updated[messageIndex]) updated[messageIndex] = { ...updated[messageIndex], content: '', isTyping: true };
-      return updated;
-    });
-
-    let currentIndex = 0;
-    const chars = fullText.split('');
-
-    const typeNextChar = () => {
-      if (currentIndex < chars.length) {
-        const newText = fullText.substring(0, currentIndex + 1);
-        setTypingText(newText);
-        setDisplayMessages(prev => {
-          const updated = [...prev];
-          if (updated[messageIndex]) updated[messageIndex] = { ...updated[messageIndex], content: newText, isTyping: true };
-          return updated;
-        });
-        currentIndex++;
-        typingTimeoutRef.current = setTimeout(typeNextChar, Math.random() * 30 + 15);
-      } else {
-        setIsTyping(false);
-        setTypingMessageIndex(null);
-        setDisplayMessages(prev => {
-          const updated = [...prev];
-          if (updated[messageIndex]) updated[messageIndex] = { ...updated[messageIndex], content: fullText, isTyping: false };
-          return updated;
-        });
-        setInputDisabled(false);
-      }
-    };
-    typingTimeoutRef.current = setTimeout(typeNextChar, 100);
-  };
-
-  const typeMessageWithAudio = async (fullText: string, messageIndex: number) => {
-    const cleanedFullText = sanitizeText(fullText);
-    setDisplayMessages(prev => {
-      const updated = [...prev];
-      if (updated[messageIndex]) updated[messageIndex] = { ...updated[messageIndex], content: cleanedFullText, isTyping: false };
-      return updated;
-    });
 
     if (autoVoice) {
-      try {
-        const cleanText = cleanedFullText.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
-        if (!cleanText) { setInputDisabled(false); return; }
-        const res = await fetch('/api/tts', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: cleanText, voice: selectedVoice }),
-        });
-        if (!res.ok) throw new Error('TTS gagal');
-        const blob = await res.blob();
-        if (blob.size === 0) throw new Error('Audio kosong');
-        const audio = new Audio(URL.createObjectURL(blob));
-        audioRef.current = audio;
-        audio.onplay = () => { setPlayingIndex(messageIndex); startTypingEffect(cleanedFullText, messageIndex); };
-        audio.onended = () => { stopAudio(); setInputDisabled(false); };
-        audio.onerror = () => { stopAudio(); setInputDisabled(false); };
-        await audio.play();
-      } catch (err) {
-        console.warn('TTS Error:', err);
-        setInputDisabled(false);
-      }
-    } else setInputDisabled(false);
+      startSyncSpeechAndTyping(initialGreeting, 0);
+    } else {
+      setDisplayedStatusText(initialGreeting);
+    }
   };
 
-  const speakText = async (text: string, index: number) => {
-    if (!text) return;
-    if (playingIndex === index) { stopAudio(); return; }
-    if (isTyping) return;
-    stopAudio();
-    const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
-    if (!cleanText) return;
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText, voice: selectedVoice }), signal: controller.signal,
-      });
-      if (!res.ok) { stopAudio(); setInputDisabled(false); return; }
-      const blob = await res.blob();
-      if (blob.size === 0) { stopAudio(); setInputDisabled(false); return; }
-      const audio = new Audio(URL.createObjectURL(blob));
-      audioRef.current = audio;
-      audio.onplay = () => setPlayingIndex(index);
-      audio.onended = () => { stopAudio(); setInputDisabled(false); };
-      audio.onerror = () => { stopAudio(); setInputDisabled(false); };
-      await audio.play();
-    } catch { stopAudio(); setInputDisabled(false); }
-  };
-
-  // --- RECORDING LOGIC UNTUK INPUT SECTION ---
   const startRecording = async () => {
     if (!userProfile) { if (trialCount >= 3) router.push('/login'); return; }
-    if (loading || isTyping || isRecording) return;
+    if (loading || isRecording) return;
     stopAudio();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert("Akses mic diblokir atau tidak didukung!"); return; }
 
@@ -446,44 +323,44 @@ export default function Home() {
     setTrialCount(newTrialCount);
     localStorage.setItem('trial_count', newTrialCount.toString());
 
-    const userMsg: Message = { role: 'user', content: presetKey, isTyping: false };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setDisplayMessages(prev => [...prev, userMsg]);
-
+    const userMsg: Message = { role: 'user', content: presetKey };
     const cleanedReply = sanitizeText(preset.reply(name));
-    const aiMsg: Message = { role: 'assistant', content: '', isTyping: true };
-    const updatedMessages: Message[] = [...newMessages, { role: 'assistant', content: cleanedReply }];
+    const aiMsg: Message = { role: 'assistant', content: cleanedReply };
+
+    const updatedMessages = [...messages, userMsg, aiMsg];
     setMessages(updatedMessages);
 
-    const displayIndex = updatedMessages.length - 1;
-    setDisplayMessages(prev => [...prev, aiMsg]);
-    typeMessageWithAudio(cleanedReply, displayIndex);
+    if (autoVoice) {
+      startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
+    } else {
+      setDisplayedStatusText(cleanedReply);
+    }
   };
 
   const handleSend = async (textToSend?: string) => {
     if (!userProfile) { if (trialCount >= 3) router.push('/login'); return; }
     const query = textToSend || input;
-    if (!query.trim() || loading || isTyping) return;
+    if (!query.trim() || loading) return;
 
     if (isTimeQuestion(query)) {
-      const userMsg: Message = { role: 'user', content: query, isTyping: false };
-      const newMessages = [...messages, userMsg];
-      setMessages(newMessages);
-      setDisplayMessages(prev => [...prev, userMsg]);
+      const userMsg: Message = { role: 'user', content: query };
       if (!textToSend) setInput('');
       const timeReply = getLocalTimeResponse();
-      const aiMsg: Message = { role: 'assistant', content: timeReply, isTyping: false };
-      setMessages(prev => [...prev, { role: 'assistant', content: timeReply }]);
-      setDisplayMessages(prev => [...prev, aiMsg]);
-      if (autoVoice) speakText(timeReply, newMessages.length);
+      const aiMsg: Message = { role: 'assistant', content: timeReply };
+      const updatedMessages = [...messages, userMsg, aiMsg];
+      setMessages(updatedMessages);
+
+      if (autoVoice) {
+        startSyncSpeechAndTyping(timeReply, updatedMessages.length - 1);
+      } else {
+        setDisplayedStatusText(timeReply);
+      }
       return;
     }
 
-    const userMsg: Message = { role: 'user', content: query, isTyping: false };
+    const userMsg: Message = { role: 'user', content: query };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
-    setDisplayMessages(prev => [...prev, userMsg]);
     if (!textToSend) setInput('');
     setLoading(true);
 
@@ -497,21 +374,24 @@ export default function Home() {
         if (data.remainingTokens) setRemainingTokens(data.remainingTokens);
         if (data.model) setActiveModel(data.model);
         const cleanedReply = sanitizeText(data.reply);
-        const aiMsg: Message = { role: 'assistant', content: '', isTyping: true };
-        const updatedMessages: Message[] = [...newMessages, { role: 'assistant', content: cleanedReply }];
+        const aiMsg: Message = { role: 'assistant', content: cleanedReply };
+        const updatedMessages = [...newMessages, aiMsg];
         setMessages(updatedMessages);
-        const displayIndex = updatedMessages.length - 1;
-        setDisplayMessages(prev => [...prev, aiMsg]);
-        typeMessageWithAudio(cleanedReply, displayIndex);
+
+        if (autoVoice) {
+          startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
+        } else {
+          setDisplayedStatusText(cleanedReply);
+        }
       } else {
         const errorMsg = `Maaf ${getUserName()}, ada masalah teknis: ${data.error || 'Gagal tersambung.'}`;
         setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
-        setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
+        setDisplayedStatusText(errorMsg);
       }
     } catch (err: unknown) {
       const errorMsg = `Maaf ${getUserName()}, koneksi terputus (${err instanceof Error ? err.message : 'Unknown error'})`;
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
-      setDisplayMessages(prev => [...prev, { role: 'assistant', content: errorMsg, isTyping: false }]);
+      setDisplayedStatusText(errorMsg);
     } finally { setLoading(false); }
   };
 
@@ -530,31 +410,43 @@ export default function Home() {
 
       <div className={styles.mainContent}>
         <div className={styles.chatSection}>
+          {/* CONTROL PANEL DI ATAS CHAT BOX */}
+          <div className={styles.topControlPanel}>
+            <div className={styles.voiceControlGroup}>
+              <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
+                <option value="spruce">Deep Voice</option>
+                <option value="arbor">Man Voice</option>
+              </select>
+              <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
+                {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
+                <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* CHAT BOX WITH GRADIENT MASK */}
           <div className={styles.chatBox}>
-            {displayMessages.map((msg, index) => (
+            {messages.map((msg, index) => (
               <div key={index} className={styles.messageWrapper} style={{ justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div className={`${styles.bubble} ${msg.role === 'user' ? styles.userBubble : styles.aiBubble}`}>
                   <div className={styles.roleHeader}>
                     <span className={styles.roleLabel} style={{ color: msg.role === 'assistant' ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
                       {msg.role === 'user' ? getUserName() : 'SukaChub Virtual Chat'}
                     </span>
-                    {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
-                      <button onClick={() => speakText(msg.content, index)} className={styles.speakerBtn} style={{ color: playingIndex === index ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
+                    {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && msg.content && (
+                      <button onClick={() => startSyncSpeechAndTyping(msg.content, index)} className={styles.speakerBtn} style={{ color: playingIndex === index ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
                         {playingIndex === index ? <IconSpeaker /> : <IconMute />}
                       </button>
                     )}
                   </div>
                   <div className={styles.textContent}>
-                    {msg.content || ''}
-                    {msg.isTyping && index === typingMessageIndex && (
-                      <span style={{ display: 'inline-block', width: '2px', height: '1em', backgroundColor: 'var(--accent-orange)', marginLeft: '2px', animation: `${styles.blink} 0.5s step-end infinite`, verticalAlign: 'text-bottom' }} />
-                    )}
+                    {msg.content}
                   </div>
                 </div>
               </div>
             ))}
 
-            {loading && !isTyping && (
+            {loading && (
               <div className={styles.messageWrapper} style={{ justifyContent: 'flex-start' }}>
                 <div className={`${styles.bubble} ${styles.aiBubble}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div className={styles.loadingDots}><span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} /></div>
@@ -567,23 +459,19 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          <div className={styles.dynamicStatusBubble} style={{ backgroundColor: dynamicStatus.bg, borderColor: dynamicStatus.border }}>
-            <span style={{ display: 'flex', color: dynamicStatus.iconColor, alignItems: 'center' }}>
-              {dynamicStatus.icon === 'smile' && <IconSmile />}
-              {dynamicStatus.icon === 'angry' && <IconAngry />}
-              {dynamicStatus.icon === 'laugh' && <IconLaugh />}
-              {dynamicStatus.icon === 'confused' && <IconConfused />}
-            </span>
-            <span className={styles.dynamicStatusText}>
-              {displayedStatusText}
+          {/* BUBBLE SPEECH AVA 5 BARIS DINAMIS TANPA EMOJI */}
+          <div className={styles.dynamicStatusBubble}>
+            <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
+              <span>{displayedStatusText}</span>
               <span style={{ opacity: 0.6, marginLeft: '2px' }}>|</span>
-            </span>
+            </div>
+            <div className={styles.speechTail} />
           </div>
 
-          <div ref={avatarContainerRef} className={styles.avatarContainer} onPointerDown={handlePointerDownAvatar} onPointerMove={handlePointerMoveAvatar} onPointerUp={handlePointerUpAvatar} onPointerCancel={handlePointerUpAvatar} onContextMenu={(e) => e.preventDefault()}>
-            <div className={styles.hitboxHead} title="Sentuh Kepala (Marah)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('kepala', e); }} />
-            <div className={styles.hitboxBelly} title="Sentuh Perut (Goyang)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('perut', e); }} />
-            <div className={styles.hitboxLegs} title="Sentuh Kaki (Bingung)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('kaki', e); }} />
+          <div ref={avatarContainerRef} className={styles.avatarContainer} onContextMenu={(e) => e.preventDefault()}>
+            <div className={styles.hitboxHead} title="Sentuh 2x Kepala (Marah)" onClick={(e) => handleAvatarDoubleClick('kepala', e)} />
+            <div className={styles.hitboxBelly} title="Sentuh 2x Perut (Goyang)" onClick={(e) => handleAvatarDoubleClick('perut', e)} />
+            <div className={styles.hitboxLegs} title="Sentuh 2x Kaki (Bingung)" onClick={(e) => handleAvatarDoubleClick('kaki', e)} />
 
             {ripples.map((r) => (<span key={r.id} className={styles.asmrRipple} style={{ left: `${r.x}px`, top: `${r.y}px` }} />))}
 
@@ -595,25 +483,12 @@ export default function Home() {
           </div>
 
           <div className={styles.avatarTouchGuide}>
-            <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh ava:</span>
+            <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh 2x ava:</span>
             <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeHead : ''}`}>Kepala</span>
             <span className={styles.dotSep}>•</span>
             <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeBelly : ''}`}>Badan</span>
             <span className={styles.dotSep}>•</span>
             <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeLegs : ''}`}>Kaki</span>
-          </div>
-
-          <div className={styles.voiceControlPanel}>
-            <div className={styles.voiceControlGroup}>
-              <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
-                <option value="spruce">Deep Voice</option>
-                <option value="arbor">Man Voice</option>
-              </select>
-              <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
-                {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-                <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -624,7 +499,7 @@ export default function Home() {
         userProfile={userProfile}
         trialCount={trialCount}
         loading={loading}
-        isTyping={isTyping}
+        isTyping={false}
         isRecording={isRecording}
         isInitialized={isInitialized}
         trialPresets={TRIAL_PRESETS}
