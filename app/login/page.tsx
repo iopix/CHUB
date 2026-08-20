@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, ChangeEvent, FormEvent, CSSProperties } from 'react';
+import { useState, ChangeEvent, FormEvent, CSSProperties, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import BearMascot from '@/app/login/bearMascot';
 
-// --- IKON MATA (TOGGLE PIN) ---
+// --- IKON MATA TOGGLE PIN ---
 const IconEye = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -26,22 +27,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [failedAttempts, setFailedAttempts] = useState<number>(0);
+  
+  const [activeInput, setActiveInput] = useState<'username' | 'pin' | null>(null);
   const router = useRouter();
 
-  // Handler ubah Username (otomatis huruf kecil & angka, 5 - 20 karakter)
   const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (value.length <= 20) {
-      setUsername(value);
-    }
+    if (value.length <= 20) setUsername(value);
   };
 
-  // Handler ubah PIN (hanya angka, maks 6 digit)
   const handlePinChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 6) {
-      setPin(value);
-    }
+    if (value.length <= 6) setPin(value);
   };
 
   const isUsernameValid = username.length >= 5 && username.length <= 20;
@@ -109,9 +106,46 @@ export default function LoginPage() {
     }
   };
 
+  const eyeX = useMemo(() => {
+    if (activeInput !== 'username') return 0;
+    const progress = Math.min(username.length / 20, 1);
+    return (progress - 0.5) * 2; 
+  }, [username, activeInput]);
+
+  const isCovering = activeInput === 'pin' && !showPin;
+  const isLove = activeInput === 'username';
+  const isTyping = activeInput !== null && !isCovering;
+
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-6px); }
+          40%, 80% { transform: translateX(6px); }
+        }
+        @keyframes headNod {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+      `}</style>
+
+      <div style={{
+        ...styles.card,
+        animation: error ? 'shake 0.4s ease-in-out' : loading ? 'headNod 1s infinite' : 'none'
+      }}>
+        
+        {/* === BEAR MASCOT TEPAT MEMBELAH DI TENGAH GARIS ATAS KARTU === */}
+        <div style={styles.avatarWrapper}>
+           <BearMascot 
+             eyeX={eyeX}
+             isCovering={isCovering}
+             isLove={isLove}
+             isTyping={isTyping}
+             size={140}
+           />
+        </div>
+
         <h1 style={styles.title}>SukaChub Login</h1>
         <p style={styles.subtitle}>
           Gunakan Username dan 6 digit PIN angka yang sama saat pendaftaran di ipixchat
@@ -123,6 +157,8 @@ export default function LoginPage() {
             placeholder="Username (5-20 huruf/angka)"
             value={username}
             onChange={handleUsernameChange}
+            onFocus={() => setActiveInput('username')}
+            onBlur={() => setActiveInput(null)}
             minLength={5}
             maxLength={20}
             autoCapitalize="none"
@@ -141,6 +177,8 @@ export default function LoginPage() {
               placeholder="PIN (6 digit angka)"
               value={pin}
               onChange={handlePinChange}
+              onFocus={() => setActiveInput('pin')}
+              onBlur={() => setActiveInput(null)}
               style={styles.pinInput}
               required
             />
@@ -226,6 +264,9 @@ export default function LoginPage() {
   );
 }
 
+// ==========================================
+// STYLING
+// ==========================================
 const styles: Record<string, CSSProperties> = {
   container: {
     display: 'flex',
@@ -238,12 +279,25 @@ const styles: Record<string, CSSProperties> = {
   },
   card: {
     backgroundColor: '#18181b',
-    padding: '40px 30px 30px 30px',
+    padding: '30px', 
     borderRadius: '24px',
     maxWidth: '400px',
     width: '100%',
     border: '1px solid #3f3f46',
     boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginTop: '60px', 
+    position: 'relative',
+  },
+  avatarWrapper: {
+    marginTop: '-98px',
+    marginBottom: '10px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
   title: {
     color: '#f97316',
@@ -264,6 +318,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '14px',
+    width: '100%',
   },
   usernameInput: {
     backgroundColor: '#27272a',
@@ -279,6 +334,7 @@ const styles: Record<string, CSSProperties> = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
+    width: '100%',
   },
   pinInput: {
     width: '100%',
@@ -349,6 +405,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: '0.8rem',
     color: '#a1a1aa',
     textAlign: 'center',
+    width: '100%',
   },
   registerLink: {
     color: '#f97316',
