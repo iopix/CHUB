@@ -11,7 +11,6 @@ interface TrialPreset { reply: (name: string) => string; emotion: string; }
 type ActiveReaction = 'kepala' | 'perut' | 'kaki' | 'peluk' | 'marah' | null;
 interface RippleEffect { id: number; x: number; y: number; }
 
-// --- SVG ICONS ---
 const IconSpeaker = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>);
 const IconMute = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>);
 const IconAutoVoiceOn = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4" /><path d="M6 6v12" /><path d="M10 3v18" /><path d="M14 8v8" /><path d="M18 5v14" /><path d="M22 10v4" /></svg>);
@@ -26,7 +25,6 @@ const TRIAL_PRESETS: Record<string, TrialPreset> = {
 export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  
   const [textTrialCount, setTextTrialCount] = useState<number>(0);
   const [voiceTrialCount, setVoiceTrialCount] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
@@ -220,7 +218,6 @@ export default function Home() {
     }
   };
 
-  // 2. LOGIKA REAKSI CUKUP SENTUH 1X SAJA
   const handleAvatarSingleClick = (part: 'kepala' | 'perut' | 'kaki', e: React.MouseEvent) => {
     if (avatarContainerRef.current) {
       const rect = avatarContainerRef.current.getBoundingClientRect();
@@ -419,29 +416,17 @@ export default function Home() {
 
       <div className={styles.mainContent}>
         <div className={styles.chatSection}>
-          {/* 1. CONTROL PANEL TERDIRI DARI VOICE CONTROL & CAPSULE PANDUAN SENTUH (RESPONSIF/MOBILE FRIENDLY) */}
+          {/* BARIS KONTROL SEJAJAR PRESISI DI ATAS CHAT */}
           <div className={styles.topControlPanel}>
-            <div className={styles.voiceControlGroup}>
-              <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
-                <option value="spruce">Deep Voice</option>
-                <option value="arbor">Man Voice</option>
-              </select>
+            <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
+              <option value="spruce">Deep Voice</option>
+              <option value="arbor">Man Voice</option>
+            </select>
 
-              <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
-                {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-                <span>{autoVoice ? 'Auto Voice ON' : 'Auto Voice OFF'}</span>
-              </button>
-
-              {/* CAPSULE PANDUAN SENTUH SEJAJAR DI ATAS */}
-              <div className={styles.avatarTouchGuideHeader}>
-                <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh ava:</span>
-                <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}>Kepala</span>
-                <span className={styles.dotSep}>•</span>
-                <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}>Badan</span>
-                <span className={styles.dotSep}>•</span>
-                <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeOrange : ''}`}>Kaki</span>
-              </div>
-            </div>
+            <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
+              {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
+              <span>{autoVoice ? 'Auto Voice ON' : 'Auto Voice OFF'}</span>
+            </button>
           </div>
 
           <div className={styles.chatBox}>
@@ -478,6 +463,18 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
+          {/* BARIS PANDUAN SENTUH DENGAN TINGGI SEJAJAR DENGAN KONTROL KIRI */}
+          <div className={styles.topControlPanelRight}>
+            <div className={styles.avatarTouchGuideTop}>
+              <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh ava:</span>
+              <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}>Kepala</span>
+              <span className={styles.dotSep}>•</span>
+              <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}>Badan</span>
+              <span className={styles.dotSep}>•</span>
+              <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeOrange : ''}`}>Kaki</span>
+            </div>
+          </div>
+
           <div className={styles.dynamicStatusBubble}>
             {isWelcomeBubble ? (
               <div className={styles.welcomeContainer}>
@@ -489,16 +486,14 @@ export default function Home() {
               </div>
             ) : (
               <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
-                <span>{displayedStatusText}</span>
-                <span style={{ opacity: 0.6, marginLeft: '2px' }}>|</span>
+                <span className={styles.italicText}>{displayedStatusText}</span>
+                <span className={styles.blinkingOrangeSlash}> /</span>
               </div>
             )}
             <div className={styles.speechTail} />
           </div>
 
-          {/* 4. UKURAN AVATAR LEBIH BESAR & RESPONSIF */}
           <div ref={avatarContainerRef} className={styles.avatarContainer} onContextMenu={(e) => e.preventDefault()}>
-            {/* 2. HITBOX DENGAN CLICK 1X */}
             <div className={styles.hitboxHead} title="Sentuh Kepala (Marah)" onClick={(e) => handleAvatarSingleClick('kepala', e)} />
             <div className={styles.hitboxBelly} title="Sentuh Perut (Goyang)" onClick={(e) => handleAvatarSingleClick('perut', e)} />
             <div className={styles.hitboxLegs} title="Sentuh Kaki (Bingung)" onClick={(e) => handleAvatarSingleClick('kaki', e)} />

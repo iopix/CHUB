@@ -121,19 +121,19 @@ export default function InputSection({
 
   const presetKeys = Object.keys(trialPresets).slice(0, 3);
 
-  // LOGIKA CEK BISAKAH KIRIM PADA MODE AKTIF
   const isTextTrialEnded = !userProfile && textTrialCount >= 2;
   const isVoiceTrialEnded = !userProfile && voiceTrialCount >= 2;
 
   return (
     <div className={styles.footerWrapper}>
+      {/* 3. ROW PILL CAPSULE DINAMIS DENGAN UKURAN SERAGAM */}
       <div className={styles.capsuleRow}>
         {presetKeys.map((presetKey, i) => (
           <button
             key={i}
             type="button"
             onClick={() => handlePillClick(presetKey)}
-            className={styles.chipButton}
+            className={styles.dynamicChipButton}
           >
             {presetKey}
           </button>
@@ -143,7 +143,7 @@ export default function InputSection({
           <button
             type="button"
             onClick={handleClearChat}
-            className={`${styles.chipButton} ${styles.clearChipButton}`}
+            className={`${styles.dynamicChipButton} ${styles.clearChipButton}`}
           >
             <IconTrash />
             <span>Hapus Chat</span>
@@ -174,7 +174,6 @@ export default function InputSection({
       <div className={styles.mainInputBox}>
         <div className={styles.inputBodyContainer}>
           {!isKeyboardMode ? (
-            /* MODE HOLD TO TALK (VOICE) */
             <div
               className={`${styles.holdToTalkButton} ${isVoiceTrialEnded ? styles.disabledHold : ''}`}
               onTouchStart={handleTouchStart}
@@ -199,7 +198,6 @@ export default function InputSection({
               </span>
             </div>
           ) : (
-            /* MODE INPUT TEKS */
             <form
               onSubmit={(e: FormEvent<HTMLFormElement>) => {
                 e.preventDefault();

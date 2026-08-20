@@ -1,11 +1,15 @@
 /* ==========================================================================
-   PAGE.MODULE.CSS - Updated Header Touch Guide & Larger Responsive Avatar
+   PAGE.MODULE.CSS - Perfect Header Alignment & Synchronized Control Heights
    ========================================================================== */
 
-/* --- BLINKING ANIMATION FOR LINK --- */
 @keyframes orangeBlink {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.3; transform: scale(0.98); }
+}
+
+@keyframes slashBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.1; }
 }
 
 .blinkingOrangeLink {
@@ -21,7 +25,17 @@
   text-decoration: underline;
 }
 
-/* SPEECH BUBBLE WELCOME LAYOUT */
+.blinkingOrangeSlash {
+  color: var(--accent-orange);
+  font-weight: 800;
+  animation: slashBlink 0.8s infinite step-start;
+  display: inline-block;
+}
+
+.italicText {
+  font-style: italic;
+}
+
 .welcomeContainer {
   display: flex;
   flex-direction: column;
@@ -46,7 +60,6 @@
   color: var(--text-muted);
 }
 
-/* --- SCROLLBAR STYLE --- */
 .chatBox::-webkit-scrollbar,
 .suggestions::-webkit-scrollbar,
 .capsuleRow::-webkit-scrollbar,
@@ -78,13 +91,11 @@
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
-/* --- ANIMATIONS --- */
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes rippleEffect { 0% { width: 0px; height: 0px; opacity: 1; } 100% { width: 120px; height: 120px; opacity: 0; } }
 @keyframes dotBounce { 0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
 @keyframes wavePulse { 0%, 100% { height: 6px; } 50% { height: 28px; } }
 
-/* --- ASMR RIPPLE & LOADING --- */
 .asmrRipple {
   position: absolute;
   width: 20px;
@@ -114,7 +125,6 @@
 .loadingDots .dot:nth-child(1) { animation-delay: -0.32s; }
 .loadingDots .dot:nth-child(2) { animation-delay: -0.16s; }
 
-/* --- CONTAINERS & LAYOUT --- */
 .container {
   display: flex;
   flex-direction: column;
@@ -148,30 +158,35 @@
   z-index: 5;
 }
 
-/* 1. CONTROL PANEL TERINTEGRASI DI ATAS CHAT BOX (RESPONSIF MOBILE FRIENDLY) */
+/* PERBAIKAN BARIS HEADER KIRI & KANAN */
 .topControlPanel {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   padding: 8px 12px;
+  height: 48px;
+  box-sizing: border-box;
   z-index: 10;
   background-color: var(--bg-black);
   width: 100%;
-  box-sizing: border-box;
 }
 
-.voiceControlGroup {
+.topControlPanelRight {
   display: flex;
   align-items: center;
-  flex-wrap: wrap; /* Menyesuaikan layar HP bila sempit */
-  gap: 8px;
+  justify-content: center;
+  padding: 8px 12px;
+  height: 48px;
+  box-sizing: border-box;
+  z-index: 10;
+  background-color: var(--bg-black);
   width: 100%;
 }
 
 .voiceSelect,
 .autoVoiceBtn {
   height: 32px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0 12px;
@@ -199,14 +214,14 @@
   flex-shrink: 0;
 }
 
-/* CAPSULE PANDUAN SENTUH HEADER */
-.avatarTouchGuideHeader {
-  display: flex;
+.avatarTouchGuideTop {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   font-size: clamp(0.6rem, 1.6vw, 0.72rem);
   color: var(--text-muted);
-  padding: 4px 12px;
+  padding: 0 12px;
   height: 32px;
   background: var(--bg-dark-1);
   border: 1px solid var(--border-zinc-subtle);
@@ -225,7 +240,6 @@
   opacity: 0.4;
 }
 
-/* 3. WARNA CHIP INDIKATOR SENTUH SERBA ORANGE */
 .activeOrange {
   color: var(--accent-orange);
   font-weight: 700;
@@ -245,14 +259,13 @@
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%);
 }
 
-/* --- AVATAR SECTION --- */
 .avatarSection {
   width: min(50%, 520px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 12px 8px;
+  justify-content: flex-start;
+  padding: 0 8px 8px 8px;
   background-color: var(--bg-black);
   border-left: 1px solid var(--border-zinc-divider);
   flex-shrink: 0;
@@ -261,10 +274,9 @@
 
 .avatarSectionMobile {
   width: 50%;
-  padding: 8px 4px;
+  padding: 0 4px 8px 4px;
 }
 
-/* SPEECH BUBBLE AVA */
 .dynamicStatusBubble {
   position: relative;
   display: flex;
@@ -276,6 +288,7 @@
   background-color: var(--accent-orange-subtle);
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
+  margin-top: 4px;
   margin-bottom: 8px;
   width: 95%;
   max-width: 360px;
@@ -310,7 +323,6 @@
   border-top: 7px solid var(--accent-orange-border);
 }
 
-/* 4. KONTAINER & VIDEO AVATAR LEBIH BESAR RESPONSIF */
 .avatarContainer {
   position: relative;
   width: 100%;
@@ -350,7 +362,6 @@
   pointer-events: none;
 }
 
-/* --- CHAT BUBBLES --- */
 .messageWrapper { display: flex; width: 100%; }
 .bubble { max-width: 90%; padding: 10px 14px; border-radius: 18px; font-size: clamp(0.75rem, 2vw, 0.9rem); backdrop-filter: blur(16px); box-shadow: 0 4px 12px var(--shadow-bubble); word-break: break-word; }
 .userBubble { background-color: var(--accent-orange-user-bubble); color: var(--text-white); border-radius: 18px 18px 4px 18px; }
@@ -360,7 +371,6 @@
 .speakerBtn { background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; }
 .textContent { white-space: pre-wrap; line-height: 1.4; word-break: break-word; }
 
-/* --- FOOTER INPUT BAR --- */
 .footerWrapper {
   display: flex;
   flex-direction: column;
@@ -375,37 +385,43 @@
 .capsuleRow {
   display: flex;
   gap: 8px;
+  width: 100%;
   overflow-x: auto;
-  white-space: nowrap;
   padding-bottom: 2px;
 }
 
-.chipButton {
+.dynamicChipButton {
+  flex: 1 1 0px;
+  min-width: 0;
   background-color: var(--bg-dark-1);
   border: 1px solid var(--border-zinc-subtle);
   color: var(--text-dim);
-  padding: 6px 14px;
+  padding: 6px 8px;
   border-radius: 9999px;
-  font-size: clamp(0.68rem, 2vw, 0.75rem);
+  font-size: clamp(0.65rem, 1.8vw, 0.75rem);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  flex-shrink: 0;
-  height: 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 34px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 4px;
   touch-action: manipulation;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.chipButton:hover {
+.dynamicChipButton:hover {
   background-color: var(--bg-dark-2);
   color: var(--text-white);
   border-color: var(--border-zinc);
 }
 
 .clearChipButton {
+  flex: 0 0 auto;
+  padding: 6px 12px;
   background-color: rgba(239, 68, 68, 0.1);
   border-color: rgba(239, 68, 68, 0.3);
   color: var(--color-danger);
