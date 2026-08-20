@@ -125,7 +125,7 @@ export default function Home() {
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const [, setTypingText] = useState<string>('');
 
-  const [inputDisabled, setInputDisabled] = useState<boolean>(true);
+  const [inputDisabled, setInputDisabled] = useState<boolean>(false);
 
   // --- REAKSI INTERAKTIF AVATAR ---
   const [activeReaction, setActiveReaction] = useState<ActiveReaction>(null);
@@ -162,7 +162,6 @@ export default function Home() {
 
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
-    setInputDisabled(true);
 
     if (autoVoice) {
       setTimeout(() => {
@@ -337,11 +336,9 @@ export default function Home() {
     setDisplayMessages([initialMsg]);
     setTypingText('');
 
-    setInputDisabled(true);
+    setInputDisabled(false);
     if (autoVoice) {
       setTimeout(() => speakText(initialGreeting, 0), 300);
-    } else {
-      setInputDisabled(false);
     }
   };
 
@@ -405,9 +402,7 @@ export default function Home() {
           return updated;
         });
 
-        if (messageIndex === 0 && autoVoice) {
-          setInputDisabled(false);
-        }
+        setInputDisabled(false);
       }
     };
 
@@ -433,7 +428,7 @@ export default function Home() {
       try {
         const cleanText = cleanedFullText.replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
         if (!cleanText) {
-          if (messageIndex === 0) setInputDisabled(false);
+          setInputDisabled(false);
           return;
         }
 
@@ -459,63 +454,22 @@ export default function Home() {
 
         audio.onended = () => {
           stopAudio();
-          if (messageIndex === 0 && autoVoice) {
-            setInputDisabled(false);
-          }
+          setInputDisabled(false);
         };
 
         audio.onerror = () => {
           stopAudio();
-          setDisplayMessages(prev => {
-            const updated = [...prev];
-            if (updated[messageIndex]) {
-              updated[messageIndex] = {
-                ...updated[messageIndex],
-                content: cleanedFullText,
-                isTyping: false
-              };
-            }
-            return updated;
-          });
-          if (messageIndex === 0 && autoVoice) {
-            setInputDisabled(false);
-          }
+          setInputDisabled(false);
         };
 
         await audio.play();
 
       } catch (err) {
         console.warn('TTS Error:', err);
-        setDisplayMessages(prev => {
-          const updated = [...prev];
-          if (updated[messageIndex]) {
-            updated[messageIndex] = {
-              ...updated[messageIndex],
-              content: cleanedFullText,
-              isTyping: false
-            };
-          }
-          return updated;
-        });
-        if (messageIndex === 0 && autoVoice) {
-          setInputDisabled(false);
-        }
-      }
-    } else {
-      setDisplayMessages(prev => {
-        const updated = [...prev];
-        if (updated[messageIndex]) {
-          updated[messageIndex] = {
-            ...updated[messageIndex],
-            content: cleanedFullText,
-            isTyping: false
-          };
-        }
-        return updated;
-      });
-      if (messageIndex === 0) {
         setInputDisabled(false);
       }
+    } else {
+      setInputDisabled(false);
     }
   };
 
@@ -527,21 +481,11 @@ export default function Home() {
     }
     if (isTyping) return;
 
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-      audioRef.current = null;
-    }
+    stopAudio();
 
     const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
-    const targetIndex = index;
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -555,12 +499,14 @@ export default function Home() {
 
       if (!res.ok) {
         stopAudio();
+        setInputDisabled(false);
         return;
       }
 
       const blob = await res.blob();
       if (blob.size === 0) {
         stopAudio();
+        setInputDisabled(false);
         return;
       }
 
@@ -569,36 +515,28 @@ export default function Home() {
       audioRef.current = audio;
 
       audio.onplay = () => {
-        setPlayingIndex(targetIndex);
+        setPlayingIndex(index);
       };
 
       audio.onended = () => {
         stopAudio();
-        if (targetIndex === 0 && autoVoice) {
-          setInputDisabled(false);
-        }
+        setInputDisabled(false);
       };
 
       audio.onerror = () => {
         stopAudio();
-        if (targetIndex === 0 && autoVoice) {
-          setInputDisabled(false);
-        }
+        setInputDisabled(false);
       };
 
       await audio.play();
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        stopAudio();
-        if (targetIndex === 0 && autoVoice) {
-          setInputDisabled(false);
-        }
-      }
+    } catch {
+      stopAudio();
+      setInputDisabled(false);
     }
   };
 
-  // Menggunakan tipe any untuk membypass conflict TypeScript antara PointerEvent & TouchEvent
-  const startRecording = (e?: any) => {
+  // --- REVISI START RECORDING (KEBAL BRAVE & MOBILE CHROMIUM) ---
+  const startRecording = async (e?: any) => {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
 
     if (!userProfile) {
@@ -608,24 +546,39 @@ export default function Home() {
       return;
     }
 
-    if (loading || isTyping || inputDisabled || isRecording) return;
+    if (loading || isTyping || isRecording) return;
 
     stopAudio();
 
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      const mediaRecorder = new MediaRecorder(stream);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Akses mic diblokir atau tidak didukung! Pastikan klik logo Singa/Gembok di address bar.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : '';
+
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = async () => {
+        // Matikan hardware mic stream agar indikator mic hilang di HP
         stream.getTracks().forEach((track) => track.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
         if (audioBlob.size === 0) return;
 
         const formData = new FormData();
@@ -650,9 +603,10 @@ export default function Home() {
 
       mediaRecorder.start();
       setIsRecording(true);
-    }).catch((err) => {
+    } catch (err) {
+      alert("Izin mic ditolak! Klik ikon Singa/Gembok di atas, lalu izinkan mikrofon.");
       console.error('Akses mikrofon ditolak:', err);
-    });
+    }
   };
 
   const stopRecording = (e?: any) => {
@@ -708,7 +662,7 @@ export default function Home() {
     }
 
     const query = textToSend || input;
-    if (!query.trim() || loading || isTyping || inputDisabled) return;
+    if (!query.trim() || loading || isTyping) return;
 
     if (isTimeQuestion(query)) {
       const userMsg: Message = { role: 'user', content: query, isTyping: false };
@@ -862,10 +816,10 @@ export default function Home() {
         </div>
       </header>
 
-      {/* --- MAIN CONTENT AREA: DIBIKIN KIRI KANAN FIX --- */}
+      {/* --- MAIN CONTENT AREA --- */}
       <div style={styles.mainContent}>
 
-        {/* 1. CHAT BUBBLE SECTION (KIRI) */}
+        {/* 1. CHAT BUBBLE SECTION */}
         <div style={styles.chatSection}>
           <div style={styles.chatBox}>
             {displayMessages.map((msg, index) => (
@@ -926,12 +880,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 2. AVATAR & MIC SECTION (KANAN) */}
+        {/* 2. AVATAR & MIC SECTION */}
         <div style={{
           ...styles.avatarSection,
           ...(isMobile ? styles.avatarSectionMobile : {}),
         }}>
-          {/* AVATAR (ATAS) */}
+          {/* AVATAR */}
           <div
             ref={avatarContainerRef}
             style={styles.avatarContainer}
@@ -1013,7 +967,7 @@ export default function Home() {
             />
           </div>
 
-          {/* MIC BAWAH AVATAR */}
+          {/* MIC BAWAH AVATAR (HAPUS EVENT ONTOUCH BIAR NGGAK BENTROK SAMA POINTER) */}
           <div style={styles.voiceControlPanel}>
             <button
               type="button"
@@ -1021,11 +975,8 @@ export default function Home() {
               onPointerUp={stopRecording}
               onPointerLeave={stopRecording}
               onPointerCancel={stopRecording}
-              onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
-              onTouchCancel={stopRecording}
               onContextMenu={(e) => e.preventDefault()}
-              disabled={loading || isTyping || inputDisabled}
+              disabled={loading || isTyping}
               style={{
                 ...styles.holdMicButton,
                 ...(isMobile ? styles.holdMicButtonMobile : {}),
@@ -1075,11 +1026,9 @@ export default function Home() {
                 ? trialCount < 3
                   ? `Trial ${3 - trialCount}/3 (Klik saran di atas)...`
                   : "Trial habis. Silakan login..."
-                : inputDisabled
-                  ? "Tunggu AI selesai bicara..."
-                  : isRecording
-                    ? "Sedang mendengarkan suara..."
-                    : `Ketik pesan untuk SukaChub...`
+                : isRecording
+                  ? "Sedang mendengarkan suara..."
+                  : `Ketik pesan untuk SukaChub...`
             }
             style={{
               ...styles.input,
@@ -1088,7 +1037,7 @@ export default function Home() {
               backgroundColor: !userProfile ? '#27272a' : '#18181b',
               cursor: !userProfile ? 'not-allowed' : 'text'
             }}
-            disabled={!userProfile || isTyping || inputDisabled || isRecording}
+            disabled={!userProfile || isTyping || isRecording}
             maxLength={200}
           />
           <span style={{
@@ -1114,7 +1063,7 @@ export default function Home() {
         ) : (
           <button
             type="submit"
-            disabled={loading || isTyping || inputDisabled || isRecording}
+            disabled={loading || isTyping || isRecording}
             style={styles.sendButton}
           >
             {loading || isTyping ? '...' : 'Kirim'}
@@ -1128,7 +1077,6 @@ export default function Home() {
           50% { opacity: 0; }
         }
         
-        /* Mencegah highlight biru saat diklik / ditap pada browser HP */
         * {
           -webkit-tap-highlight-color: transparent !important;
           -webkit-touch-callout: none !important;
@@ -1298,22 +1246,18 @@ const styles: Record<string, CSSProperties> = {
     flexShrink: 0,
     WebkitTapHighlightColor: 'transparent',
   },
-
-  // --- LAYOUT KIRI (CHAT) - KANAN (AVATAR) FIX ---
   mainContent: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: '0%',
     display: 'flex',
-    flexDirection: 'row', // MAKSA ROW KIRI KANAN
+    flexDirection: 'row',
     overflow: 'hidden',
     position: 'relative',
     width: '100%',
   },
-
-  // --- KIRI: CHAT SECTION ---
   chatSection: {
-    flexGrow: 1, // Ngambil porsi sisa layar
+    flexGrow: 1,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -1329,12 +1273,10 @@ const styles: Record<string, CSSProperties> = {
     gap: '12px',
     WebkitOverflowScrolling: 'touch',
   },
-
-  // --- KANAN: AVATAR + MIC SECTION ---
   avatarSection: {
-    width: 'min(45%, 450px)', // Ngambil porsi kanan (maksimal 450px)
+    width: 'min(45%, 450px)',
     display: 'flex',
-    flexDirection: 'column', // Avatar atas, Mic Bawah
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '16px',
@@ -1343,14 +1285,13 @@ const styles: Record<string, CSSProperties> = {
     flexShrink: 0,
   },
   avatarSectionMobile: {
-    width: '45%', // Buat HP, porsinya dikecilin biar tetep muat sebelahan sama chat
+    width: '45%',
     padding: '10px 4px',
   },
-
   avatarContainer: {
     position: 'relative',
     width: '100%',
-    height: '40vh', // Responsive tinggi avatar
+    height: '40vh',
     minHeight: '200px',
     maxHeight: '400px',
     display: 'flex',
@@ -1363,7 +1304,6 @@ const styles: Record<string, CSSProperties> = {
     WebkitTapHighlightColor: 'transparent',
     outline: 'none',
   },
-
   avatarVideo: {
     position: 'absolute',
     top: 0,
@@ -1375,8 +1315,6 @@ const styles: Record<string, CSSProperties> = {
     pointerEvents: 'none',
     WebkitTapHighlightColor: 'transparent',
   },
-
-  // --- CONTROL PANEL MIC (DI BAWAH AVATAR) ---
   voiceControlPanel: {
     display: 'flex',
     flexDirection: 'column',
@@ -1404,16 +1342,15 @@ const styles: Record<string, CSSProperties> = {
     outline: 'none',
   },
   holdMicButtonMobile: {
-    width: '56px', // Agak dikecilin kalau di hp biar ga nutupin layar
+    width: '56px',
     height: '56px',
   },
   micLabel: {
-    fontSize: 'clamp(0.6rem, 1.5vw, 0.78rem)', // Responsive text buat mic
+    fontSize: 'clamp(0.6rem, 1.5vw, 0.78rem)',
     color: '#a1a1aa',
     fontWeight: '500',
     textAlign: 'center',
   },
-
   messageWrapper: {
     display: 'flex',
     width: '100%',
@@ -1422,7 +1359,7 @@ const styles: Record<string, CSSProperties> = {
     maxWidth: '90%',
     padding: '10px 14px',
     borderRadius: '18px',
-    fontSize: 'clamp(0.75rem, 2vw, 0.9rem)', // Skala text dinamis
+    fontSize: 'clamp(0.75rem, 2vw, 0.9rem)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
