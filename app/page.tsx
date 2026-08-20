@@ -30,7 +30,13 @@ interface TrialPreset {
   emotion: string;
 }
 
-type ActiveReaction = 'kepala' | 'peluk' | 'marah' | null;
+type ActiveReaction = 'kepala' | 'perut' | 'kaki' | 'peluk' | 'marah' | null;
+
+interface RippleEffect {
+  id: number;
+  x: number;
+  y: number;
+}
 
 // --- ICONS ---
 const IconMenu = () => (
@@ -115,6 +121,9 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
 
+  // State Nama Model AI Aktif
+  const [activeModel, setActiveModel] = useState<string>('Auto-Detect Server');
+
   // State Fitur Microfon / STT
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -125,12 +134,22 @@ export default function Home() {
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const [, setTypingText] = useState<string>('');
 
-  const [inputDisabled, setInputDisabled] = useState<boolean>(false);
+  const [, setInputDisabled] = useState<boolean>(false);
 
-  // --- REAKSI INTERAKTIF AVATAR ---
+  // --- REAKSI INTERAKTIF AVATAR & INFO DINAMIS ---
   const [activeReaction, setActiveReaction] = useState<ActiveReaction>(null);
   const activeReactionRef = useRef<ActiveReaction>(null);
   const isInteractingRef = useRef<boolean>(false);
+
+  // State Info Dinamis di atas Avatar
+  const [dynamicStatus, setDynamicStatus] = useState<{ text: string; bg: string; border: string }>({
+    text: 'Siap mengobrol dan menemani harimu!',
+    bg: 'rgba(249, 115, 22, 0.15)',
+    border: 'rgba(249, 115, 22, 0.4)',
+  });
+
+  // ASMR Wave Ripples
+  const [ripples, setRipples] = useState<RippleEffect[]>([]);
 
   useEffect(() => {
     activeReactionRef.current = activeReaction;
@@ -252,18 +271,69 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (activeReaction === 'kepala') {
-      switchVideo(videoKepalaRef);
-    } else if (activeReaction === 'marah') {
+    if (activeReaction === 'marah' || activeReaction === 'kepala') {
       switchVideo(videoMarahRef);
-    } else if (activeReaction === 'peluk') {
+    } else if (activeReaction === 'perut' || activeReaction === 'peluk') {
       switchVideo(videoPelukRef);
+    } else if (activeReaction === 'kaki') {
+      switchVideo(videoKepalaRef);
     } else if (isSpeaking) {
       switchVideo(videoARef);
     } else {
       switchVideo(videoIdleRef);
     }
   }, [activeReaction, isSpeaking]);
+
+  // --- INTERAKSI SENTUH BAGIAN TUBUH AVATAR ---
+  const triggerBodyPartTouch = (part: 'kepala' | 'perut' | 'kaki', e?: React.MouseEvent) => {
+    // 1. ASMR Ripple Effect
+    if (e && avatarContainerRef.current) {
+      const rect = avatarContainerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const id = Date.now();
+      setRipples(prev => [...prev, { id, x, y }]);
+      setTimeout(() => {
+        setRipples(prev => prev.filter(r => r.id !== id));
+      }, 600);
+    }
+
+    // 2. Tentukan Reaksi dan Update Info Dinamis
+    if (part === 'kepala') {
+      setActiveReaction('marah');
+      setDynamicStatus({
+        text: '😡 Sentuh Kepala: Dia MARAH!',
+        bg: 'rgba(239, 68, 68, 0.25)',
+        border: 'rgba(239, 68, 68, 0.6)',
+      });
+      speakText('Aduh! Jangan pegang-pegang kepala dong!', 0);
+    } else if (part === 'perut') {
+      setActiveReaction('perut');
+      setDynamicStatus({
+        text: '😂 Sentuh Perut: Dia GOYANG!',
+        bg: 'rgba(249, 115, 22, 0.25)',
+        border: 'rgba(249, 115, 22, 0.6)',
+      });
+      speakText('Haha geli banget! Perut buncitku jadi goyang!', 0);
+    } else if (part === 'kaki') {
+      setActiveReaction('kaki');
+      setDynamicStatus({
+        text: '😕 Sentuh Kaki: Dia BINGUNG!',
+        bg: 'rgba(59, 130, 246, 0.25)',
+        border: 'rgba(59, 130, 246, 0.6)',
+      });
+      speakText('Eh? Kenapa kamu pegang-pegang kakiku?', 0);
+    }
+
+    // Reset Info Dinamis Setelah 3.5 Detik
+    setTimeout(() => {
+      setDynamicStatus({
+        text: 'Siap mengobrol dan menemani harimu!',
+        bg: 'rgba(249, 115, 22, 0.15)',
+        border: 'rgba(249, 115, 22, 0.4)',
+      });
+    }, 3500);
+  };
 
   const handlePointerAction = (clientX: number, clientY: number) => {
     if (activeReactionRef.current) return;
@@ -273,11 +343,11 @@ export default function Home() {
     const relativeY = (clientY - rect.top) / rect.height;
 
     if (relativeY < 0.35) {
-      setActiveReaction('marah');
-    } else if (relativeY < 0.65) {
-      setActiveReaction('peluk');
+      triggerBodyPartTouch('kepala');
+    } else if (relativeY < 0.68) {
+      triggerBodyPartTouch('perut');
     } else {
-      setActiveReaction('kepala');
+      triggerBodyPartTouch('kaki');
     }
   };
 
@@ -535,9 +605,8 @@ export default function Home() {
     }
   };
 
-  // --- REVISI START RECORDING (KEBAL BRAVE & MOBILE CHROMIUM) ---
-  const startRecording = async (e?: any) => {
-    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+  const startRecording = async (e?: unknown) => {
+    if (e && typeof (e as Event).preventDefault === 'function') (e as Event).preventDefault();
 
     if (!userProfile) {
       if (trialCount >= 3) {
@@ -551,7 +620,7 @@ export default function Home() {
     stopAudio();
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("Akses mic diblokir atau tidak didukung! Pastikan klik logo Singa/Gembok di address bar.");
+      alert("Akses mic diblokir atau tidak didukung!");
       return;
     }
 
@@ -575,7 +644,6 @@ export default function Home() {
       };
 
       mediaRecorder.onstop = async () => {
-        // Matikan hardware mic stream agar indikator mic hilang di HP
         stream.getTracks().forEach((track) => track.stop());
 
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
@@ -604,13 +672,13 @@ export default function Home() {
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      alert("Izin mic ditolak! Klik ikon Singa/Gembok di atas, lalu izinkan mikrofon.");
+      alert("Izin mic ditolak!");
       console.error('Akses mikrofon ditolak:', err);
     }
   };
 
-  const stopRecording = (e?: any) => {
-    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+  const stopRecording = (e?: unknown) => {
+    if (e && typeof (e as Event).preventDefault === 'function') (e as Event).preventDefault();
     if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -701,6 +769,11 @@ export default function Home() {
       const data = await res.json();
       if (res.ok && data.reply) {
         if (data.remainingTokens) setRemainingTokens(data.remainingTokens);
+        
+        // Update Nama Model AI jika dikembalikan dari backend
+        if (data.model) {
+          setActiveModel(data.model);
+        }
 
         const cleanedReply = sanitizeText(data.reply);
         const aiMsg: Message = { role: 'assistant', content: '', isTyping: true };
@@ -779,13 +852,20 @@ export default function Home() {
             <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
               SukaChub your virtual chat
             </h1>
-            <span style={{
-              ...styles.userBadge,
-              backgroundColor: userProfile ? 'rgba(249, 115, 22, 0.15)' : 'rgba(239, 68, 68, 0.2)',
-              color: userProfile ? '#f97316' : '#ef4444'
-            }}>
-              {getUserName()}
-            </span>
+            
+            {/* Teks Model Aktif & User Badge di bawah Teks Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+              <span style={{
+                ...styles.userBadge,
+                backgroundColor: userProfile ? 'rgba(249, 115, 22, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+                color: userProfile ? '#f97316' : '#ef4444'
+              }}>
+                {getUserName()}
+              </span>
+              <span style={styles.modelSubtitle}>
+                Model Aktif: {activeModel}
+              </span>
+            </div>
           </div>
 
           {userProfile && remainingTokens !== null && !isMobile && (
@@ -864,15 +944,16 @@ export default function Home() {
               </div>
             ))}
 
+            {/* ANIMASI LOADING 3 TITIK MEMBAL (SEDANG MIKIR) */}
             {loading && !isTyping && (
               <div style={{ ...styles.messageWrapper, justifyContent: 'flex-start' }}>
-                <div style={{ ...styles.bubble, ...styles.aiBubble, fontStyle: 'italic', opacity: 0.85 }}>
-                  <span style={styles.waveDots}>
-                    <span style={{ color: '#f97316' }}>.</span>
-                    <span style={{ color: '#fb923c' }}>.</span>
-                    <span style={{ color: '#fdba74' }}>.</span>
-                  </span>
-                  <span style={{ marginLeft: '6px', fontSize: '0.8rem', color: '#a1a1aa' }}>sedang mikir...</span>
+                <div style={{ ...styles.bubble, ...styles.aiBubble, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="loading-dots">
+                    <span className="dot"></span>
+                    <span className="dot"></span>
+                    <span className="dot"></span>
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: '#a1a1aa', fontStyle: 'italic' }}>sedang mikir...</span>
                 </div>
               </div>
             )}
@@ -885,7 +966,18 @@ export default function Home() {
           ...styles.avatarSection,
           ...(isMobile ? styles.avatarSectionMobile : {}),
         }}>
-          {/* AVATAR */}
+
+          {/* INFO DINAMIS DI ATAS AVATAR */}
+          <div style={{
+            ...styles.dynamicStatusBubble,
+            backgroundColor: dynamicStatus.bg,
+            borderColor: dynamicStatus.border,
+          }}>
+            <span style={styles.dynamicStatusDot} />
+            <span style={styles.dynamicStatusText}>{dynamicStatus.text}</span>
+          </div>
+
+          {/* AVATAR CONTAINER */}
           <div
             ref={avatarContainerRef}
             style={styles.avatarContainer}
@@ -895,6 +987,35 @@ export default function Home() {
             onPointerCancel={handlePointerUpAvatar}
             onContextMenu={(e) => e.preventDefault()}
           >
+            {/* HOTSPOT TRANS-INTERAKTIF TERBAGI TIGA AREA */}
+            <div
+              style={styles.hitboxHead}
+              title="Sentuh Kepala (Marah)"
+              onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('kepala', e); }}
+            />
+            <div
+              style={styles.hitboxBelly}
+              title="Sentuh Perut (Goyang)"
+              onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('perut', e); }}
+            />
+            <div
+              style={styles.hitboxLegs}
+              title="Sentuh Kaki (Bingung)"
+              onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('kaki', e); }}
+            />
+
+            {/* ANIMASI ASMR TOUCH RIPPLE */}
+            {ripples.map((r) => (
+              <span
+                key={r.id}
+                className="asmr-ripple"
+                style={{
+                  left: `${r.x}px`,
+                  top: `${r.y}px`,
+                }}
+              />
+            ))}
+
             {/* IDLE VIDEO */}
             <video
               ref={videoIdleRef}
@@ -938,7 +1059,7 @@ export default function Home() {
               }}
             />
 
-            {/* REAKSI: PELUK */}
+            {/* REAKSI: PELUK / GOYANG */}
             <video
               ref={videoPelukRef}
               src="/Peluk.webm"
@@ -948,11 +1069,11 @@ export default function Home() {
               onEnded={() => setActiveReaction(null)}
               style={{
                 ...styles.avatarVideo,
-                opacity: activeReaction === 'peluk' ? 1 : 0,
+                opacity: activeReaction === 'peluk' || activeReaction === 'perut' ? 1 : 0,
               }}
             />
 
-            {/* REAKSI: KEPALA */}
+            {/* REAKSI: KEPALA / BINGUNG */}
             <video
               ref={videoKepalaRef}
               src="/Kepala.webm"
@@ -962,12 +1083,12 @@ export default function Home() {
               onEnded={() => setActiveReaction(null)}
               style={{
                 ...styles.avatarVideo,
-                opacity: activeReaction === 'kepala' ? 1 : 0,
+                opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0,
               }}
             />
           </div>
 
-          {/* MIC BAWAH AVATAR (HAPUS EVENT ONTOUCH BIAR NGGAK BENTROK SAMA POINTER) */}
+          {/* MIC BAWAH AVATAR */}
           <div style={styles.voiceControlPanel}>
             <button
               type="button"
@@ -1075,6 +1196,66 @@ export default function Home() {
         @keyframes blink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0; }
+        }
+
+        /* --- EFEK RIPPLE TOUCH ASMR --- */
+        .asmr-ripple {
+          position: absolute;
+          width: 20px;
+          height: 20px;
+          border: 2px solid #f97316;
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+          pointer-events: none;
+          z-index: 20;
+          animation: rippleEffect 0.6s cubic-bezier(0, 0.2, 0.8, 1) forwards;
+        }
+
+        @keyframes rippleEffect {
+          0% {
+            width: 0px;
+            height: 0px;
+            opacity: 1;
+          }
+          100% {
+            width: 120px;
+            height: 120px;
+            opacity: 0;
+          }
+        }
+
+        /* --- ANIMASI 3 TITIK LOADING MEMBAL --- */
+        .loading-dots {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .loading-dots .dot {
+          width: 6px;
+          height: 6px;
+          background-color: #f97316;
+          border-radius: 50%;
+          animation: dotBounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dots .dot:nth-child(1) {
+          animation-delay: -0.32s;
+        }
+
+        .loading-dots .dot:nth-child(2) {
+          animation-delay: -0.16s;
+        }
+
+        @keyframes dotBounce {
+          0%, 80%, 100% {
+            transform: scale(0.4);
+            opacity: 0.3;
+          }
+          40% {
+            transform: scale(1);
+            opacity: 1;
+          }
         }
         
         * {
@@ -1207,6 +1388,15 @@ const styles: Record<string, CSSProperties> = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
+  modelSubtitle: {
+    fontSize: '0.65rem',
+    color: '#a1a1aa',
+    fontWeight: '400',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '180px',
+  },
   tokenBadge: {
     fontSize: '0.6rem',
     backgroundColor: 'rgba(39, 39, 42, 0.9)',
@@ -1279,14 +1469,44 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '16px',
+    padding: '16px 8px',
     backgroundColor: '#000000',
     borderLeft: '1px solid rgba(63, 63, 70, 0.2)',
     flexShrink: 0,
+    position: 'relative',
   },
   avatarSectionMobile: {
     width: '45%',
     padding: '10px 4px',
+  },
+  dynamicStatusBubble: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    border: '1px solid',
+    backdropFilter: 'blur(10px)',
+    transition: 'all 0.3s ease',
+    marginBottom: '8px',
+    maxWidth: '95%',
+    textAlign: 'center',
+    zIndex: 15,
+  },
+  dynamicStatusDot: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    backgroundColor: '#f97316',
+    flexShrink: 0,
+  },
+  dynamicStatusText: {
+    fontSize: 'clamp(0.6rem, 1.8vw, 0.72rem)',
+    fontWeight: '600',
+    color: '#ffffff',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   avatarContainer: {
     position: 'relative',
@@ -1304,6 +1524,36 @@ const styles: Record<string, CSSProperties> = {
     WebkitTapHighlightColor: 'transparent',
     outline: 'none',
   },
+  hitboxHead: {
+    position: 'absolute',
+    top: '2%',
+    width: '60%',
+    height: '28%',
+    borderRadius: '50%',
+    zIndex: 15,
+    cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+  },
+  hitboxBelly: {
+    position: 'absolute',
+    top: '32%',
+    width: '70%',
+    height: '35%',
+    borderRadius: '40%',
+    zIndex: 15,
+    cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+  },
+  hitboxLegs: {
+    position: 'absolute',
+    top: '68%',
+    width: '65%',
+    height: '30%',
+    borderRadius: '20px',
+    zIndex: 15,
+    cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+  },
   avatarVideo: {
     position: 'absolute',
     top: 0,
@@ -1320,7 +1570,7 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '8px',
-    marginTop: '16px',
+    marginTop: '12px',
     zIndex: 10,
     flexShrink: 0,
   },
@@ -1401,13 +1651,6 @@ const styles: Record<string, CSSProperties> = {
     whiteSpace: 'pre-wrap',
     lineHeight: '1.4',
     wordBreak: 'break-word',
-  },
-  waveDots: {
-    display: 'inline-flex',
-    gap: '3px',
-    fontSize: '1.4rem',
-    letterSpacing: '2px',
-    alignItems: 'center',
   },
   suggestions: {
     display: 'flex',
