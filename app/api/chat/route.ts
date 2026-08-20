@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
-        { error: 'GROQ_API_KEY tidak ditemukan' },
+        { reply: `Maaf ${name} sayang, GROQ_API_KEY belum terpasang di Vercel.` },
         { status: 500 }
       );
     }
@@ -29,11 +29,10 @@ ATURAN PANGGILAN WAJIB:
 5. JANGAN PERNAH menuliskan tag <think> atau reasoning apapun dalam jawaban. Langsung jawab aja.`
     };
 
+    // Model resmi aktif dari Groq (hapus model deprecated)
     const modelsToTry: string[] = [
-      'llama-3.1-8b-instant',
       'llama-3.3-70b-versatile',
-      'mixtral-8x7b-32768',
-      'gemma2-9b-it',
+      'llama-3.1-8b-instant',
     ];
 
     let replyText: string | null = null;
@@ -45,7 +44,7 @@ ATURAN PANGGILAN WAJIB:
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY.trim()}`
           },
           body: JSON.stringify({
             model: model,
@@ -57,10 +56,6 @@ ATURAN PANGGILAN WAJIB:
 
         const data = await response.json();
 
-        const remainingRequests = response.headers.get('x-ratelimit-remaining-requests');
-        const remainingTokens = response.headers.get('x-ratelimit-remaining-tokens');
-        console.log(`[${model}] Sisa Request: ${remainingRequests}, Sisa Token: ${remainingTokens}`);
-
         if (response.ok && data.choices?.[0]?.message?.content) {
           let rawContent: string = data.choices[0].message.content;
           
@@ -70,32 +65,21 @@ ATURAN PANGGILAN WAJIB:
           
           if (rawContent) {
             replyText = rawContent;
-            console.log(`[Success] Model ${model} berhasil`);
             break;
           }
         } else {
-          if (response.status === 429) {
-            console.warn(`[Rate Limit] Model ${model} kehabisan kuota, skip...`);
-            continue;
-          }
-          
-          console.warn(`[Groq Fail] Model ${model}:`, data.error?.message || data);
-          lastError = data.error?.message || `Model ${model} gagal`;
-          
-          if (data.error?.message?.includes('decommissioned') || 
-              data.error?.message?.includes('deprecated')) {
-            continue;
-          }
+          lastError = `[${model}] ${data.error?.message || response.statusText}`;
+          console.warn(`[Groq Fail]`, lastError);
         }
       } catch (err) {
-        lastError = (err as Error).message;
-        console.warn(`[Groq Error] Model ${model}:`, (err as Error).message);
+        lastError = `[${model}] ${(err as Error).message}`;
       }
     }
 
     if (!replyText) {
+      // Menampilkan detail error asli di chat agar langsung ketahuan di produksi
       return NextResponse.json({
-        reply: `Maaf ${name} sayang, aku lagi error nih. Coba ketik ulang ya.`
+        reply: `Maaf ${name} sayang, aku lagi error nih. Detail: ${lastError}`
       });
     }
 
@@ -104,7 +88,7 @@ ATURAN PANGGILAN WAJIB:
   } catch (error) {
     console.error('Error Chat API:', error);
     return NextResponse.json(
-      { error: (error as Error).message || 'Gagal terhubung ke AI' },
+      { reply: `Sistem crash: ${(error as Error).message}` },
       { status: 500 }
     );
   }
