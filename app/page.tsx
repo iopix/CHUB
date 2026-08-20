@@ -69,7 +69,7 @@ const IconAutoVoiceOff = () => (
 );
 
 const IconMicLarge = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
     <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
     <line x1="12" y1="19" x2="12" y2="23"/>
@@ -282,18 +282,19 @@ export default function Home() {
     }
   };
 
-  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+  const handlePointerDownAvatar = (e: PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
     isInteractingRef.current = true;
     handlePointerAction(e.clientX, e.clientY);
   };
 
-  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+  const handlePointerMoveAvatar = (e: PointerEvent<HTMLDivElement>) => {
     if (isInteractingRef.current) {
       handlePointerAction(e.clientX, e.clientY);
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUpAvatar = () => {
     isInteractingRef.current = false;
   };
 
@@ -596,8 +597,10 @@ export default function Home() {
     }
   };
 
-  // --- LOGIK HOLD-TO-TALK MIC ---
-  const startRecording = async () => {
+  // --- LOGIK POINTER (TAHAN - LEPAS DENGAN JARI) ---
+  const startRecording = (e?: PointerEvent<HTMLButtonElement>) => {
+    if (e) e.preventDefault();
+
     if (!userProfile) {
       if (trialCount >= 3) {
         router.push('/login');
@@ -605,12 +608,11 @@ export default function Home() {
       return;
     }
 
-    if (loading || isTyping || inputDisabled) return;
+    if (loading || isTyping || inputDisabled || isRecording) return;
 
     stopAudio();
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -648,12 +650,13 @@ export default function Home() {
 
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (err) {
+    }).catch((err) => {
       console.error('Akses mikrofon ditolak:', err);
-    }
+    });
   };
 
-  const stopRecording = () => {
+  const stopRecording = (e?: PointerEvent<HTMLButtonElement>) => {
+    if (e) e.preventDefault();
     if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -859,10 +862,13 @@ export default function Home() {
         </div>
       </header>
 
-      {/* --- MAIN CONTENT AREA: CHAT BUBBLE (KIRI) & AVATAR + MIC (KANAN) --- */}
-      <div style={styles.mainContent}>
+      {/* --- MAIN CONTENT AREA --- */}
+      <div style={{
+        ...styles.mainContent,
+        ...(isMobile ? styles.mainContentMobile : {})
+      }}>
 
-        {/* 1. CHAT BUBBLE SECTION (SISI KIRI) */}
+        {/* 1. CHAT BUBBLE SECTION */}
         <div style={{
           ...styles.chatSection,
           ...(isMobile ? styles.chatSectionMobile : {}),
@@ -930,7 +936,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 2. AVATAR & MIC SECTION (SISI KANAN) */}
+        {/* 2. AVATAR & MIC SECTION (LEBIH BESAR) */}
         <div style={{
           ...styles.avatarSection,
           ...(isMobile ? styles.avatarSectionMobile : {}),
@@ -941,10 +947,11 @@ export default function Home() {
               ...styles.avatarContainer,
               ...(isMobile ? styles.avatarContainerMobile : {}),
             }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
+            onPointerDown={handlePointerDownAvatar}
+            onPointerMove={handlePointerMoveAvatar}
+            onPointerUp={handlePointerUpAvatar}
+            onPointerCancel={handlePointerUpAvatar}
+            onContextMenu={(e) => e.preventDefault()}
           >
             {/* IDLE VIDEO */}
             <video
@@ -1018,31 +1025,31 @@ export default function Home() {
             />
           </div>
 
-          {/* TOMBOL MIC HOLD-TO-TALK */}
+          {/* TOMBOL MIC HOLD-TO-TALK DENGAN LOGIK POINTER JARI */}
           <div style={isMobile ? styles.voiceControlPanelMobile : styles.voiceControlPanel}>
             <button
               type="button"
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              onMouseLeave={stopRecording}
-              onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
+              onPointerDown={startRecording}
+              onPointerUp={stopRecording}
+              onPointerLeave={stopRecording}
+              onPointerCancel={stopRecording}
+              onContextMenu={(e) => e.preventDefault()}
               disabled={loading || isTyping || inputDisabled}
               style={{
                 ...(isMobile ? styles.holdMicButtonMobile : styles.holdMicButton),
                 backgroundColor: isRecording ? '#ef4444' : '#f97316',
-                transform: isRecording ? 'scale(1.12)' : 'scale(1)',
-                boxShadow: isRecording ? '0 0 25px rgba(239, 68, 68, 0.8)' : '0 4px 20px rgba(249, 115, 22, 0.4)',
+                transform: isRecording ? 'scale(1.15)' : 'scale(1)',
+                boxShadow: isRecording ? '0 0 30px rgba(239, 68, 68, 0.9)' : '0 4px 25px rgba(249, 115, 22, 0.5)',
               }}
             >
               <IconMicLarge />
             </button>
             <span style={isMobile ? styles.micLabelMobile : styles.micLabel}>
               {isRecording
-                ? 'Lepas...'
+                ? 'Lepas untuk kirim...'
                 : loading
                   ? 'Memproses...'
-                  : 'Tahan untuk Bicara'}
+                  : 'Tahan jari untuk bicara'}
             </span>
           </div>
         </div>
@@ -1074,13 +1081,13 @@ export default function Home() {
             placeholder={
               !userProfile
                 ? trialCount < 3
-                  ? `Trial ${3 - trialCount}/3 (Klik tombol saran di atas)...`
+                  ? `Trial ${3 - trialCount}/3 (Klik saran di atas)...`
                   : "Trial habis. Silakan login..."
                 : inputDisabled
                   ? "Tunggu AI selesai bicara..."
                   : isRecording
-                    ? "Sedang mendengarkan..."
-                    : `Ketik pesan teks untuk SukaChub...`
+                    ? "Sedang mendengarkan suara..."
+                    : `Ketik pesan untuk SukaChub...`
             }
             style={{
               ...styles.input,
@@ -1128,6 +1135,12 @@ export default function Home() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0; }
         }
+        
+        /* Mencegah highlight biru saat diklik / ditap pada browser HP */
+        * {
+          -webkit-tap-highlight-color: transparent !important;
+          -webkit-touch-callout: none !important;
+        }
       `}</style>
     </div>
   );
@@ -1147,6 +1160,7 @@ const styles: Record<string, CSSProperties> = {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     overflow: 'hidden',
     position: 'relative',
+    WebkitTapHighlightColor: 'transparent',
   },
   header: {
     padding: '10px 12px',
@@ -1183,6 +1197,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: 'center',
     outline: 'none',
     flexShrink: 0,
+    WebkitTapHighlightColor: 'transparent',
   },
   dropdownGrid: {
     position: 'absolute',
@@ -1289,9 +1304,10 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     transition: 'all 0.2s',
     flexShrink: 0,
+    WebkitTapHighlightColor: 'transparent',
   },
 
-  // --- AREA TATA LETAK UTAMA ---
+  // --- LAYOUT UTAMA ---
   mainContent: {
     flexGrow: 1,
     flexShrink: 1,
@@ -1302,8 +1318,11 @@ const styles: Record<string, CSSProperties> = {
     position: 'relative',
     width: '100%',
   },
+  mainContentMobile: {
+    flexDirection: 'column-reverse', // Mobile: Chat di atas, Avatar besar di tengah/bawah
+  },
 
-  // --- CHAT SECTION (SISI KIRI DESKTOP) ---
+  // --- CHAT SECTION ---
   chatSection: {
     flexGrow: 1,
     flexShrink: 1,
@@ -1314,14 +1333,9 @@ const styles: Record<string, CSSProperties> = {
     position: 'relative',
     zIndex: 5,
   },
-
-  // --- CHAT SECTION MOBILE ---
   chatSectionMobile: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: '52%',
-    maxWidth: '55%',
-    paddingRight: '4px',
+    flexBasis: '40%',
+    height: '40%',
   },
 
   chatBox: {
@@ -1335,40 +1349,37 @@ const styles: Record<string, CSSProperties> = {
     gap: '12px',
     WebkitOverflowScrolling: 'touch',
   },
-
   chatBoxMobile: {
-    padding: '8px 4px 8px 8px',
+    padding: '10px 12px',
     gap: '8px',
   },
 
-  // --- AVATAR & MIC SECTION (SISI KANAN DESKTOP) ---
+  // --- AVATAR SECTION (DIBUAT LEBIH BESAR) ---
   avatarSection: {
-    width: 'min(100%, 360px)',
+    width: 'min(100%, 420px)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '12px',
+    padding: '16px',
     backgroundColor: '#000000',
     borderLeft: '1px solid rgba(63, 63, 70, 0.2)',
     flexShrink: 0,
   },
-
-  // --- AVATAR & MIC SECTION MOBILE ---
   avatarSectionMobile: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: '48%',
-    width: '48%',
-    padding: '8px 4px',
-    borderLeft: '1px solid rgba(63, 63, 70, 0.15)',
-    justifyContent: 'center',
+    flexBasis: '60%',
+    width: '100%',
+    height: '60%',
+    padding: '10px 8px',
+    borderLeft: 'none',
+    borderBottom: '1px solid rgba(63, 63, 70, 0.2)',
+    justifyContent: 'space-between',
   },
 
   avatarContainer: {
     position: 'relative',
     width: '100%',
-    height: '280px',
+    height: '380px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1376,11 +1387,13 @@ const styles: Record<string, CSSProperties> = {
     touchAction: 'none',
     userSelect: 'none',
     WebkitUserSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
   },
-
   avatarContainerMobile: {
     height: '100%',
-    maxHeight: '360px',
+    maxHeight: '400px',
+    width: '100%',
   },
 
   avatarVideo: {
@@ -1392,14 +1405,15 @@ const styles: Record<string, CSSProperties> = {
     objectFit: 'contain',
     transition: 'opacity 0.2s linear',
     pointerEvents: 'none',
+    WebkitTapHighlightColor: 'transparent',
   },
 
-  // --- CONTROL PANEL MIC DESKTOP & MOBILE ---
+  // --- CONTROL PANEL MIC DENGAN TOUCH HIGH PRECISION ---
   voiceControlPanel: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '6px',
+    gap: '8px',
     marginTop: '12px',
     flexShrink: 0,
   },
@@ -1407,13 +1421,14 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '4px',
-    marginTop: '6px',
+    gap: '6px',
+    marginTop: '4px',
+    marginBottom: '4px',
     flexShrink: 0,
   },
   holdMicButton: {
-    width: '64px',
-    height: '64px',
+    width: '72px',
+    height: '72px',
     borderRadius: '50%',
     border: 'none',
     color: '#ffffff',
@@ -1421,14 +1436,16 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    transition: 'transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease',
+    transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, box-shadow 0.2s ease',
     userSelect: 'none',
     WebkitUserSelect: 'none',
-    touchAction: 'manipulation',
+    touchAction: 'none',
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
   },
   holdMicButtonMobile: {
-    width: '54px',
-    height: '54px',
+    width: '68px',
+    height: '68px',
     borderRadius: '50%',
     border: 'none',
     color: '#ffffff',
@@ -1436,18 +1453,20 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    transition: 'transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease',
+    transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, box-shadow 0.2s ease',
     userSelect: 'none',
     WebkitUserSelect: 'none',
-    touchAction: 'manipulation',
+    touchAction: 'none',
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
   },
   micLabel: {
-    fontSize: '0.75rem',
+    fontSize: '0.78rem',
     color: '#a1a1aa',
     fontWeight: '500',
   },
   micLabelMobile: {
-    fontSize: '0.65rem',
+    fontSize: '0.7rem',
     color: '#a1a1aa',
     fontWeight: '500',
     textAlign: 'center',
@@ -1468,10 +1487,10 @@ const styles: Record<string, CSSProperties> = {
     wordBreak: 'break-word',
   },
   bubbleMobile: {
-    maxWidth: '96%',
-    padding: '8px 10px',
+    maxWidth: '92%',
+    padding: '8px 12px',
     borderRadius: '14px',
-    fontSize: 'clamp(0.72rem, 2.2vw, 0.82rem)',
+    fontSize: '0.82rem',
   },
   userBubble: {
     backgroundColor: 'rgba(249, 115, 22, 0.9)',
@@ -1503,6 +1522,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'transparent',
   },
   textContent: {
     whiteSpace: 'pre-wrap',
@@ -1540,6 +1560,7 @@ const styles: Record<string, CSSProperties> = {
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
     touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'transparent',
     minHeight: '36px',
   },
   inputContainer: {
@@ -1575,6 +1596,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
     boxShadow: '0 2px 10px rgba(249, 115, 22, 0.4)',
     touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'transparent',
     flexShrink: 0,
   },
   loginSubmitButton: {
@@ -1590,6 +1612,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
     boxShadow: '0 2px 10px rgba(34, 197, 94, 0.4)',
     touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'transparent',
     flexShrink: 0,
   },
   clearButton: {
@@ -1604,6 +1627,7 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'transparent',
     flexShrink: 0,
   },
 };
