@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, ChangeEvent, PointerEvent, RefObject } fro
 import { useRouter } from 'next/navigation';
 import Header, { UserProfile } from './header';
 import InputSection from './input';
-import './globals.css';
+import styles from './page.module.css';
 
 interface Message { role: 'user' | 'assistant'; content: string; isTyping?: boolean; }
 interface TrialPreset { reply: (name: string) => string; emotion: string; }
@@ -12,15 +12,48 @@ type ActiveReaction = 'kepala' | 'perut' | 'kaki' | 'peluk' | 'marah' | null;
 type StatusIcon = 'smile' | 'angry' | 'laugh' | 'confused';
 interface RippleEffect { id: number; x: number; y: number; }
 
+// --- SVG ICONS ---
 const IconSpeaker = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>);
 const IconMute = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>);
 const IconAutoVoiceOn = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4" /><path d="M6 6v12" /><path d="M10 3v18" /><path d="M14 8v8" /><path d="M18 5v14" /><path d="M22 10v4" /></svg>);
 const IconAutoVoiceOff = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4" /><path d="M6 6v12" /><line x1="2" y1="2" x2="22" y2="22" /></svg>);
-const IconMicLarge = () => (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>);
-const IconSmile = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>);
-const IconAngry = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M16 16s-1.5-2-4-2-4 2-4 2" /><path d="M7 9l2 1" /><path d="M17 9l-2 1" /></svg>);
-const IconLaugh = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 13s1.5 3 4 3 4-3 4-3" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>);
-const IconConfused = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 15h8" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>);
+
+const IconSmile = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" y1="9" x2="9.01" y2="9" />
+    <line x1="15" y1="9" x2="15.01" y2="9" />
+  </svg>
+);
+
+const IconLaugh = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 13s1.5 3.5 4 3.5 4-3.5 4-3.5" fill="currentColor" opacity="0.3" />
+    <path d="M8 13s1.5 3.5 4 3.5 4-3.5 4-3.5" />
+    <line x1="9" y1="9" x2="9.01" y2="9" />
+    <line x1="15" y1="9" x2="15.01" y2="9" />
+  </svg>
+);
+
+const IconAngry = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M16 16s-1.5-2-4-2-4 2-4 2" />
+    <path d="M7.5 8.5l3 1.5" />
+    <path d="M16.5 8.5l-3 1.5" />
+  </svg>
+);
+
+const IconConfused = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 15h8" />
+    <circle cx="9" cy="9" r="1" fill="currentColor" />
+    <line x1="15" y1="8" x2="15" y2="10" />
+  </svg>
+);
 
 const TRIAL_PRESETS: Record<string, TrialPreset> = {
   'Peluk boleh?': { reply: (name: string) => `Boleh ${name}, sini saya peluk erat kamu dengan sepenuh jiwa raga.`, emotion: 'romantic' },
@@ -32,6 +65,7 @@ export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [trialCount, setTrialCount] = useState<number>(0);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   const getUserName = (): string => {
     if (!userProfile) return "sayang";
@@ -66,8 +100,29 @@ export default function Home() {
   const isInteractingRef = useRef<boolean>(false);
 
   const [dynamicStatus, setDynamicStatus] = useState<{ text: string; bg: string; border: string; icon: StatusIcon; iconColor: string }>({
-    text: 'Siap mengobrol dan menemani harimu!', bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.4)', icon: 'smile', iconColor: '#f97316'
+    text: 'Siap mengobrol dan menemani harimu!', bg: 'var(--accent-orange-subtle)', border: 'var(--accent-orange-border)', icon: 'smile', iconColor: 'var(--accent-orange)'
   });
+  const [displayedStatusText, setDisplayedStatusText] = useState<string>('Siap mengobrol dan menemani harimu!');
+  const statusTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const animateStatusText = (targetText: string) => {
+    if (statusTypingTimeoutRef.current) clearTimeout(statusTypingTimeoutRef.current);
+    let index = 0;
+    setDisplayedStatusText('');
+    const type = () => {
+      if (index <= targetText.length) {
+        setDisplayedStatusText(targetText.slice(0, index));
+        index++;
+        statusTypingTimeoutRef.current = setTimeout(type, 25);
+      }
+    };
+    type();
+  };
+
+  const updateDynamicStatus = (newStatus: { text: string; bg: string; border: string; icon: StatusIcon; iconColor: string }) => {
+    setDynamicStatus(newStatus);
+    animateStatusText(newStatus.text);
+  };
 
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
 
@@ -90,6 +145,7 @@ export default function Home() {
 
     setMessages([initialMsg]);
     setDisplayMessages([initialMsg]);
+    setIsInitialized(true);
 
     if (autoVoice) { setTimeout(() => speakText(initialGreeting, 0), 500); }
     else { setInputDisabled(false); }
@@ -169,20 +225,20 @@ export default function Home() {
 
     if (part === 'kepala') {
       setActiveReaction('marah');
-      setDynamicStatus({ text: 'Sentuh Kepala: Dia MARAH!', bg: 'rgba(239, 68, 68, 0.25)', border: 'rgba(239, 68, 68, 0.6)', icon: 'angry', iconColor: '#ef4444' });
+      updateDynamicStatus({ text: 'Sentuh Kepala: Dia MARAH!', bg: 'var(--color-danger-bg)', border: 'var(--color-danger-border)', icon: 'angry', iconColor: 'var(--color-danger)' });
       speakText('Aduh! Jangan pegang-pegang kepala dong!', 0);
     } else if (part === 'perut') {
       setActiveReaction('perut');
-      setDynamicStatus({ text: 'Sentuh Perut: Dia GOYANG!', bg: 'rgba(249, 115, 22, 0.25)', border: 'rgba(249, 115, 22, 0.6)', icon: 'laugh', iconColor: '#f97316' });
+      updateDynamicStatus({ text: 'Sentuh Perut: Dia GOYANG geli!', bg: 'var(--accent-orange-subtle)', border: 'var(--accent-orange-border)', icon: 'laugh', iconColor: 'var(--accent-orange)' });
       speakText('Haha geli banget! Perut buncitku jadi goyang!', 0);
     } else if (part === 'kaki') {
       setActiveReaction('kaki');
-      setDynamicStatus({ text: 'Sentuh Kaki: Dia BINGUNG!', bg: 'rgba(59, 130, 246, 0.25)', border: 'rgba(59, 130, 246, 0.6)', icon: 'confused', iconColor: '#3b82f6' });
+      updateDynamicStatus({ text: 'Sentuh Kaki: Dia BINGUNG!', bg: 'var(--color-info-subtle)', border: 'var(--color-info-subtle)', icon: 'confused', iconColor: 'var(--color-info)' });
       speakText('Eh? Kenapa kamu pegang-pegang kakiku?', 0);
     }
 
     setTimeout(() => {
-      setDynamicStatus({ text: 'Siap mengobrol dan menemani harimu!', bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.4)', icon: 'smile', iconColor: '#f97316' });
+      updateDynamicStatus({ text: 'Siap mengobrol dan menemani harimu!', bg: 'var(--accent-orange-subtle)', border: 'var(--accent-orange-border)', icon: 'smile', iconColor: 'var(--accent-orange)' });
     }, 3500);
   };
 
@@ -331,8 +387,8 @@ export default function Home() {
     } catch { stopAudio(); setInputDisabled(false); }
   };
 
-  const startRecording = async (e?: unknown) => {
-    if (e && typeof (e as Event).preventDefault === 'function') (e as Event).preventDefault();
+  // --- RECORDING LOGIC UNTUK INPUT SECTION ---
+  const startRecording = async () => {
     if (!userProfile) { if (trialCount >= 3) router.push('/login'); return; }
     if (loading || isTyping || isRecording) return;
     stopAudio();
@@ -365,9 +421,15 @@ export default function Home() {
     } catch (err) { alert("Izin mic ditolak!"); console.error('Akses mikrofon ditolak:', err); }
   };
 
-  const stopRecording = (e?: unknown) => {
-    if (e && typeof (e as Event).preventDefault === 'function') (e as Event).preventDefault();
+  const stopRecording = (cancel = false) => {
     if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      if (cancel) {
+        mediaRecorderRef.current.onstop = () => {
+          if (mediaRecorderRef.current?.stream) {
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+          }
+        };
+      }
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
@@ -459,33 +521,33 @@ export default function Home() {
   };
 
   return (
-    <div className="container">
+    <div className={styles.container}>
       <Header
         isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} userProfile={userProfile}
         userName={getUserName()} activeModel={activeModel} remainingTokens={remainingTokens}
         isMobile={isMobile} handleAuthAction={handleAuthAction} menuRef={menuRef}
       />
 
-      <div className="main-content">
-        <div className="chat-section">
-          <div className="chat-box">
+      <div className={styles.mainContent}>
+        <div className={styles.chatSection}>
+          <div className={styles.chatBox}>
             {displayMessages.map((msg, index) => (
-              <div key={index} className="message-wrapper" style={{ justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                <div className={`bubble ${msg.role === 'user' ? 'user-bubble' : 'ai-bubble'}`}>
-                  <div className="role-header">
-                    <span className="role-label" style={{ color: msg.role === 'assistant' ? '#fb923c' : '#ffffff', fontWeight: '700', fontStyle: 'italic' }}>
+              <div key={index} className={styles.messageWrapper} style={{ justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <div className={`${styles.bubble} ${msg.role === 'user' ? styles.userBubble : styles.aiBubble}`}>
+                  <div className={styles.roleHeader}>
+                    <span className={styles.roleLabel} style={{ color: msg.role === 'assistant' ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
                       {msg.role === 'user' ? getUserName() : 'SukaChub Virtual Chat'}
                     </span>
                     {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && !msg.isTyping && msg.content && (
-                      <button onClick={() => speakText(msg.content, index)} className="speaker-btn" style={{ color: playingIndex === index ? '#f97316' : '#a1a1aa' }}>
+                      <button onClick={() => speakText(msg.content, index)} className={styles.speakerBtn} style={{ color: playingIndex === index ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
                         {playingIndex === index ? <IconSpeaker /> : <IconMute />}
                       </button>
                     )}
                   </div>
-                  <div className="text-content">
+                  <div className={styles.textContent}>
                     {msg.content || ''}
                     {msg.isTyping && index === typingMessageIndex && (
-                      <span style={{ display: 'inline-block', width: '2px', height: '1em', backgroundColor: '#f97316', marginLeft: '2px', animation: 'blink 0.5s step-end infinite', verticalAlign: 'text-bottom' }} />
+                      <span style={{ display: 'inline-block', width: '2px', height: '1em', backgroundColor: 'var(--accent-orange)', marginLeft: '2px', animation: `${styles.blink} 0.5s step-end infinite`, verticalAlign: 'text-bottom' }} />
                     )}
                   </div>
                 </div>
@@ -493,10 +555,10 @@ export default function Home() {
             ))}
 
             {loading && !isTyping && (
-              <div className="message-wrapper" style={{ justifyContent: 'flex-start' }}>
-                <div className="bubble ai-bubble" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className="loading-dots"><span className="dot" /><span className="dot" /><span className="dot" /></div>
-                  <span style={{ fontSize: '0.8rem', color: '#a1a1aa', fontStyle: 'italic' }}>sedang mikir...</span>
+              <div className={styles.messageWrapper} style={{ justifyContent: 'flex-start' }}>
+                <div className={`${styles.bubble} ${styles.aiBubble}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className={styles.loadingDots}><span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} /></div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>sedang mikir...</span>
                 </div>
               </div>
             )}
@@ -504,49 +566,54 @@ export default function Home() {
           </div>
         </div>
 
-        <div className={`avatar-section ${isMobile ? 'avatar-section-mobile' : ''}`}>
-          <div className="dynamic-status-bubble" style={{ backgroundColor: dynamicStatus.bg, borderColor: dynamicStatus.border }}>
-            <span style={{ display: 'flex', color: dynamicStatus.iconColor }}>
+        <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
+          <div className={styles.dynamicStatusBubble} style={{ backgroundColor: dynamicStatus.bg, borderColor: dynamicStatus.border }}>
+            <span style={{ display: 'flex', color: dynamicStatus.iconColor, alignItems: 'center' }}>
               {dynamicStatus.icon === 'smile' && <IconSmile />}
               {dynamicStatus.icon === 'angry' && <IconAngry />}
               {dynamicStatus.icon === 'laugh' && <IconLaugh />}
               {dynamicStatus.icon === 'confused' && <IconConfused />}
             </span>
-            <span className="dynamic-status-text">{dynamicStatus.text}</span>
+            <span className={styles.dynamicStatusText}>
+              {displayedStatusText}
+              <span style={{ opacity: 0.6, marginLeft: '2px' }}>|</span>
+            </span>
           </div>
 
-          <div ref={avatarContainerRef} className="avatar-container" onPointerDown={handlePointerDownAvatar} onPointerMove={handlePointerMoveAvatar} onPointerUp={handlePointerUpAvatar} onPointerCancel={handlePointerUpAvatar} onContextMenu={(e) => e.preventDefault()}>
-            <div className="hitbox-head" title="Sentuh Kepala (Marah)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('kepala', e); }} />
-            <div className="hitbox-belly" title="Sentuh Perut (Goyang)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('perut', e); }} />
-            <div className="hitbox-legs" title="Sentuh Kaki (Bingung)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('kaki', e); }} />
+          <div ref={avatarContainerRef} className={styles.avatarContainer} onPointerDown={handlePointerDownAvatar} onPointerMove={handlePointerMoveAvatar} onPointerUp={handlePointerUpAvatar} onPointerCancel={handlePointerUpAvatar} onContextMenu={(e) => e.preventDefault()}>
+            <div className={styles.hitboxHead} title="Sentuh Kepala (Marah)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('kepala', e); }} />
+            <div className={styles.hitboxBelly} title="Sentuh Perut (Goyang)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('perut', e); }} />
+            <div className={styles.hitboxLegs} title="Sentuh Kaki (Bingung)" onClick={(e) => { e.stopPropagation(); triggerBodyPartTouch('kaki', e); }} />
 
-            {ripples.map((r) => (<span key={r.id} className="asmr-ripple" style={{ left: `${r.x}px`, top: `${r.y}px` }} />))}
+            {ripples.map((r) => (<span key={r.id} className={styles.asmrRipple} style={{ left: `${r.x}px`, top: `${r.y}px` }} />))}
 
-            <video ref={videoIdleRef} src="/D.webm" autoPlay muted loop playsInline preload="auto" className="avatar-video" style={{ opacity: !isSpeaking && !activeReaction ? 1 : 0 }} />
-            <video ref={videoARef} src="/A.webm" muted loop playsInline preload="auto" className="avatar-video" style={{ opacity: isSpeaking && !activeReaction ? 1 : 0 }} />
-            <video ref={videoMarahRef} src="/Marah.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className="avatar-video" style={{ opacity: activeReaction === 'marah' ? 1 : 0 }} />
-            <video ref={videoPelukRef} src="/Peluk.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className="avatar-video" style={{ opacity: activeReaction === 'peluk' || activeReaction === 'perut' ? 1 : 0 }} />
-            <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className="avatar-video" style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
+            <video ref={videoIdleRef} src="/D.webm" autoPlay muted loop playsInline preload="auto" className={styles.avatarVideo} style={{ opacity: !isSpeaking && !activeReaction ? 1 : 0 }} />
+            <video ref={videoARef} src="/A.webm" muted loop playsInline preload="auto" className={styles.avatarVideo} style={{ opacity: isSpeaking && !activeReaction ? 1 : 0 }} />
+            <video ref={videoMarahRef} src="/Marah.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'marah' ? 1 : 0 }} />
+            <video ref={videoPelukRef} src="/Peluk.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'peluk' || activeReaction === 'perut' ? 1 : 0 }} />
+            <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
           </div>
 
-          <div className="voice-control-panel">
-            <div className="voice-control-group">
-              <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className="voice-select">
+          <div className={styles.avatarTouchGuide}>
+            <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh ava:</span>
+            <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeHead : ''}`}>Kepala</span>
+            <span className={styles.dotSep}>•</span>
+            <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeBelly : ''}`}>Badan</span>
+            <span className={styles.dotSep}>•</span>
+            <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeLegs : ''}`}>Kaki</span>
+          </div>
+
+          <div className={styles.voiceControlPanel}>
+            <div className={styles.voiceControlGroup}>
+              <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
                 <option value="spruce">Deep Voice</option>
                 <option value="arbor">Man Voice</option>
               </select>
-              <button type="button" onClick={() => setAutoVoice(!autoVoice)} className="auto-voice-btn" style={{ backgroundColor: autoVoice ? 'rgba(249, 115, 22, 0.2)' : '#18181b', borderColor: autoVoice ? '#f97316' : '#3f3f46', color: autoVoice ? '#f97316' : '#a1a1aa' }}>
+              <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
                 {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
                 <span>{autoVoice ? 'Sound ON' : 'Sound OFF'}</span>
               </button>
             </div>
-
-            <button type="button" onPointerDown={startRecording} onPointerUp={stopRecording} onPointerLeave={stopRecording} onPointerCancel={stopRecording} onContextMenu={(e) => e.preventDefault()} disabled={!userProfile || loading || isTyping} className={`hold-mic-button ${isMobile ? 'hold-mic-button-mobile' : ''}`} style={{ backgroundColor: !userProfile ? '#27272a' : isRecording ? '#ef4444' : '#f97316', opacity: !userProfile ? 0.5 : 1, cursor: !userProfile ? 'not-allowed' : 'pointer', transform: isRecording ? 'scale(1.15)' : 'scale(1)', boxShadow: !userProfile ? 'none' : isRecording ? '0 0 30px rgba(239, 68, 68, 0.9)' : '0 4px 25px rgba(249, 115, 22, 0.5)' }}>
-              <IconMicLarge />
-            </button>
-            <span className="mic-label">
-              {!userProfile ? 'Login untuk bicara' : isRecording ? 'Lepas untuk kirim...' : loading ? 'Memproses...' : 'Tahan jari untuk bicara'}
-            </span>
           </div>
         </div>
       </div>
@@ -559,10 +626,13 @@ export default function Home() {
         loading={loading}
         isTyping={isTyping}
         isRecording={isRecording}
+        isInitialized={isInitialized}
         trialPresets={TRIAL_PRESETS}
         handleSend={handleSend}
         handleClearChat={handleClearChat}
         handlePillClick={handlePillClick}
+        startRecording={startRecording}
+        stopRecording={stopRecording}
       />
     </div>
   );
