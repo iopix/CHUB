@@ -14,10 +14,10 @@ const VOICE_CONFIG: Record<string, VoiceConfig> = {
     reference_id: 'a7b474a678b54034b5e4d11c1be34c14',
   },
   voice2: {
-    reference_id: 'dee22c8be7dc4943b36ccd452eba4ddf',
+    reference_id: '66c37973e964489484b201096ee494dc',
   },
   voice3: {
-    reference_id: '33712605756e4d87b4ebeb003dbb5217',
+    reference_id: 'df6eeaae2c6945828b60459ebff7b9ae',
   },
   voice4: {
     reference_id: 'c6509c95d08046a4adc76880ce22789b',
