@@ -1,38 +1,30 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
 // Durasi maksimum eksekusi Vercel/Serverless
 export const maxDuration = 60;
 
 interface VoiceConfig {
-  type: 'edge' | 'fish';
-  voice?: string;
-  pitch?: string;
-  rate?: string;
-  volume?: string;
-  reference_id?: string;
+  reference_id: string;
 }
 
-// Konfigurasi Karakter Suara
+// Konfigurasi 5 Karakter Suara Fish Audio
+// Silakan sesuaikan nilai 'reference_id' sesuai ID karakter pada akun Fish Audio Anda
 const VOICE_CONFIG: Record<string, VoiceConfig> = {
-  spruce: { 
-    type: 'edge',
-    voice: 'id-ID-ArdiNeural', 
-    pitch: '-34Hz',
-    rate: '-15%',
-    volume: '+50%'  
+  voice1: {
+    reference_id: 'df6eeaae2c6945828b60459ebff7b9ae',
   },
-  arbor: { 
-    type: 'edge',
-    voice: 'id-ID-ArdiNeural', 
-    pitch: '-20Hz',
-    rate: '+1%',
-    volume: '+30%'  
+  voice2: {
+    reference_id: '5257ebcd043645c5a25c0ce1ecf6bc38',
   },
-  wowo: {
-    type: 'fish',
-    reference_id: '6d7909c639cc40499a4e9f8ed219136d'
-  }
+  voice3: {
+    reference_id: 'd3c79021d1a14e9db1119a1b74424456',
+  },
+  voice4: {
+    reference_id: '195c436720974a2fa0e1eeb06d9352ff',
+  },
+  voice5: {
+    reference_id: '43e98d36d0df44c7936c4506235aaaca',
+  },
 };
 
 function enhanceEmotionalText(text: string): string {
@@ -46,7 +38,7 @@ function enhanceEmotionalText(text: string): string {
     .trim();
 }
 
-// 1. Fungsi Konversi Angka ke Kata (Terbilang Bahasa Indonesia)
+// Fungsi Konversi Angka ke Kata (Terbilang Bahasa Indonesia)
 function angkaKeTeks(n: number): string {
   const satuan = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
   n = Math.floor(n);
@@ -62,13 +54,9 @@ function angkaKeTeks(n: number): string {
 }
 
 /**
- * Normalisasi Teks Khusus Fish Audio API (Indonesia):
- * - Jam 00.00 / 00:00 -> "kosong kosong kosong kosong"
- * - Format Jam HH.MM -> "19.03" menjadi "sembilan belas kosong tiga"
- * - Tanggal (21/08/2026 -> 21 Agustus 2026)
- * - Operasi & Simbol Matematika Lengkap -> Ejaan Bahasa Indonesia
- * - Angka terbilang + Tag [excited]
- * - Ketawa -> Tag [laughing]
+ * Normalisasi Teks Khusus Fish Audio API (Bahasa Indonesia):
+ * Mengubah simbol matematika, desimal/koma, pecahan, dan tanda baca keyboard
+ * menjadi ejaan teks Indonesia yang presisi.
  */
 function prepareFishAudioText(text: string): string {
   if (!text) return '';
@@ -80,98 +68,116 @@ function prepareFishAudioText(text: string): string {
 
   let result = text;
 
-  // 1. Format Jam 00.00 atau 00:00 -> Kosong kosong kosong kosong
+  // 1. Bersihkan Tag Error & Titik Tiga
+  result = result
+    .replace(/\[Error:.*?\]/g, '')
+    .replace(/\.\.\./g, '... ');
+
+  // 2. Format Jam 00.00 / 00:00 -> "kosong kosong kosong kosong"
   result = result.replace(/\b00[\.\:]00\b/g, 'kosong kosong kosong kosong');
 
-  // 2. Format Jam HH.MM / HH:MM (Contoh: 19.03 -> "sembilan belas kosong tiga")
+  // 3. Format Jam HH.MM / HH:MM (Contoh: 19.03 -> "sembilan belas kosong tiga")
   result = result.replace(/\b(\d{1,2})[\.\:](\d{2})\b/g, (_, jam: string, menit: string) => {
     const jamNum = parseInt(jam, 10);
     const menitNum = parseInt(menit, 10);
     
-    const jamStr = angkaKeTeks(jamNum);
-    let menitStr = '';
-    
-    if (menitNum === 0) {
-      menitStr = ''; 
-    } else if (menit.startsWith('0')) {
-      menitStr = ` kosong ${angkaKeTeks(menitNum)}`;
-    } else {
-      menitStr = ` ${angkaKeTeks(menitNum)}`;
+    if (jamNum >= 0 && jamNum <= 23 && menitNum >= 0 && menitNum <= 59) {
+      const jamStr = angkaKeTeks(jamNum);
+      let menitStr = '';
+      
+      if (menitNum === 0) {
+        menitStr = ''; 
+      } else if (menit.startsWith('0')) {
+        menitStr = ` kosong ${angkaKeTeks(menitNum)}`;
+      } else {
+        menitStr = ` ${angkaKeTeks(menitNum)}`;
+      }
+      return `${jamStr}${menitStr}`;
     }
-
-    return `${jamStr}${menitStr}`;
+    return _;
   });
 
-  // 3. Format Tanggal (Contoh: 21/08/2026 atau 21-08-2026)
+  // 4. Format Tanggal (Contoh: 21/08/2026 atau 21-08-2026)
   result = result.replace(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/g, (_, tgl: string, bln: string, thn: string) => {
     const idxBulan = parseInt(bln, 10) - 1;
     const bulanStr = namaBulan[idxBulan] || bln;
-    return `${tgl} ${bulanStr} ${thn}`;
+    return `${angkaKeTeks(parseInt(tgl, 10))} ${bulanStr} ${angkaKeTeks(parseInt(thn, 10))}`;
   });
 
-  // 4. Operasi & Simbol Matematika Lengkap Bahasa Indonesia
+  // 5. Simbol Komparasi & Operator Gabungan
   result = result
     .replace(/!=/g, ' tidak sama dengan ')
     .replace(/<=/g, ' kurang dari atau sama dengan ')
     .replace(/>=/g, ' lebih dari atau sama dengan ')
-    .replace(/==/g, ' sama dengan ')
+    .replace(/==/g, ' sama dengan ');
+
+  // 6. Logika Desimal & Koma
+  // Desimal berbasis nol (0,5 / 0.5 -> "nol koma lima")
+  result = result.replace(/\b0[\,\.](\d+)\b/g, (_, desimal: string) => {
+    return `nol koma ${angkaKeTeks(parseInt(desimal, 10))}`;
+  });
+  // Desimal umum antar angka (1,5 / 3.14 -> "satu koma lima")
+  result = result.replace(/(\d+)[\,\.](\d+)/g, (_, bulat: string, desimal: string) => {
+    return `${angkaKeTeks(parseInt(bulat, 10))} koma ${angkaKeTeks(parseInt(desimal, 10))}`;
+  });
+
+  // 7. Simbol Matematika dari Keyboard (Di antara Angka)
+  result = result
+    // Pecahan & Slash angka (1/2 -> "1 per 2")
+    .replace(/(\d+)\s*[\/]\s*(\d+)/g, '$1 per $2')
+    // Slash teks biasa (pria/wanita -> "pria atau wanita")
+    .replace(/([a-zA-Z]+)\s*[\/]\s*([a-zA-Z]+)/g, '$1 atau $2')
+    // Perkalian: 'x', '×', atau '*'
+    .replace(/(\d+)\s*[xX×\*]\s*(\d+)/g, '$1 dikali $2')
+    // Pembagian: '÷', ':', atau '/'
+    .replace(/(\d+)\s*[÷\:]\s*(\d+)/g, '$1 dibagi $2')
+    // Pengurangan: '-' HANYA jika berada di antara angka (kata ulang "anak-anak" tetap utuh)
+    .replace(/(\d+)\s*[\-]\s*(\d+)/g, '$1 kurang $2')
+    // Penjumlahan & Pangkat
+    .replace(/(\d+)\s*[\+]\s*(\d+)/g, '$1 tambah $2')
+    .replace(/(\d+)\s*[\^]\s*(\d+)/g, '$1 pangkat $2')
+    // Kurung angka: (5) atau [5]
+    .replace(/[\(\[]\s*(\d+)\s*[\)\]]/g, ' $1 ');
+
+  // 8. Simbol Tunggal & Tanda Baca Keyboard Lainnya
+  result = result
+    .replace(/\+/g, ' tambah ')
+    .replace(/÷/g, ' dibagi ')
     .replace(/=/g, ' sama dengan ')
     .replace(/</g, ' kurang dari ')
     .replace(/>/g, ' lebih dari ')
-    .replace(/\*/g, ' dikali ')
-    .replace(/x/gi, ' dikali ')
-    .replace(/:/g, ' dibagi ')
-    .replace(/\+/g, ' tambah ')
-    .replace(/\-/g, ' kurang ')
     .replace(/%/g, ' persen ')
-    .replace(/\^/g, ' pangkat ');
+    .replace(/\$/g, ' dolar ')
+    .replace(/&/g, ' dan ')
+    .replace(/@/g, ' at ')
+    .replace(/#/g, ' pagar ');
 
-  // 5. Terbilang Angka + Tag [excited]
-  result = result.replace(/(\d+)/g, (match: string) => {
-    const num = parseInt(match, 10);
-    return `[excited] ${angkaKeTeks(num)}`;
+  // 9. Terbilang Angka Mandiri yang Masih Tersisa
+  result = result.replace(/\b(\d+)\b/g, (match: string) => {
+    return angkaKeTeks(parseInt(match, 10));
   });
 
-  // 6. Tag Ketawa
+  // 10. Tag Ekspresi Khusus Fish Audio
   result = result.replace(/\b(wkwk+|haha+|hehe+|hihi+|wkwkwk+)\b/gi, '[laughing]');
 
   return result.replace(/\s+/g, ' ').trim();
 }
 
-// 2. Fungsi khusus Edge TTS
-async function fetchEdgeTTS(text: string, config: VoiceConfig): Promise<Buffer> {
-  const tts = new MsEdgeTTS();
-  await tts.setMetadata(config.voice || 'id-ID-ArdiNeural', OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
-
-  const { audioStream } = await tts.toStream(text, {
-    pitch: config.pitch,
-    rate: config.rate,
-    volume: config.volume,
-  });
-
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of audioStream) {
-    chunks.push(chunk as Uint8Array);
-  }
-
-  return Buffer.concat(chunks);
-}
-
-// 3. Fungsi khusus Fish Audio API
+// Fungsi khusus pemanggilan API Fish Audio
 async function fetchFishAudioTTS(text: string, referenceId: string): Promise<Buffer> {
   const fishApiKey = process.env.FISH_API_KEY || '';
 
-  const response = await fetch("https://api.fish.audio/v1/tts", {
-    method: "POST",
+  const response = await fetch('https://api.fish.audio/v1/tts', {
+    method: 'POST',
     headers: {
       ...(fishApiKey ? { Authorization: `Bearer ${fishApiKey}` } : {}),
       'Content-Type': 'application/json',
-      model: 's2.1-pro-free', 
+      model: 's2.1-pro-free',
     },
     body: JSON.stringify({
       text: text,
       reference_id: referenceId,
-      format: "mp3",
+      format: 'mp3',
     }),
   });
 
@@ -184,27 +190,20 @@ async function fetchFishAudioTTS(text: string, referenceId: string): Promise<Buf
   return Buffer.from(arrayBuffer);
 }
 
-// 4. Handler Utama
+// Handler Utama POST Route
 export async function POST(req: NextRequest) {
   try {
-    const { text, voice = 'spruce' } = await req.json();
+    const { text, voice = 'voice1' } = await req.json();
     const cleanText = enhanceEmotionalText(text);
 
     if (!cleanText) {
       return NextResponse.json({ error: 'Teks kosong' }, { status: 400 });
     }
 
-    const config = VOICE_CONFIG[voice] || VOICE_CONFIG.spruce;
-    let audioBuffer: Buffer;
+    const config = VOICE_CONFIG[voice] || VOICE_CONFIG.voice1;
+    const fishFormattedText = prepareFishAudioText(cleanText);
+    const audioBuffer = await fetchFishAudioTTS(fishFormattedText, config.reference_id);
 
-    if (config.type === 'fish') {
-      const fishFormattedText = prepareFishAudioText(cleanText);
-      audioBuffer = await fetchFishAudioTTS(fishFormattedText, config.reference_id || '');
-    } else {
-      audioBuffer = await fetchEdgeTTS(cleanText, config);
-    }
-
-    // Konversi Buffer ke Uint8Array agar kompatibel dengan NextResponse BodyInit
     return new NextResponse(new Uint8Array(audioBuffer), {
       headers: {
         'Content-Type': 'audio/mpeg',

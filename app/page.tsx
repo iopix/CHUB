@@ -40,7 +40,7 @@ export default function Home() {
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState<string>('spruce');
+  const [selectedVoice, setSelectedVoice] = useState<string>('voice1');
   const [autoVoice, setAutoVoice] = useState<boolean>(false);
   
   const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
@@ -194,24 +194,21 @@ export default function Home() {
       const audio = new Audio(URL.createObjectURL(blob));
       audioRef.current = audio;
 
-      // Penguatan Gain menggunakan Web Audio API jika menggunakan Wowo Voice
-      if (selectedVoice === 'wowo') {
-        try {
-          const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-          const audioCtx = new AudioContextClass();
-          audioContextRef.current = audioCtx;
+      // Penguatan Gain Audio jika diperlukan
+      try {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const audioCtx = new AudioContextClass();
+        audioContextRef.current = audioCtx;
 
-          const source = audioCtx.createMediaElementSource(audio);
-          const gainNode = audioCtx.createGain();
+        const source = audioCtx.createMediaElementSource(audio);
+        const gainNode = audioCtx.createGain();
 
-          // Penguat Gain 3.0x khusus untuk suara Wowo
-          gainNode.gain.value = 3.0;
+        gainNode.gain.value = 1.5;
 
-          source.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-        } catch (e) {
-          console.warn('Web Audio API Gain Node failed, falling back to standard audio playback:', e);
-        }
+        source.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+      } catch (e) {
+        console.warn('Web Audio API Gain Node failed, falling back to standard audio playback:', e);
       }
 
       audio.onplay = () => {
@@ -444,10 +441,16 @@ export default function Home() {
       <div className={styles.mainContent}>
         <div className={styles.chatSection}>
           <div className={styles.topControlPanel}>
-            <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
-              <option value="spruce">Deep Voice</option>
-              <option value="arbor">Man Voice</option>
-              <option value="wowo">Pix Voice</option>
+            <select 
+              value={selectedVoice} 
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} 
+              className={styles.voiceSelect}
+            >
+              <option value="voice1">Voice 1</option>
+              <option value="voice2">Voice 2</option>
+              <option value="voice3">Voice 3</option>
+              <option value="voice4">Voice 4</option>
+              <option value="voice5">Voice 5</option>
             </select>
 
             <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
