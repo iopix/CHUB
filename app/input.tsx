@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, ChangeEvent, FormEvent, TouchEvent, MouseEvent } from 'react';
+import { useState, ChangeEvent, FormEvent, TouchEvent, MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserProfile } from './header';
 import styles from './page.module.css';
@@ -20,7 +20,7 @@ interface InputProps {
   handleClearChat: () => void;
   handlePillClick: (presetKey: string) => void;
   startRecording?: () => void;
-  stopRecording?: (cancel?: boolean) => void;
+  stopRecording?: () => void;
 }
 
 // --- SVG ICONS ---
@@ -73,88 +73,94 @@ export default function InputSection({
 }: InputProps) {
   const router = useRouter();
   const [isKeyboardMode, setIsKeyboardMode] = useState<boolean>(false);
-  const [isCancelDrag, setIsCancelDrag] = useState<boolean>(false);
 
-  const startYRef = useRef<number | null>(null);
-
-  const handleStartInteraction = (clientY: number) => {
+  const handleStartInteraction = () => {
     if (!userProfile && voiceTrialCount >= 2) {
       router.push('/login');
       return;
     }
     if (loading || isTyping || !startRecording) return;
-    startYRef.current = clientY;
-    setIsCancelDrag(false);
     startRecording();
   };
 
-  const handleMoveInteraction = (clientY: number) => {
-    if (!isRecording || startYRef.current === null) return;
-    const deltaY = startYRef.current - clientY;
-
-    if (deltaY > 60) {
-      setIsCancelDrag(true);
-    } else {
-      setIsCancelDrag(false);
-    }
-  };
-
   const handleEndInteraction = () => {
-    if (!stopRecording || startYRef.current === null) return;
-    if (isCancelDrag) {
-      stopRecording(true);
-    } else {
-      stopRecording(false);
-    }
-    startYRef.current = null;
-    setIsCancelDrag(false);
+    if (!stopRecording || !isRecording) return;
+    stopRecording();
+    setIsKeyboardMode(true); 
   };
 
-  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => handleStartInteraction(e.touches[0].clientY);
-  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => handleMoveInteraction(e.touches[0].clientY);
-
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => handleStartInteraction();
+  
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    handleStartInteraction(e.clientY);
+    handleStartInteraction();
   };
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => handleMoveInteraction(e.clientY);
 
   const presetKeys = Object.keys(trialPresets).slice(0, 3);
-
   const isTextTrialEnded = !userProfile && textTrialCount >= 2;
   const isVoiceTrialEnded = !userProfile && voiceTrialCount >= 2;
 
   return (
     <div className={styles.footerWrapper}>
-      {/* 3. ROW PILL CAPSULE DINAMIS DENGAN UKURAN SERAGAM */}
-      <div className={styles.capsuleRow}>
-        {presetKeys.map((presetKey, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => handlePillClick(presetKey)}
-            className={styles.dynamicChipButton}
-          >
-            {presetKey}
-          </button>
-        ))}
+      {/* KONTROL PILL & HAPUS CHAT */}
+      <div 
+        className={styles.capsuleRow} 
+        style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px' }}
+      >
+        {/* Hapus Chat di kiri & permanen dengan warna orange */}
+        <button
+          type="button"
+          onClick={handleClearChat}
+          className={`${styles.dynamicChipButton} ${styles.clearChipButton}`}
+          style={{ 
+            flexShrink: 0, 
+            backgroundColor: '#f97316', // Warna orange
+            color: '#ffffff',           // Teks putih agar kontras
+            borderColor: '#f97316'      // Border menyesuaikan warna background
+          }}
+        >
+          <IconTrash />
+          <span>Hapus Chat</span>
+        </button>
 
-        {isInitialized && userProfile && (
+        {/* Kontainer Pill Scrollable */}
+        <div 
+          style={{ 
+            display: 'flex', 
+            overflowX: 'auto', 
+            gap: '8px', 
+            scrollbarWidth: 'none', /* Firefox */
+            msOverflowStyle: 'none' /* IE/Edge */ 
+          }}
+        >
+          {presetKeys.map((presetKey, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handlePillClick(presetKey)}
+              className={styles.dynamicChipButton}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {presetKey}
+            </button>
+          ))}
+          
+          {/* Tambahan Pill Teks Full */}
           <button
             type="button"
-            onClick={handleClearChat}
-            className={`${styles.dynamicChipButton} ${styles.clearChipButton}`}
+            onClick={() => handlePillClick("Sekarang hari jam berapa ?")}
+            className={styles.dynamicChipButton}
+            style={{ whiteSpace: 'nowrap' }}
           >
-            <IconTrash />
-            <span>Hapus Chat</span>
+            Sekarang hari jam berapa ?
           </button>
-        )}
+        </div>
       </div>
 
       {isRecording && (
-        <div className={`${styles.recordingOverlay} ${isCancelDrag ? styles.recordingOverlayCancel : ''}`}>
+        <div className={styles.recordingOverlay}>
           <div className={styles.recordingText}>
-            {isCancelDrag ? 'Bebaskan untuk membatalkan' : 'Lepaskan untuk mengirim, geser ke atas untuk membatalkan'}
+            Lepaskan untuk selesai merekam
           </div>
           <div className={styles.waveformContainer}>
             <span className={styles.waveBar} />
@@ -177,11 +183,9 @@ export default function InputSection({
             <div
               className={`${styles.holdToTalkButton} ${isVoiceTrialEnded ? styles.disabledHold : ''}`}
               onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
               onTouchEnd={handleEndInteraction}
               onTouchCancel={handleEndInteraction}
               onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
               onMouseUp={handleEndInteraction}
               onMouseLeave={handleEndInteraction}
             >
