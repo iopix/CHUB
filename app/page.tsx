@@ -62,6 +62,9 @@ export default function Home() {
 
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
 
+  // Ref untuk Web Audio API Context
+  const audioContextRef = useRef<AudioContext | null>(null);
+
   useEffect(() => { activeReactionRef.current = activeReaction; }, [activeReaction]);
 
   useEffect(() => {
@@ -161,6 +164,10 @@ export default function Home() {
     if (statusTypingTimeoutRef.current) clearTimeout(statusTypingTimeoutRef.current);
     if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; }
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; audioRef.current = null; }
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
     setPlayingIndex(null);
   };
 
@@ -186,6 +193,26 @@ export default function Home() {
 
       const audio = new Audio(URL.createObjectURL(blob));
       audioRef.current = audio;
+
+      // Penguatan Gain menggunakan Web Audio API jika menggunakan Wowo Voice
+      if (selectedVoice === 'wowo') {
+        try {
+          const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const audioCtx = new AudioContextClass();
+          audioContextRef.current = audioCtx;
+
+          const source = audioCtx.createMediaElementSource(audio);
+          const gainNode = audioCtx.createGain();
+
+          // Penguat Gain 3.0x khusus untuk suara Wowo
+          gainNode.gain.value = 3.0;
+
+          source.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+        } catch (e) {
+          console.warn('Web Audio API Gain Node failed, falling back to standard audio playback:', e);
+        }
+      }
 
       audio.onplay = () => {
         setPlayingIndex(index);
@@ -416,11 +443,11 @@ export default function Home() {
 
       <div className={styles.mainContent}>
         <div className={styles.chatSection}>
-          {/* BARIS KONTROL SEJAJAR PRESISI DI ATAS CHAT */}
           <div className={styles.topControlPanel}>
             <select value={selectedVoice} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} className={styles.voiceSelect}>
               <option value="spruce">Deep Voice</option>
               <option value="arbor">Man Voice</option>
+              <option value="wowo">Pix Voice</option>
             </select>
 
             <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
@@ -463,7 +490,6 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* BARIS PANDUAN SENTUH DENGAN TINGGI SEJAJAR DENGAN KONTROL KIRI */}
           <div className={styles.topControlPanelRight}>
             <div className={styles.avatarTouchGuideTop}>
               <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh ava:</span>
