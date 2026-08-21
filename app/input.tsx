@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ChangeEvent, FormEvent, TouchEvent, MouseEvent } from 'react';
+import { useState, useRef, ChangeEvent, FormEvent, TouchEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserProfile } from './header';
 import styles from './page.module.css';
@@ -20,7 +20,7 @@ interface InputProps {
   handleClearChat: () => void;
   handlePillClick: (presetKey: string) => void;
   startRecording?: () => void;
-  stopRecording?: () => void;
+  stopRecording?: (cancel?: boolean) => void; 
 }
 
 // --- SVG ICONS ---
@@ -54,6 +54,13 @@ const IconTrash = () => (
   </svg>
 );
 
+const IconX = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+);
+
 export default function InputSection({
   input,
   setInput,
@@ -73,27 +80,37 @@ export default function InputSection({
 }: InputProps) {
   const router = useRouter();
   const [isKeyboardMode, setIsKeyboardMode] = useState<boolean>(false);
+  const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleStartInteraction = () => {
+  // Memicu ketika ditekan (jari mobile atau klik kiri mouse)
+  const handlePressStart = (e: TouchEvent<HTMLDivElement> | ReactMouseEvent<HTMLDivElement>) => {
+    if ('button' in e && e.button !== 0) return; // Abaikan jika bukan klik kiri pada mouse
+
     if (!userProfile && voiceTrialCount >= 2) {
       router.push('/login');
       return;
     }
     if (loading || isTyping || !startRecording) return;
-    startRecording();
+
+    if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
+
+    // Memicu rekaman HANYA jika ditahan lebih dari 300ms
+    holdTimeoutRef.current = setTimeout(() => {
+      startRecording();
+    }, 300);
   };
 
-  const handleEndInteraction = () => {
-    if (!stopRecording || !isRecording) return;
-    stopRecording();
-    setIsKeyboardMode(true); 
-  };
+  // Memicu saat tekanan dilepas
+  const handlePressEnd = () => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
 
-  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => handleStartInteraction();
-  
-  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    handleStartInteraction();
+    if (isRecording && stopRecording) {
+      stopRecording(false);
+      setIsKeyboardMode(true); 
+    }
   };
 
   const presetKeys = Object.keys(trialPresets).slice(0, 3);
@@ -107,30 +124,28 @@ export default function InputSection({
         className={styles.capsuleRow} 
         style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px' }}
       >
-        {/* Hapus Chat di kiri & permanen dengan warna orange */}
         <button
           type="button"
           onClick={handleClearChat}
           className={`${styles.dynamicChipButton} ${styles.clearChipButton}`}
           style={{ 
             flexShrink: 0, 
-            backgroundColor: '#f97316', // Warna orange
-            color: '#ffffff',           // Teks putih agar kontras
-            borderColor: '#f97316'      // Border menyesuaikan warna background
+            backgroundColor: '#f97316',
+            color: '#ffffff',
+            borderColor: '#f97316'
           }}
         >
           <IconTrash />
           <span>Hapus Chat</span>
         </button>
 
-        {/* Kontainer Pill Scrollable */}
         <div 
           style={{ 
             display: 'flex', 
             overflowX: 'auto', 
             gap: '8px', 
-            scrollbarWidth: 'none', /* Firefox */
-            msOverflowStyle: 'none' /* IE/Edge */ 
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
           }}
         >
           {presetKeys.map((presetKey, i) => (
@@ -145,7 +160,6 @@ export default function InputSection({
             </button>
           ))}
           
-          {/* Tambahan Pill Teks Full */}
           <button
             type="button"
             onClick={() => handlePillClick("Sekarang hari jam berapa ?")}
@@ -158,21 +172,51 @@ export default function InputSection({
       </div>
 
       {isRecording && (
-        <div className={styles.recordingOverlay}>
-          <div className={styles.recordingText}>
-            Lepaskan untuk selesai merekam
+        <div className={styles.recordingOverlay} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }}>
+          
+          {/* Sisi Kiri: Teks & Visualisasi */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div className={styles.recordingText}>
+              Merekam...
+            </div>
+            <div className={styles.waveformContainer}>
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+              <span className={styles.waveBar} />
+            </div>
           </div>
-          <div className={styles.waveformContainer}>
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
-            <span className={styles.waveBar} />
+
+          {/* Sisi Kanan: Hanya Tombol X Merah */}
+          <div style={{ display: 'flex', alignItems: 'center', zIndex: 10 }}>
+            <button
+              type="button"
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                if (stopRecording) stopRecording(true);
+                setIsKeyboardMode(true);
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                if (stopRecording) stopRecording(true);
+                setIsKeyboardMode(true);
+              }}
+              style={{
+                width: '34px', height: '34px',
+                borderRadius: '50%', backgroundColor: '#ef4444', border: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                cursor: 'pointer'
+              }}
+              title="Batalkan"
+            >
+              <IconX />
+            </button>
           </div>
         </div>
       )}
@@ -182,12 +226,18 @@ export default function InputSection({
           {!isKeyboardMode ? (
             <div
               className={`${styles.holdToTalkButton} ${isVoiceTrialEnded ? styles.disabledHold : ''}`}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleEndInteraction}
-              onTouchCancel={handleEndInteraction}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleEndInteraction}
-              onMouseLeave={handleEndInteraction}
+              onTouchStart={handlePressStart}
+              onTouchEnd={handlePressEnd}
+              onTouchCancel={handlePressEnd}
+              onMouseDown={handlePressStart}
+              onMouseUp={handlePressEnd}
+              onMouseLeave={handlePressEnd}
+              onContextMenu={(e) => e.preventDefault()} 
+              style={{ 
+                touchAction: 'none', 
+                userSelect: 'none', 
+                WebkitUserSelect: 'none' // Mencegah sorot biru di mobile saat ditahan
+              }}
             >
               <span>
                 {!isInitialized
@@ -214,14 +264,17 @@ export default function InputSection({
                 value={input}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
                 placeholder={
-                  !userProfile
-                    ? textTrialCount < 2
-                      ? `Trial Teks ${2 - textTrialCount}/2...`
-                      : 'Silakan login...'
-                    : 'Ketik pesan...'
+                  loading
+                    ? 'Memproses suara...' // Placeholder berubah jika sedang transkrip
+                    : !userProfile
+                      ? textTrialCount < 2
+                        ? `Trial Teks ${2 - textTrialCount}/2...`
+                        : 'Silakan login...'
+                      : 'Ketik pesan...'
                 }
                 className={styles.inputField}
-                disabled={!isInitialized || isTextTrialEnded || isTyping || isRecording}
+                // Jika masih loading (suara belum selesai dibaca/diproses), input dimatikan
+                disabled={!isInitialized || isTextTrialEnded || isTyping || isRecording || loading}
                 maxLength={200}
                 autoFocus
               />
@@ -245,7 +298,7 @@ export default function InputSection({
             <button
               type="button"
               onClick={() => handleSend()}
-              disabled={loading || isTyping}
+              disabled={loading || isTyping} // Send dimatikan jika loading
               className={styles.sendIconButton}
             >
               <IconSend />
@@ -256,6 +309,7 @@ export default function InputSection({
               onClick={() => setIsKeyboardMode(!isKeyboardMode)}
               className={styles.modeToggleButton}
               title={isKeyboardMode ? 'Mode Suara' : 'Mode Teks'}
+              disabled={loading} // Cegah toggle mode jika suara masih diproses
             >
               {isKeyboardMode ? <IconMic /> : <IconKeyboard />}
             </button>
