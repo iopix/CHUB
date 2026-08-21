@@ -11,19 +11,19 @@ interface VoiceConfig {
 // Silakan sesuaikan nilai 'reference_id' sesuai ID karakter pada akun Fish Audio Anda
 const VOICE_CONFIG: Record<string, VoiceConfig> = {
   voice1: {
-    reference_id: 'df6eeaae2c6945828b60459ebff7b9ae',
+    reference_id: 'a7b474a678b54034b5e4d11c1be34c14',
   },
   voice2: {
-    reference_id: '5257ebcd043645c5a25c0ce1ecf6bc38',
+    reference_id: 'dee22c8be7dc4943b36ccd452eba4ddf',
   },
   voice3: {
-    reference_id: 'd3c79021d1a14e9db1119a1b74424456',
+    reference_id: '33712605756e4d87b4ebeb003dbb5217',
   },
   voice4: {
-    reference_id: '195c436720974a2fa0e1eeb06d9352ff',
+    reference_id: 'c6509c95d08046a4adc76880ce22789b',
   },
   voice5: {
-    reference_id: '43e98d36d0df44c7936c4506235aaaca',
+    reference_id: 'd84cb9ec55574ff68351199500b0c446',
   },
 };
 
