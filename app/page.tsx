@@ -82,7 +82,7 @@ export default function Home() {
     if (savedVoiceTrial) setVoiceTrialCount(parseInt(savedVoiceTrial, 10));
 
     const name = loadedUser?.username || (loadedUser?.email ? loadedUser.email.split('@')[0] : 'sayang');
-    const initialGreeting = `Halo ${name}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
+    const initialGreeting = `Halo ${name}, haha Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
     const initialMsg: Message = { role: 'assistant', content: initialGreeting };
 
     setMessages([initialMsg]);
@@ -264,7 +264,7 @@ export default function Home() {
 
   const handleClearChat = () => {
     stopAudio();
-    const initialGreeting = `Halo ${getUserName()}, Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
+    const initialGreeting = `Halo ${getUserName()}, haha Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
     const initialMsg: Message = { role: 'assistant', content: initialGreeting };
     setMessages([initialMsg]);
 
