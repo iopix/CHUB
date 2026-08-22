@@ -174,7 +174,6 @@ export default function Home() {
     const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
-    // Tampilkan state loading suara pada pill status terlebih dahulu
     setIsAudioRendering(true);
 
     const controller = new AbortController();
@@ -467,17 +466,7 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          <div className={styles.topControlPanelRight}>
-            <div className={styles.avatarTouchGuideTop}>
-              <span style={{ opacity: 0.8, fontWeight: '600' }}>Sentuh Ava:</span>
-              <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}>Kepala</span>
-              <span className={styles.dotSep}>•</span>
-              <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}>Badan</span>
-              <span className={styles.dotSep}>•</span>
-              <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeOrange : ''}`}>Kaki</span>
-            </div>
-          </div>
-
+          {/* Status Bubble Diperpanjang Responsif Ke Bawah */}
           <div className={styles.dynamicStatusBubble}>
             {isWelcomeBubble ? (
               <div className={styles.welcomeContainer}>
@@ -519,7 +508,17 @@ export default function Home() {
             <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
           </div>
 
-          {/* Pengaturan Voice & Auto Voice dipindah ke Bawah Kaki Avatar */}
+          {/* Panduan Sentuh Ava Dipindah Ke Bawah Kaki Avatar */}
+          <div className={styles.avatarTouchGuideBottom}>
+            <span style={{ opacity: 0.8, fontWeight: '600' }}>Sentuh Ava:</span>
+            <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}>Kepala</span>
+            <span className={styles.dotSep}>•</span>
+            <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}>Badan</span>
+            <span className={styles.dotSep}>•</span>
+            <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeOrange : ''}`}>Kaki</span>
+          </div>
+
+          {/* Kontrol Voice & Auto Voice */}
           <div className={styles.bottomVoiceControlPanel}>
             <div className={styles.voiceSelectWrapper}>
               <select 
@@ -538,7 +537,7 @@ export default function Home() {
             <button 
               type="button" 
               onClick={() => setAutoVoice(!autoVoice)} 
-              className={`${styles.textOnlyAutoVoiceBtn} ${autoVoice ? styles.autoVoiceActive : ''}`}
+              className={`${styles.textOnlyAutoVoiceBtn} ${autoVoice ? styles.autoVoiceActive : styles.autoVoiceInactive}`}
             >
               {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
             </button>

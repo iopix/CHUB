@@ -53,7 +53,7 @@ const IconKeyboard = () => (
     <line x1="6" y1="12" x2="6.01" y2="12" />
     <line x1="10" y1="12" x2="10.01" y2="12" />
     <line x1="14" y1="12" x2="14.01" y2="12" />
-    <line x1="18" y1="18" x2="18.01" y2="18" />
+    <line x1="18" y1="12" x2="18.01" y2="12" />
     <line x1="8" y1="16" x2="16" y2="16" />
   </svg>
 );
@@ -62,6 +62,13 @@ const IconTrash = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
+
+const IconClose = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
@@ -86,34 +93,31 @@ export default function InputSection({
   const isPointerDownRef = useRef<boolean>(false);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Audio Context Ref untuk Visualizer Real-time
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
 
-  // Scroll Drag Ref
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isMouseDownScrollRef = useRef(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
 
-  // --- AUDIO VISUALIZER & TIMER CONTROL ---
+  // Responsive Audio Visualizer Real-Time
   useEffect(() => {
     if (isRecording) {
-      // Setup Timer Detik
       setRecordSeconds(0);
       timerIntervalRef.current = setInterval(() => {
         setRecordSeconds((prev) => prev + 1);
       }, 1000);
 
-      // Setup Web Audio API Visualizer dari Mikrofon
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         mediaStreamRef.current = stream;
         const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const audioCtx = new AudioCtx();
         const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 32;
+        analyser.fftSize = 64;
+        analyser.smoothingTimeConstant = 0.4;
 
         const source = audioCtx.createMediaStreamSource(stream);
         source.connect(analyser);
@@ -125,15 +129,15 @@ export default function InputSection({
 
         const updateVisualizer = () => {
           analyser.getByteFrequencyData(dataArray);
-          
-          // Ambil sampel frekuensi dan petakan ke 6 baris tinggi (min: 4px, max: 28px)
+
+          // Peningkatan sensitivitas lompatan grafik audio
           const newHeights = [
-            Math.max(4, (dataArray[1] || 0) / 9),
-            Math.max(4, (dataArray[3] || 0) / 7),
-            Math.max(4, (dataArray[5] || 0) / 5),
-            Math.max(4, (dataArray[7] || 0) / 5),
-            Math.max(4, (dataArray[4] || 0) / 7),
-            Math.max(4, (dataArray[2] || 0) / 9),
+            Math.min(28, Math.max(4, (dataArray[1] || 0) / 4)),
+            Math.min(28, Math.max(4, (dataArray[3] || 0) / 3)),
+            Math.min(28, Math.max(4, (dataArray[6] || 0) / 2.5)),
+            Math.min(28, Math.max(4, (dataArray[8] || 0) / 2.5)),
+            Math.min(28, Math.max(4, (dataArray[5] || 0) / 3)),
+            Math.min(28, Math.max(4, (dataArray[2] || 0) / 4)),
           ];
 
           setVolumeHeights(newHeights);
@@ -145,7 +149,6 @@ export default function InputSection({
         console.warn('Gagal akses audio visualizer:', err);
       });
     } else {
-      // Cleanup saat Perekaman Selesai/Batal
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
@@ -161,14 +164,13 @@ export default function InputSection({
     };
   }, [isRecording]);
 
-  // --- GLOBAL WINDOW POINTER LISTENERS (FIX MOUSE LEPAS & CANCEL) ---
+  // Handle Global Pointer Up -> Lepas kirim langsung
   useEffect(() => {
     const handleGlobalPointerMove = (e: MouseEvent | TouchEvent) => {
       if (!isPointerDownRef.current) return;
       const currentY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
-      // Jika digeser naik lebih dari 40px ke atas -> Status BATAL
-      if (startPosYRef.current - currentY > 40) {
+      if (startPosYRef.current - currentY > 50) {
         setIsCancelRecording(true);
       } else {
         setIsCancelRecording(false);
@@ -178,8 +180,6 @@ export default function InputSection({
     const handleGlobalPointerUp = () => {
       if (!isPointerDownRef.current) return;
       isPointerDownRef.current = false;
-      
-      // Hentikan rekaman (apakah dikirim atau dibatalkan berdasarkan isCancelRecording)
       stopRecording(isCancelRecording);
       setIsCancelRecording(false);
     };
@@ -204,7 +204,12 @@ export default function InputSection({
     startRecording();
   };
 
-  // --- MOUSE DRAG PILL PRESETS ---
+  const handleManualCancel = () => {
+    isPointerDownRef.current = false;
+    stopRecording(true);
+    setIsCancelRecording(false);
+  };
+
   const handleMouseDownScroll = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;
     isMouseDownScrollRef.current = true;
@@ -230,7 +235,6 @@ export default function InputSection({
     }
   };
 
-  // Format detik 00:00
   const formatTimer = (sec: number) => {
     const mins = Math.floor(sec / 60);
     const secs = sec % 60;
@@ -239,7 +243,6 @@ export default function InputSection({
 
   return (
     <footer className={styles.footerWrapper}>
-      {/* Baris Preset Pill & Tombol Hapus */}
       <div className={styles.capsuleRowWrapper}>
         <button
           type="button"
@@ -279,11 +282,9 @@ export default function InputSection({
         </div>
       </div>
 
-      {/* Main Input Component */}
       <div className={styles.mainInputBox}>
         {isRecording ? (
           <div className={`${styles.recordingOverlay} ${isCancelRecording ? styles.recordingOverlayCancel : ''}`}>
-            {/* Visualizer Bar Real-time */}
             <div className={styles.waveformContainer}>
               {volumeHeights.map((height, idx) => (
                 <span
@@ -294,15 +295,24 @@ export default function InputSection({
               ))}
             </div>
 
-            {/* Timer Perekam */}
             <span className={styles.recordingTimer}>
               {formatTimer(recordSeconds)}
             </span>
 
-            {/* Petunjuk Aksi */}
             <span className={styles.recordingText}>
-              {isCancelRecording ? 'Lepas mouse/jari untuk BATAL' : 'Geser ke atas untuk batal'}
+              {isCancelRecording ? 'Batal merekam...' : 'Lepas untuk kirim'}
             </span>
+
+            {/* Tombol Batal Manual di Kanan Pill */}
+            <button
+              type="button"
+              onClick={handleManualCancel}
+              className={styles.cancelRecordBtn}
+              title="Batalkan Perekaman"
+            >
+              <IconClose />
+              <span>Batal</span>
+            </button>
           </div>
         ) : (
           <>
