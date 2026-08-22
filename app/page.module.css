@@ -129,7 +129,36 @@
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
-.messageWrapper { display: flex; width: 100%; }
+.messageWrapper { display: flex; width: 100%; position: relative; }
+
+/* SWIPE ACTION CONTAINERS */
+.swipeContainer {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+}
+
+.swipeTrashBackground {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background-color: rgba(249, 115, 22, 0.08);
+  border-radius: 18px;
+  pointer-events: none;
+}
+
+.swipeContent {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+}
 
 .bubble { 
   max-width: 90%; 
@@ -139,7 +168,7 @@
   backdrop-filter: blur(16px); 
   box-shadow: 0 4px 12px var(--shadow-bubble); 
   word-break: break-word; 
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .clickableBubble { cursor: pointer; }
@@ -168,6 +197,12 @@
   border-radius: 18px 18px 18px 4px !important; 
 }
 
+/* OUTLINE GLOW ORANGE UNTUK PESAN PILIHAN DI SINGLE MODE */
+.orangeOutlineGlow {
+  border: 2px solid var(--accent-orange) !important;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.6) !important;
+}
+
 .roleHeader { 
   display: flex; 
   justify-content: space-between; 
@@ -178,35 +213,6 @@
 
 .roleLabel { font-size: clamp(0.6rem, 1.8vw, 0.7rem); opacity: 0.9; }
 .textContent { white-space: pre-wrap; line-height: 1.4; word-break: break-word; }
-
-.closeBubbleBtn {
-  background: transparent;
-  border: none;
-  font-size: 0.75rem;
-  font-weight: 800;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-  border-radius: 50%;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.closeBtnOrange { color: var(--accent-orange); }
-.closeBtnOrange:hover {
-  color: #ffffff;
-  background-color: var(--accent-orange);
-  transform: scale(1.1);
-}
-
-.closeBtnBlack { color: #000000; }
-.closeBtnBlack:hover {
-  color: #ffffff;
-  background-color: #000000;
-  transform: scale(1.1);
-}
 
 .loadingDots { display: inline-flex; align-items: center; gap: 4px; }
 .loadingDots .dot {
@@ -237,13 +243,14 @@
   padding: 4px;
 }
 
-.dynamicStatusBubble {
+/* BUBBLE STATUS AVA UKURAN FIXED TERKONTROL (110PX) */
+.dynamicStatusBubbleFixed {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 10px 12px 22px 12px;
+  padding: 8px 12px 20px 12px;
   border-radius: 16px;
   border: 1px solid var(--accent-orange-border);
   background-color: var(--accent-orange-subtle);
@@ -252,10 +259,10 @@
   margin-bottom: 6px;
   width: 96%;
   max-width: 380px;
-  min-height: 90px;
-  max-height: 150px;
+  height: 110px;
   box-sizing: border-box;
   z-index: 15;
+  flex-shrink: 0;
 }
 
 .welcomeContainer {
@@ -299,7 +306,7 @@
   width: 100%;
   height: 1px;
   background: linear-gradient(90deg, rgba(249, 115, 22, 0.6) 0%, rgba(63, 63, 70, 0.4) 100%);
-  margin: 5px 0;
+  margin: 4px 0;
   flex-shrink: 0;
 }
 
@@ -696,13 +703,6 @@
   border-color: var(--border-zinc);
 }
 
-.singleModeActive {
-  background-color: rgba(249, 115, 22, 0.2) !important;
-  border-color: var(--accent-orange) !important;
-  color: var(--accent-orange) !important;
-  font-weight: 700 !important;
-}
-
 .clearChipButton {
   flex: 0 0 auto;
   background-color: rgba(239, 68, 68, 0.15);
@@ -724,10 +724,38 @@
   background-color: var(--bg-dark-1);
   border: 1px solid var(--border-input);
   border-radius: 9999px;
-  padding: 4px 6px 4px 12px;
+  padding: 4px 6px 4px 6px;
   min-height: 46px;
   box-sizing: border-box;
   width: 100%;
+}
+
+/* TOMBOL BULAT MODE LETAKNYA DI KIRI DALAM BARIS INPUT */
+.circleModeBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-zinc);
+  background-color: var(--bg-dark-2);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.circleModeBtn:hover {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+}
+
+.circleModeSingleActive {
+  background-color: rgba(249, 115, 22, 0.2) !important;
+  border-color: var(--accent-orange) !important;
+  color: var(--accent-orange) !important;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
 }
 
 .inputBodyContainer {
@@ -753,6 +781,7 @@
   outline: none;
   font-size: 0.85rem;
   padding-right: 45px;
+  padding-left: 4px;
 }
 
 .rightActionGroup {

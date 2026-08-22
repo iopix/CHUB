@@ -32,6 +32,94 @@ const IconSpeaker = () => (
   </svg>
 );
 
+const IconTrashOrange = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
+
+// Komponen Pembungkus Swipe untuk Mengubah/Menghapus Message
+function SwipeableMessage({ 
+  children, 
+  onDelete 
+}: { 
+  children: React.ReactNode; 
+  onDelete: () => void;
+}) {
+  const [translateX, setTranslateX] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const startXRef = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping) return;
+    const diff = e.touches[0].clientX - startXRef.current;
+    if (Math.abs(diff) < 120) {
+      setTranslateX(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsSwiping(false);
+    if (Math.abs(translateX) > 65) {
+      onDelete();
+    }
+    setTranslateX(0);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    startXRef.current = e.clientX;
+    setIsSwiping(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isSwiping) return;
+    const diff = e.clientX - startXRef.current;
+    if (Math.abs(diff) < 120) {
+      setTranslateX(diff);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (isSwiping && Math.abs(translateX) > 65) {
+      onDelete();
+    }
+    setIsSwiping(false);
+    setTranslateX(0);
+  };
+
+  return (
+    <div 
+      className={styles.swipeContainer}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <div className={styles.swipeTrashBackground}>
+        <IconTrashOrange />
+      </div>
+      <div 
+        className={styles.swipeContent} 
+        style={{ 
+          transform: `translateX(${translateX}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.2s ease-out'
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -63,8 +151,8 @@ export default function Home() {
   const [activeModel, setActiveModel] = useState<string>('Auto-Detect Server');
   const [isRecording, setIsRecording] = useState<boolean>(false);
 
-  // STATE SINGLE CHAT MODE
   const [isSingleChat, setIsSingleChat] = useState<boolean>(false);
+  const [activeSingleIndex, setActiveSingleIndex] = useState<number | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -84,7 +172,6 @@ export default function Home() {
 
   useEffect(() => { activeReactionRef.current = activeReaction; }, [activeReaction]);
 
-  // SINKRONISASI SINGLE CHAT DAN AUTO VOICE
   useEffect(() => {
     if (isSingleChat) {
       setPrevMultiAutoVoice(autoVoice);
@@ -280,6 +367,9 @@ export default function Home() {
 
   const handleChatMessageClick = (msg: Message, index: number) => {
     setIsWelcomeBubble(false);
+    if (isSingleChat) {
+      setActiveSingleIndex(index);
+    }
     startSyncSpeechAndTyping(msg.content, index);
   };
 
@@ -316,6 +406,7 @@ export default function Home() {
     const initialGreeting = `Halo ${getUserName()}, haha Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
     const initialMsg: Message = { role: 'assistant', content: initialGreeting };
     setMessages([initialMsg]);
+    setActiveSingleIndex(null);
 
     if (autoVoice) {
       startSyncSpeechAndTyping(initialGreeting, 0);
@@ -328,6 +419,7 @@ export default function Home() {
   const handleRemoveSingleMessage = (indexToRemove: number) => {
     stopAudio();
     setMessages(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    if (activeSingleIndex === indexToRemove) setActiveSingleIndex(null);
     setDisplayedStatusText('');
   };
 
@@ -392,8 +484,10 @@ export default function Home() {
     if (isSingleChat) {
       const userMsg: Message = { role: 'user', content: presetKey };
       const updatedMessages = [...messages, userMsg];
+      const newIdx = updatedMessages.length - 1;
       setMessages(updatedMessages);
-      startSyncSpeechAndTyping(presetKey, updatedMessages.length - 1);
+      setActiveSingleIndex(newIdx);
+      startSyncSpeechAndTyping(presetKey, newIdx);
       return;
     }
 
@@ -413,7 +507,6 @@ export default function Home() {
     const updatedMessages = [...messages, userMsg, aiMsg];
     setMessages(updatedMessages);
 
-    // KONTROL PENYUARAAN MULTI CHAT
     if (autoVoice) {
       startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
     } else {
@@ -435,16 +528,16 @@ export default function Home() {
 
     const userMsg: Message = { role: 'user', content: query };
 
-    // MODE SINGLE CHAT
     if (isSingleChat) {
       const updatedMessages = [...messages, userMsg];
+      const newIdx = updatedMessages.length - 1;
       setMessages(updatedMessages);
+      setActiveSingleIndex(newIdx);
       if (!textToSend) setInput('');
-      startSyncSpeechAndTyping(query, updatedMessages.length - 1);
+      startSyncSpeechAndTyping(query, newIdx);
       return;
     }
 
-    // MODE MULTI CHAT
     if (isTimeQuestion(query)) {
       if (!textToSend) setInput('');
       const timeReply = getLocalTimeResponse();
@@ -480,7 +573,6 @@ export default function Home() {
         const updatedMessages = [...newMessages, aiMsg];
         setMessages(updatedMessages);
 
-        // AVA HANYA MEMBACA JIKA AUTO VOICE ON DI MULTI CHAT
         if (autoVoice) {
           startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
         } else {
@@ -521,7 +613,7 @@ export default function Home() {
           <div className={styles.chatBox}>
             {messages.map((msg, index) => {
               const isUser = msg.role === 'user';
-              const isBlackBg = isSingleChat || !isUser;
+              const isSelectedInSingle = isSingleChat && activeSingleIndex === index;
 
               return (
                 <div 
@@ -529,36 +621,26 @@ export default function Home() {
                   className={styles.messageWrapper} 
                   style={{ justifyContent: isSingleChat ? 'flex-start' : (isUser ? 'flex-end' : 'flex-start') }}
                 >
-                  <div 
-                    onClick={() => handleChatMessageClick(msg, index)}
-                    className={`${styles.bubble} ${
-                      isSingleChat 
-                        ? styles.blackSingleBubble 
-                        : (isUser ? styles.userBubble : styles.aiBubble)
-                    } ${styles.clickableBubble}`}
-                    title="Klik untuk tampilkan & dengar di Avatar"
-                  >
-                    <div className={styles.roleHeader}>
-                      <span className={styles.roleLabel} style={{ color: !isUser || isSingleChat ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
-                        {isUser ? getUserName() : 'SukaChub Virtual Chat'}
-                      </span>
-
-                      <button
-                        type="button"
-                        className={`${styles.closeBubbleBtn} ${isBlackBg ? styles.closeBtnOrange : styles.closeBtnBlack}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveSingleMessage(index);
-                        }}
-                        title="Hapus pesan ini"
-                      >
-                        &#10005;
-                      </button>
+                  <SwipeableMessage onDelete={() => handleRemoveSingleMessage(index)}>
+                    <div 
+                      onClick={() => handleChatMessageClick(msg, index)}
+                      className={`${styles.bubble} ${
+                        isSingleChat 
+                          ? styles.blackSingleBubble 
+                          : (isUser ? styles.userBubble : styles.aiBubble)
+                      } ${isSelectedInSingle ? styles.orangeOutlineGlow : ''} ${styles.clickableBubble}`}
+                      title="Geser Kiri/Kanan untuk Hapus Pesan"
+                    >
+                      <div className={styles.roleHeader}>
+                        <span className={styles.roleLabel} style={{ color: !isUser || isSingleChat ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
+                          {isUser ? getUserName() : 'SukaChub Virtual Chat'}
+                        </span>
+                      </div>
+                      <div className={styles.textContent}>
+                        {msg.content}
+                      </div>
                     </div>
-                    <div className={styles.textContent}>
-                      {msg.content}
-                    </div>
-                  </div>
+                  </SwipeableMessage>
                 </div>
               );
             })}
@@ -576,7 +658,7 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          <div className={styles.dynamicStatusBubble}>
+          <div className={styles.dynamicStatusBubbleFixed}>
             {isWelcomeBubble ? (
               <div className={styles.welcomeContainer}>
                 <div className={styles.welcomeTitle}>SELAMAT DATANG</div>
@@ -587,7 +669,6 @@ export default function Home() {
               </div>
             ) : (
               <div className={styles.bubbleStatusBox}>
-                {/* HEADER INFO AUTO VOICE FIXED (TIDAK IKUT TER-SCROLL) */}
                 <div className={styles.bubbleStatusHeader}>
                   {autoVoice ? (
                     <span className={styles.idlePromptText}>
@@ -602,7 +683,6 @@ export default function Home() {
 
                 <div className={styles.dynamicDividerLine} />
 
-                {/* KONTEN TEKS KETIKAN DENGAN SCROLL SEPARATE */}
                 <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
                   {displayedStatusText && (
                     <>
