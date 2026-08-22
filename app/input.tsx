@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from 'react';
-import { UserProfile } from './header';
+import React, { useRef } from 'react';
 import styles from './page.module.css';
 
 interface TrialPreset {
@@ -12,7 +11,7 @@ interface TrialPreset {
 interface InputSectionProps {
   input: string;
   setInput: (value: string) => void;
-  userProfile: UserProfile | null;
+  userProfile: any;
   textTrialCount: number;
   voiceTrialCount: number;
   loading: boolean;
@@ -20,55 +19,34 @@ interface InputSectionProps {
   isRecording: boolean;
   isInitialized: boolean;
   trialPresets: Record<string, TrialPreset>;
-  handleSend: (textToSend?: string) => void;
+  isSingleChat: boolean;
+  setIsSingleChat: (val: boolean) => void;
+  handleSend: (text?: string) => void;
   handleClearChat: () => void;
-  handlePillClick: (presetKey: string) => void;
+  handlePillClick: (key: string) => void;
   startRecording: () => void;
   stopRecording: (cancel?: boolean) => void;
 }
 
-const IconSend = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13" />
-    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+const IconSingleChat = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    <polygon points="13 8 10 12 12 12 11 16 14 12 12 12 13 8" fill="currentColor" />
   </svg>
 );
 
-const IconMic = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-    <line x1="12" y1="19" x2="12" y2="23" />
-    <line x1="8" y1="23" x2="16" y2="23" />
-  </svg>
-);
-
-const IconKeyboard = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
-    <line x1="6" y1="8" x2="6.01" y2="8" />
-    <line x1="10" y1="8" x2="10.01" y2="8" />
-    <line x1="14" y1="8" x2="14.01" y2="8" />
-    <line x1="18" y1="8" x2="18.01" y2="8" />
-    <line x1="6" y1="12" x2="6.01" y2="12" />
-    <line x1="10" y1="12" x2="10.01" y2="12" />
-    <line x1="14" y1="12" x2="14.01" y2="12" />
-    <line x1="18" y1="12" x2="18.01" y2="12" />
-    <line x1="8" y1="16" x2="16" y2="16" />
+const IconMultiChat = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 v.5z" />
   </svg>
 );
 
 const IconTrash = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-  </svg>
-);
-
-const IconClose = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
   </svg>
 );
 
@@ -78,298 +56,136 @@ export default function InputSection({
   loading,
   isRecording,
   trialPresets,
+  isSingleChat,
+  setIsSingleChat,
   handleSend,
   handleClearChat,
   handlePillClick,
   startRecording,
   stopRecording,
 }: InputSectionProps) {
-  const [inputMode, setInputMode] = useState<'text' | 'voice'>('text');
-  const [isCancelRecording, setIsCancelRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
-  const [volumeHeights, setVolumeHeights] = useState<number[]>([4, 4, 4, 4, 4, 4]);
-
-  const startPosYRef = useRef<number>(0);
-  const isPointerDownRef = useRef<boolean>(false);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const isMouseDownScrollRef = useRef(false);
-  const startXRef = useRef(0);
-  const scrollLeftRef = useRef(0);
 
-  // Responsive Audio Visualizer Real-Time
-  useEffect(() => {
-    if (isRecording) {
-      setRecordSeconds(0);
-      timerIntervalRef.current = setInterval(() => {
-        setRecordSeconds((prev) => prev + 1);
-      }, 1000);
-
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        mediaStreamRef.current = stream;
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const audioCtx = new AudioCtx();
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64;
-        analyser.smoothingTimeConstant = 0.4;
-
-        const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(analyser);
-
-        audioContextRef.current = audioCtx;
-        analyserRef.current = analyser;
-
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-        const updateVisualizer = () => {
-          analyser.getByteFrequencyData(dataArray);
-
-          // Peningkatan sensitivitas lompatan grafik audio
-          const newHeights = [
-            Math.min(28, Math.max(4, (dataArray[1] || 0) / 4)),
-            Math.min(28, Math.max(4, (dataArray[3] || 0) / 3)),
-            Math.min(28, Math.max(4, (dataArray[6] || 0) / 2.5)),
-            Math.min(28, Math.max(4, (dataArray[8] || 0) / 2.5)),
-            Math.min(28, Math.max(4, (dataArray[5] || 0) / 3)),
-            Math.min(28, Math.max(4, (dataArray[2] || 0) / 4)),
-          ];
-
-          setVolumeHeights(newHeights);
-          animationFrameRef.current = requestAnimationFrame(updateVisualizer);
-        };
-
-        updateVisualizer();
-      }).catch((err) => {
-        console.warn('Gagal akses audio visualizer:', err);
-      });
-    } else {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
-      if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-
-      setRecordSeconds(0);
-      setVolumeHeights([4, 4, 4, 4, 4, 4]);
-    }
-
-    return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    };
-  }, [isRecording]);
-
-  // Handle Global Pointer Up -> Lepas kirim langsung
-  useEffect(() => {
-    const handleGlobalPointerMove = (e: MouseEvent | TouchEvent) => {
-      if (!isPointerDownRef.current) return;
-      const currentY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-      if (startPosYRef.current - currentY > 50) {
-        setIsCancelRecording(true);
-      } else {
-        setIsCancelRecording(false);
-      }
-    };
-
-    const handleGlobalPointerUp = () => {
-      if (!isPointerDownRef.current) return;
-      isPointerDownRef.current = false;
-      stopRecording(isCancelRecording);
-      setIsCancelRecording(false);
-    };
-
-    window.addEventListener('mousemove', handleGlobalPointerMove);
-    window.addEventListener('mouseup', handleGlobalPointerUp);
-    window.addEventListener('touchmove', handleGlobalPointerMove);
-    window.addEventListener('touchend', handleGlobalPointerUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalPointerMove);
-      window.removeEventListener('mouseup', handleGlobalPointerUp);
-      window.removeEventListener('touchmove', handleGlobalPointerMove);
-      window.removeEventListener('touchend', handleGlobalPointerUp);
-    };
-  }, [stopRecording, isCancelRecording]);
-
-  const handlePointerStart = (clientY: number) => {
-    isPointerDownRef.current = true;
-    startPosYRef.current = clientY;
-    setIsCancelRecording(false);
-    startRecording();
-  };
-
-  const handleManualCancel = () => {
-    isPointerDownRef.current = false;
-    stopRecording(true);
-    setIsCancelRecording(false);
-  };
-
-  const handleMouseDownScroll = (e: React.MouseEvent) => {
-    if (!scrollRef.current) return;
-    isMouseDownScrollRef.current = true;
-    startXRef.current = e.pageX - scrollRef.current.offsetLeft;
-    scrollLeftRef.current = scrollRef.current.scrollLeft;
-  };
-
-  const handleMouseLeaveScroll = () => { isMouseDownScrollRef.current = false; };
-  const handleMouseUpScroll = () => { isMouseDownScrollRef.current = false; };
-
-  const handleMouseMoveScroll = (e: React.MouseEvent) => {
-    if (!isMouseDownScrollRef.current || !scrollRef.current) return;
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startXRef.current) * 2;
-    scrollRef.current.scrollLeft = scrollLeftRef.current - walk;
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+    if (!loading && input.trim()) {
       handleSend();
     }
   };
 
-  const formatTimer = (sec: number) => {
-    const mins = Math.floor(sec / 60);
-    const secs = sec % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
   return (
-    <footer className={styles.footerWrapper}>
+    <div className={styles.footerWrapper}>
       <div className={styles.capsuleRowWrapper}>
-        <button
-          type="button"
-          onClick={handleClearChat}
-          className={`${styles.dynamicChipButton} ${styles.clearChipButton}`}
-          title="Hapus Chat"
-        >
-          <IconTrash />
-          <span>Hapus Chat</span>
-        </button>
+        <div className={styles.capsuleRowScroll} ref={scrollRef}>
+          <button
+            type="button"
+            onClick={handleClearChat}
+            className={`${styles.dynamicChipButton} ${styles.clearChipButton}`}
+            title="Hapus Percakapan"
+          >
+            <IconTrash />
+            <span>Hapus Chat</span>
+          </button>
 
-        <div
-          ref={scrollRef}
-          className={styles.capsuleRowScroll}
-          onMouseDown={handleMouseDownScroll}
-          onMouseLeave={handleMouseLeaveScroll}
-          onMouseUp={handleMouseUpScroll}
-          onMouseMove={handleMouseMoveScroll}
-        >
+          <button
+            type="button"
+            onClick={() => setIsSingleChat(!isSingleChat)}
+            className={`${styles.dynamicChipButton} ${isSingleChat ? styles.singleModeActive : ''}`}
+            title="Klik untuk switch mode chat"
+          >
+            {isSingleChat ? <IconSingleChat /> : <IconMultiChat />}
+            <span>{isSingleChat ? 'Single Chat' : 'Multi Chat'}</span>
+          </button>
+
           {Object.keys(trialPresets).map((presetKey) => (
             <button
               key={presetKey}
               type="button"
               onClick={() => handlePillClick(presetKey)}
               className={styles.dynamicChipButton}
+              disabled={loading}
             >
               {presetKey}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => handlePillClick('Sekarang tanggal berapa?')}
-            className={styles.dynamicChipButton}
-          >
-            Sekarang tanggal berapa?
-          </button>
         </div>
       </div>
 
       <div className={styles.mainInputBox}>
-        {isRecording ? (
-          <div className={`${styles.recordingOverlay} ${isCancelRecording ? styles.recordingOverlayCancel : ''}`}>
-            <div className={styles.waveformContainer}>
-              {volumeHeights.map((height, idx) => (
-                <span
-                  key={idx}
-                  className={styles.waveBarRealtime}
-                  style={{ height: `${height}px` }}
-                />
-              ))}
-            </div>
-
-            <span className={styles.recordingTimer}>
-              {formatTimer(recordSeconds)}
-            </span>
-
-            <span className={styles.recordingText}>
-              {isCancelRecording ? 'Batal merekam...' : 'Lepas untuk kirim'}
-            </span>
-
-            {/* Tombol Batal Manual di Kanan Pill */}
-            <button
-              type="button"
-              onClick={handleManualCancel}
-              className={styles.cancelRecordBtn}
-              title="Batalkan Perekaman"
-            >
-              <IconClose />
-              <span>Batal</span>
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className={styles.inputBodyContainer}>
-              {inputMode === 'voice' ? (
-                <button
-                  type="button"
-                  onMouseDown={(e) => handlePointerStart(e.clientY)}
-                  onTouchStart={(e) => handlePointerStart(e.touches[0].clientY)}
-                  className={styles.holdToTalkButton}
-                >
-                  Tahan untuk berbicara
-                </button>
-              ) : (
-                <div className={styles.textForm}>
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ketik pesan..."
-                    className={styles.inputField}
-                    maxLength={500}
-                    disabled={loading}
-                  />
-                  {input.length > 0 && (
-                    <span className={styles.charCounter}>{input.length}/500</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className={styles.rightActionGroup}>
+        <div className={styles.inputBodyContainer}>
+          {isRecording ? (
+            <div className={styles.recordingOverlay}>
+              <div className={styles.waveformContainer}>
+                <span className={styles.waveBarRealtime} style={{ height: '16px' }} />
+                <span className={styles.waveBarRealtime} style={{ height: '22px' }} />
+                <span className={styles.waveBarRealtime} style={{ height: '12px' }} />
+              </div>
+              <span className={styles.recordingText}>Merekam suara... Sampaikan pesanmu</span>
               <button
                 type="button"
-                onClick={() => setInputMode(inputMode === 'text' ? 'voice' : 'text')}
-                className={styles.modeToggleButton}
-                title={inputMode === 'text' ? 'Beralih ke Suara' : 'Beralih ke Teks'}
+                className={styles.cancelRecordBtn}
+                onClick={() => stopRecording(true)}
               >
-                {inputMode === 'text' ? <IconMic /> : <IconKeyboard />}
+                Batal
               </button>
-
-              {inputMode === 'text' && (
-                <button
-                  type="button"
-                  onClick={() => handleSend()}
-                  disabled={loading || !input.trim()}
-                  className={styles.sendIconButton}
-                  style={{ opacity: loading || !input.trim() ? 0.5 : 1 }}
-                >
-                  <IconSend />
-                </button>
-              )}
             </div>
-          </>
-        )}
+          ) : (
+            <form onSubmit={handleSubmit} className={styles.textForm}>
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ketik pesan untuk Ava..."
+                className={styles.inputField}
+                disabled={loading}
+              />
+            </form>
+          )}
+        </div>
+
+        <div className={styles.rightActionGroup}>
+          {isRecording ? (
+            <button
+              type="button"
+              onClick={() => stopRecording(false)}
+              className={styles.sendIconButton}
+              title="Selesai & Kirim Suara"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+          ) : input.trim() ? (
+            <button
+              type="button"
+              onClick={() => handleSend()}
+              disabled={loading}
+              className={styles.sendIconButton}
+              title="Kirim Pesan"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startRecording}
+              disabled={loading}
+              className={styles.modeToggleButton}
+              title="Tahan/Klik untuk Rekam Suara"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
-    </footer>
+    </div>
   );
 }

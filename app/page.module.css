@@ -1,7 +1,3 @@
-/* ==========================================================================
-   PAGE.MODULE.CSS - BERSIP & TERBUKA TANPA OVERLAY NUTUP BUBBLE
-   ========================================================================== */
-
 :root {
   --bg-black: #09090b;
   --bg-dark-1: #18181b;
@@ -165,16 +161,52 @@
   border-radius: 18px 18px 18px 4px; 
 }
 
+.blackSingleBubble {
+  background-color: var(--bg-ai-bubble) !important; 
+  color: var(--text-light) !important; 
+  border: 1px solid var(--border-zinc-subtle) !important; 
+  border-radius: 18px 18px 18px 4px !important; 
+}
+
 .roleHeader { 
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
   margin-bottom: 3px; 
-  gap: 4px; 
+  gap: 8px; 
 }
 
 .roleLabel { font-size: clamp(0.6rem, 1.8vw, 0.7rem); opacity: 0.9; }
 .textContent { white-space: pre-wrap; line-height: 1.4; word-break: break-word; }
+
+.closeBubbleBtn {
+  background: transparent;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeBtnOrange { color: var(--accent-orange); }
+.closeBtnOrange:hover {
+  color: #ffffff;
+  background-color: var(--accent-orange);
+  transform: scale(1.1);
+}
+
+.closeBtnBlack { color: #000000; }
+.closeBtnBlack:hover {
+  color: #ffffff;
+  background-color: #000000;
+  transform: scale(1.1);
+}
 
 .loadingDots { display: inline-flex; align-items: center; gap: 4px; }
 .loadingDots .dot {
@@ -205,7 +237,6 @@
   padding: 4px;
 }
 
-/* Dynamic Status Bubble yang Bebas dari Masking / Overlay */
 .dynamicStatusBubble {
   position: relative;
   display: flex;
@@ -251,25 +282,30 @@
   color: var(--text-muted);
 }
 
-.audioRenderingBox {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+.bubbleStatusBox {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.renderingText {
-  font-size: clamp(0.68rem, 1.8vw, 0.78rem);
-  color: var(--accent-orange);
-  font-weight: 600;
-  font-style: italic;
+.bubbleStatusHeader {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.dynamicDividerLine {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.6) 0%, rgba(63, 63, 70, 0.4) 100%);
+  margin: 5px 0;
+  flex-shrink: 0;
 }
 
 .dynamicStatusTextScroll {
   width: 100%;
-  max-height: 110px;
+  flex-grow: 1;
   overflow-y: auto;
   font-size: clamp(0.68rem, 1.8vw, 0.78rem);
   font-weight: 600;
@@ -281,10 +317,11 @@
 }
 
 .idlePromptText {
-  font-size: clamp(0.64rem, 1.6vw, 0.74rem);
+  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
   color: var(--text-muted);
   line-height: 1.35;
   font-style: italic;
+  display: block;
 }
 
 .bubbleBottomLeftVisualizer {
@@ -589,6 +626,11 @@
   box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);
 }
 
+.disabledAutoVoiceBtn {
+  opacity: 0.7;
+  cursor: not-allowed !important;
+}
+
 .footerWrapper {
   display: flex;
   flex-direction: column;
@@ -654,6 +696,13 @@
   border-color: var(--border-zinc);
 }
 
+.singleModeActive {
+  background-color: rgba(249, 115, 22, 0.2) !important;
+  border-color: var(--accent-orange) !important;
+  color: var(--accent-orange) !important;
+  font-weight: 700 !important;
+}
+
 .clearChipButton {
   flex: 0 0 auto;
   background-color: rgba(239, 68, 68, 0.15);
@@ -704,36 +753,6 @@
   outline: none;
   font-size: 0.85rem;
   padding-right: 45px;
-}
-
-.charCounter {
-  position: absolute;
-  right: 6px;
-  font-size: 0.6rem;
-  color: var(--text-subtle);
-  pointer-events: none;
-}
-
-.holdToTalkButton {
-  width: 100%;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-  color: var(--text-white);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
-  border: none;
-}
-
-.holdToTalkButton:active {
-  background-color: rgba(249, 115, 22, 0.1);
-  border-radius: 9999px;
 }
 
 .rightActionGroup {
@@ -788,11 +807,6 @@
   transition: background-color 0.2s ease;
 }
 
-.recordingOverlayCancel {
-  background-color: rgba(239, 68, 68, 0.2) !important;
-  border: 1px solid rgba(239, 68, 68, 0.4);
-}
-
 .waveformContainer {
   display: flex;
   align-items: center;
@@ -810,26 +824,6 @@
   transition: height 0.05s ease;
 }
 
-.recordingOverlayCancel .waveBarRealtime {
-  background-color: var(--color-danger);
-}
-
-.recordingTimer {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--accent-orange);
-  font-family: monospace;
-  background: rgba(249, 115, 22, 0.15);
-  padding: 2px 6px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-
-.recordingOverlayCancel .recordingTimer {
-  color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.15);
-}
-
 .recordingText {
   font-size: 0.7rem;
   font-weight: 600;
@@ -838,10 +832,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-}
-
-.recordingOverlayCancel .recordingText {
-  color: var(--color-danger);
 }
 
 .cancelRecordBtn {

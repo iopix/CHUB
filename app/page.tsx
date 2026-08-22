@@ -55,12 +55,16 @@ export default function Home() {
   const [selectedVoice, setSelectedVoice] = useState<string>('voice1');
   const [isVoiceDropdownOpen, setIsVoiceDropdownOpen] = useState<boolean>(false);
   const [autoVoice, setAutoVoice] = useState<boolean>(false);
+  const [prevMultiAutoVoice, setPrevMultiAutoVoice] = useState<boolean>(false);
   
   const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [activeModel, setActiveModel] = useState<string>('Auto-Detect Server');
   const [isRecording, setIsRecording] = useState<boolean>(false);
+
+  // STATE SINGLE CHAT MODE
+  const [isSingleChat, setIsSingleChat] = useState<boolean>(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -79,6 +83,16 @@ export default function Home() {
   const voiceMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { activeReactionRef.current = activeReaction; }, [activeReaction]);
+
+  // SINKRONISASI SINGLE CHAT DAN AUTO VOICE
+  useEffect(() => {
+    if (isSingleChat) {
+      setPrevMultiAutoVoice(autoVoice);
+      setAutoVoice(true);
+    } else {
+      setAutoVoice(prevMultiAutoVoice);
+    }
+  }, [isSingleChat]);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -230,10 +244,9 @@ export default function Home() {
         setIsAudioRendering(false);
         setPlayingIndex(index);
         let charIndex = 0;
-        setDisplayedStatusText('');
 
-        const audioDurationMs = (audio.duration || 3) * 1000;
-        const typingSpeed = Math.max(15, Math.floor(audioDurationMs / cleanText.length));
+        const audioDurationMs = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration * 1000 : 3000;
+        const typingSpeed = Math.max(10, Math.floor(audioDurationMs / cleanText.length));
 
         const typeNextChar = () => {
           if (charIndex <= cleanText.length) {
@@ -250,7 +263,7 @@ export default function Home() {
 
       audio.onended = () => {
         stopAudio();
-        setDisplayedStatusText(''); // Dikosongkan agar kembali ke status info
+        setDisplayedStatusText('');
       };
       audio.onerror = () => {
         stopAudio();
@@ -267,7 +280,6 @@ export default function Home() {
 
   const handleChatMessageClick = (msg: Message, index: number) => {
     setIsWelcomeBubble(false);
-    setDisplayedStatusText(msg.content);
     startSyncSpeechAndTyping(msg.content, index);
   };
 
@@ -311,6 +323,12 @@ export default function Home() {
       setIsWelcomeBubble(true);
       setDisplayedStatusText('');
     }
+  };
+
+  const handleRemoveSingleMessage = (indexToRemove: number) => {
+    stopAudio();
+    setMessages(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    setDisplayedStatusText('');
   };
 
   const startRecording = async () => {
@@ -370,6 +388,15 @@ export default function Home() {
 
   const handlePillClick = (presetKey: string) => {
     const name = getUserName();
+
+    if (isSingleChat) {
+      const userMsg: Message = { role: 'user', content: presetKey };
+      const updatedMessages = [...messages, userMsg];
+      setMessages(updatedMessages);
+      startSyncSpeechAndTyping(presetKey, updatedMessages.length - 1);
+      return;
+    }
+
     if (userProfile) { handleSend(presetKey); return; }
     if (textTrialCount >= 2) { router.push('/login'); return; }
     const preset = TRIAL_PRESETS[presetKey];
@@ -386,7 +413,7 @@ export default function Home() {
     const updatedMessages = [...messages, userMsg, aiMsg];
     setMessages(updatedMessages);
 
-    // DENGAN LOGIKA BARU: Teks AI TIDAK DITAMPILKAN di bubble ava kecuali autoVoice diset ON
+    // KONTROL PENYUARAAN MULTI CHAT
     if (autoVoice) {
       startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
     } else {
@@ -406,8 +433,19 @@ export default function Home() {
     const query = textToSend || input;
     if (!query.trim() || loading) return;
 
+    const userMsg: Message = { role: 'user', content: query };
+
+    // MODE SINGLE CHAT
+    if (isSingleChat) {
+      const updatedMessages = [...messages, userMsg];
+      setMessages(updatedMessages);
+      if (!textToSend) setInput('');
+      startSyncSpeechAndTyping(query, updatedMessages.length - 1);
+      return;
+    }
+
+    // MODE MULTI CHAT
     if (isTimeQuestion(query)) {
-      const userMsg: Message = { role: 'user', content: query };
       if (!textToSend) setInput('');
       const timeReply = getLocalTimeResponse();
       const aiMsg: Message = { role: 'assistant', content: timeReply };
@@ -423,7 +461,6 @@ export default function Home() {
       return;
     }
 
-    const userMsg: Message = { role: 'user', content: query };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     if (!textToSend) setInput('');
@@ -443,7 +480,7 @@ export default function Home() {
         const updatedMessages = [...newMessages, aiMsg];
         setMessages(updatedMessages);
 
-        // HAPUS DUKUNGAN KELUAR TEKS AI DI BUBBLE AVA SAAT AUTO VOICE OFF
+        // AVA HANYA MEMBACA JIKA AUTO VOICE ON DI MULTI CHAT
         if (autoVoice) {
           startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
         } else {
@@ -482,28 +519,49 @@ export default function Home() {
       <div className={styles.mainContent}>
         <div className={styles.chatSection}>
           <div className={styles.chatBox}>
-            {messages.map((msg, index) => (
-              <div 
-                key={index} 
-                className={styles.messageWrapper} 
-                style={{ justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}
-              >
+            {messages.map((msg, index) => {
+              const isUser = msg.role === 'user';
+              const isBlackBg = isSingleChat || !isUser;
+
+              return (
                 <div 
-                  onClick={() => handleChatMessageClick(msg, index)}
-                  className={`${styles.bubble} ${msg.role === 'user' ? styles.userBubble : styles.aiBubble} ${styles.clickableBubble}`}
-                  title="Klik untuk tampilkan & dengar di Avatar"
+                  key={index} 
+                  className={styles.messageWrapper} 
+                  style={{ justifyContent: isSingleChat ? 'flex-start' : (isUser ? 'flex-end' : 'flex-start') }}
                 >
-                  <div className={styles.roleHeader}>
-                    <span className={styles.roleLabel} style={{ color: msg.role === 'assistant' ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
-                      {msg.role === 'user' ? getUserName() : 'SukaChub Virtual Chat'}
-                    </span>
-                  </div>
-                  <div className={styles.textContent}>
-                    {msg.content}
+                  <div 
+                    onClick={() => handleChatMessageClick(msg, index)}
+                    className={`${styles.bubble} ${
+                      isSingleChat 
+                        ? styles.blackSingleBubble 
+                        : (isUser ? styles.userBubble : styles.aiBubble)
+                    } ${styles.clickableBubble}`}
+                    title="Klik untuk tampilkan & dengar di Avatar"
+                  >
+                    <div className={styles.roleHeader}>
+                      <span className={styles.roleLabel} style={{ color: !isUser || isSingleChat ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
+                        {isUser ? getUserName() : 'SukaChub Virtual Chat'}
+                      </span>
+
+                      <button
+                        type="button"
+                        className={`${styles.closeBubbleBtn} ${isBlackBg ? styles.closeBtnOrange : styles.closeBtnBlack}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveSingleMessage(index);
+                        }}
+                        title="Hapus pesan ini"
+                      >
+                        &#10005;
+                      </button>
+                    </div>
+                    <div className={styles.textContent}>
+                      {msg.content}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {loading && (
               <div className={styles.messageWrapper} style={{ justifyContent: 'flex-start' }}>
@@ -518,7 +576,6 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* Status Bubble Ava dengan Info Mode Eksplisit */}
           <div className={styles.dynamicStatusBubble}>
             {isWelcomeBubble ? (
               <div className={styles.welcomeContainer}>
@@ -528,19 +585,11 @@ export default function Home() {
                 </a>
                 <div className={styles.welcomeSubtitle}>sukachub virtual chat</div>
               </div>
-            ) : isAudioRendering ? (
-              <div className={styles.audioRenderingBox}>
-                <div className={styles.loadingDots}>
-                  <span className={styles.dot} />
-                  <span className={styles.dot} />
-                  <span className={styles.dot} />
-                </div>
-                <span className={styles.renderingText}>Menyiapkan suara...</span>
-              </div>
             ) : (
-              <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
-                {!isSpeaking && !displayedStatusText ? (
-                  autoVoice ? (
+              <div className={styles.bubbleStatusBox}>
+                {/* HEADER INFO AUTO VOICE FIXED (TIDAK IKUT TER-SCROLL) */}
+                <div className={styles.bubbleStatusHeader}>
+                  {autoVoice ? (
                     <span className={styles.idlePromptText}>
                       <strong style={{ color: '#f97316' }}>AUTO VOICE ON</strong> — Pesan balasan otomatis diputar suaranya oleh Ava.
                     </span>
@@ -548,17 +597,23 @@ export default function Home() {
                     <span className={styles.idlePromptText}>
                       <strong style={{ color: '#a1a1aa' }}>AUTO VOICE OFF</strong> — Sentuh/klik salah satu balon chat di kiri untuk diputar suaranya disini.
                     </span>
-                  )
-                ) : (
-                  <>
-                    <span className={styles.italicText}>{displayedStatusText}</span>
-                    <span className={styles.blinkingOrangeSlash}> /</span>
-                  </>
-                )}
+                  )}
+                </div>
+
+                <div className={styles.dynamicDividerLine} />
+
+                {/* KONTEN TEKS KETIKAN DENGAN SCROLL SEPARATE */}
+                <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
+                  {displayedStatusText && (
+                    <>
+                      <span className={styles.italicText}>{displayedStatusText}</span>
+                      <span className={styles.blinkingOrangeSlash}> /</span>
+                    </>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Visualizer Dinamis dengan Wave Flow mengikuti Suara */}
             <div className={styles.bubbleBottomLeftVisualizer}>
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
@@ -567,7 +622,6 @@ export default function Home() {
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
             </div>
 
-            {/* Tombol Speaker Replay */}
             <button
               type="button"
               onClick={handleBubbleSpeakerClick}
@@ -594,7 +648,6 @@ export default function Home() {
             <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
           </div>
 
-          {/* Kolom Sentuh Ava Grid */}
           <div className={styles.avatarTouchGridBottom}>
             <span className={styles.gridGuideLabel}>Sentuh Ava:</span>
             <div className={styles.gridGuideGroup}>
@@ -622,7 +675,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Kontrol Voice */}
           <div className={styles.bottomVoiceControlPanel}>
             <div className={styles.customVoiceDropdownWrapper} ref={voiceMenuRef}>
               <button
@@ -658,12 +710,17 @@ export default function Home() {
 
             <button 
               type="button" 
+              disabled={isSingleChat}
               onClick={() => {
+                if (isSingleChat) return;
                 const nextState = !autoVoice;
                 setAutoVoice(nextState);
                 if (!nextState) setDisplayedStatusText('');
               }} 
-              className={`${styles.textOnlyAutoVoiceBtn} ${autoVoice ? styles.autoVoiceActive : styles.autoVoiceInactive}`}
+              className={`${styles.textOnlyAutoVoiceBtn} ${
+                autoVoice ? styles.autoVoiceActive : styles.autoVoiceInactive
+              } ${isSingleChat ? styles.disabledAutoVoiceBtn : ''}`}
+              title={isSingleChat ? "Auto Voice selalu aktif di Mode Single Chat" : "Toggle Auto Voice"}
             >
               {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
             </button>
@@ -682,6 +739,8 @@ export default function Home() {
         isRecording={isRecording}
         isInitialized={isInitialized}
         trialPresets={TRIAL_PRESETS}
+        isSingleChat={isSingleChat}
+        setIsSingleChat={setIsSingleChat}
         handleSend={handleSend}
         handleClearChat={handleClearChat}
         handlePillClick={handlePillClick}
