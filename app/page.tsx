@@ -25,6 +25,13 @@ const VOICE_OPTIONS = [
   { id: 'voice5', label: 'Voice 5' },
 ];
 
+const IconSpeaker = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+  </svg>
+);
+
 export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -45,7 +52,6 @@ export default function Home() {
   const [isAudioRendering, setIsAudioRendering] = useState<boolean>(false);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   
-  // Custom Voice Dropdown State
   const [selectedVoice, setSelectedVoice] = useState<string>('voice1');
   const [isVoiceDropdownOpen, setIsVoiceDropdownOpen] = useState<boolean>(false);
   const [autoVoice, setAutoVoice] = useState<boolean>(false);
@@ -253,6 +259,17 @@ export default function Home() {
     }
   };
 
+  const handleChatMessageClick = (msg: Message, index: number) => {
+    setIsWelcomeBubble(false);
+    setDisplayedStatusText(msg.content);
+    startSyncSpeechAndTyping(msg.content, index);
+  };
+
+  const handleBubbleSpeakerClick = () => {
+    if (!displayedStatusText || isWelcomeBubble) return;
+    startSyncSpeechAndTyping(displayedStatusText, 0);
+  };
+
   const triggerReactionByPart = (part: 'kepala' | 'perut' | 'kaki') => {
     if (part === 'kepala') {
       setActiveReaction('marah');
@@ -458,8 +475,16 @@ export default function Home() {
         <div className={styles.chatSection}>
           <div className={styles.chatBox}>
             {messages.map((msg, index) => (
-              <div key={index} className={styles.messageWrapper} style={{ justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                <div className={`${styles.bubble} ${msg.role === 'user' ? styles.userBubble : styles.aiBubble}`}>
+              <div 
+                key={index} 
+                className={styles.messageWrapper} 
+                style={{ justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}
+              >
+                <div 
+                  onClick={() => handleChatMessageClick(msg, index)}
+                  className={`${styles.bubble} ${msg.role === 'user' ? styles.userBubble : styles.aiBubble} ${styles.clickableBubble}`}
+                  title="Klik untuk tampilkan & dengar di Avatar"
+                >
                   <div className={styles.roleHeader}>
                     <span className={styles.roleLabel} style={{ color: msg.role === 'assistant' ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
                       {msg.role === 'user' ? getUserName() : 'SukaChub Virtual Chat'}
@@ -485,7 +510,7 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* Status Bubble Panjang Responsif Ke Bawah */}
+          {/* Status Bubble Panjang Responsif dengan Logika AUTO VOICE OFF Dinamis */}
           <div className={styles.dynamicStatusBubble}>
             {isWelcomeBubble ? (
               <div className={styles.welcomeContainer}>
@@ -506,10 +531,36 @@ export default function Home() {
               </div>
             ) : (
               <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
-                <span className={styles.italicText}>{displayedStatusText}</span>
-                <span className={styles.blinkingOrangeSlash}> /</span>
+                {!autoVoice && !isSpeaking && !displayedStatusText ? (
+                  <span className={styles.autoVoiceOffPrompt}>
+                    <strong style={{ color: '#f97316' }}>AUTO VOICE OFF</strong> - Pilih / klik isi pesan chat di kiri untuk diputar suaranya oleh Ava!
+                  </span>
+                ) : (
+                  <>
+                    <span className={styles.italicText}>{displayedStatusText}</span>
+                    <span className={styles.blinkingOrangeSlash}> /</span>
+                  </>
+                )}
               </div>
             )}
+
+            {/* Visualizer Gelombang Mini di Kiri Bawah Bubble Ava */}
+            <div className={styles.bubbleBottomLeftVisualizer}>
+              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+            </div>
+
+            {/* Tombol Corong Speaker di Kanan Bawah Bubble Ava */}
+            <button
+              type="button"
+              onClick={handleBubbleSpeakerClick}
+              className={`${styles.bubbleSpeakerBtn} ${autoVoice || isSpeaking ? styles.bubbleSpeakerActive : ''}`}
+              title="Dengarkan Suara"
+            >
+              <IconSpeaker />
+            </button>
+
             <div className={styles.speechTail} />
           </div>
 
@@ -527,7 +578,7 @@ export default function Home() {
             <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
           </div>
 
-          {/* Kolom Sentuh Ava Ke Bawah Grid (Kepala, Badan, Kaki) */}
+          {/* Kolom Sentuh Ava Ke Bawah Grid */}
           <div className={styles.avatarTouchGridBottom}>
             <span className={styles.gridGuideLabel}>Sentuh Ava:</span>
             <div className={styles.gridGuideGroup}>
@@ -569,7 +620,6 @@ export default function Home() {
                 </svg>
               </button>
 
-              {/* Popover Menu Menggantung Dengan Ekor (Tail) */}
               {isVoiceDropdownOpen && (
                 <div className={styles.voiceTailPopover}>
                   {VOICE_OPTIONS.map((v) => (
