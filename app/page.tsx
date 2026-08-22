@@ -303,6 +303,7 @@ export default function Home() {
       startSyncSpeechAndTyping(initialGreeting, 0);
     } else {
       setIsWelcomeBubble(true);
+      setDisplayedStatusText('');
     }
   };
 
@@ -384,7 +385,7 @@ export default function Home() {
       startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
     } else {
       setIsWelcomeBubble(false);
-      setDisplayedStatusText(cleanedReply);
+      setDisplayedStatusText('');
     }
   };
 
@@ -411,7 +412,7 @@ export default function Home() {
         startSyncSpeechAndTyping(timeReply, updatedMessages.length - 1);
       } else {
         setIsWelcomeBubble(false);
-        setDisplayedStatusText(timeReply);
+        setDisplayedStatusText('');
       }
       return;
     }
@@ -440,7 +441,7 @@ export default function Home() {
           startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
         } else {
           setIsWelcomeBubble(false);
-          setDisplayedStatusText(cleanedReply);
+          setDisplayedStatusText('');
         }
       } else {
         const errorMsg = `Maaf ${getUserName()}, ada masalah teknis: ${data.error || 'Gagal tersambung.'}`;
@@ -510,7 +511,7 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* Status Bubble Panjang Responsif dengan Logika AUTO VOICE OFF Dinamis */}
+          {/* Status Bubble Ava Bersih & Terbuka Tanpa Nutup Teks */}
           <div className={styles.dynamicStatusBubble}>
             {isWelcomeBubble ? (
               <div className={styles.welcomeContainer}>
@@ -531,10 +532,17 @@ export default function Home() {
               </div>
             ) : (
               <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
-                {!autoVoice && !isSpeaking && !displayedStatusText ? (
-                  <span className={styles.autoVoiceOffPrompt}>
-                    <strong style={{ color: '#f97316' }}>AUTO VOICE OFF</strong> - Pilih / klik isi pesan chat di kiri untuk diputar suaranya oleh Ava!
-                  </span>
+                {/* PEMBEDAAN EKSPLISIT INFO AUTO VOICE ON / OFF SAAT IDLE */}
+                {!isSpeaking && !displayedStatusText ? (
+                  autoVoice ? (
+                    <span className={styles.idlePromptText}>
+                      <strong style={{ color: '#f97316' }}>AUTO VOICE ON</strong> — Pesan balasan akan otomatis diputar suaranya oleh Ava.
+                    </span>
+                  ) : (
+                    <span className={styles.idlePromptText}>
+                      <strong style={{ color: '#a1a1aa' }}>AUTO VOICE OFF</strong> — Sentuh/klik salah satu balon chat di kiri untuk memutar suaranya disini.
+                    </span>
+                  )
                 ) : (
                   <>
                     <span className={styles.italicText}>{displayedStatusText}</span>
@@ -544,14 +552,14 @@ export default function Home() {
               </div>
             )}
 
-            {/* Visualizer Gelombang Mini di Kiri Bawah Bubble Ava */}
+            {/* Visualizer Mini */}
             <div className={styles.bubbleBottomLeftVisualizer}>
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
             </div>
 
-            {/* Tombol Corong Speaker di Kanan Bawah Bubble Ava */}
+            {/* Tombol Speaker Replay */}
             <button
               type="button"
               onClick={handleBubbleSpeakerClick}
@@ -578,7 +586,7 @@ export default function Home() {
             <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
           </div>
 
-          {/* Kolom Sentuh Ava Ke Bawah Grid */}
+          {/* Kolom Sentuh Ava Grid */}
           <div className={styles.avatarTouchGridBottom}>
             <span className={styles.gridGuideLabel}>Sentuh Ava:</span>
             <div className={styles.gridGuideGroup}>
@@ -606,7 +614,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Kontrol Voice Roll Custom dengan Ekor & Auto Voice */}
+          {/* Kontrol Voice */}
           <div className={styles.bottomVoiceControlPanel}>
             <div className={styles.customVoiceDropdownWrapper} ref={voiceMenuRef}>
               <button
@@ -642,7 +650,11 @@ export default function Home() {
 
             <button 
               type="button" 
-              onClick={() => setAutoVoice(!autoVoice)} 
+              onClick={() => {
+                const nextState = !autoVoice;
+                setAutoVoice(nextState);
+                if (!nextState) setDisplayedStatusText('');
+              }} 
               className={`${styles.textOnlyAutoVoiceBtn} ${autoVoice ? styles.autoVoiceActive : styles.autoVoiceInactive}`}
             >
               {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
