@@ -75,39 +75,42 @@ export default function InputSection({
 
   return (
     <div className={styles.footerWrapper}>
-      <div className={styles.capsuleRowWrapper}>
-        <div className={styles.capsuleRowScroll} ref={scrollRef}>
-          <button
-            type="button"
-            onClick={handleClearChat}
-            className={`${styles.dynamicChipButton} ${styles.clearChipButton}`}
-            title="Hapus Percakapan"
-          >
+      <div className={styles.capsuleRowWrapperFixed}>
+        {/* PILL HAPUS CHAT STANDBY DIAM DI SEBELAH KIRI */}
+        <button
+          type="button"
+          onClick={handleClearChat}
+          className={styles.fixedOrangeDeleteBtn}
+          title="Hapus Percakapan"
+        >
+          <span className={styles.unskewContent} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <IconTrash />
             <span>Hapus Chat</span>
-          </button>
+          </span>
+        </button>
 
+        {/* PILL TEKS CEPAT BISA DIGESER DENGAN BENTUK JAJAR GENJANG */}
+        <div className={styles.capsuleRowScrollable} ref={scrollRef}>
           {Object.keys(trialPresets).map((presetKey) => (
             <button
               key={presetKey}
               type="button"
               onClick={() => handlePillClick(presetKey)}
-              className={styles.dynamicChipButton}
+              className={styles.skewedChipButton}
               disabled={loading}
             >
-              {presetKey}
+              <span className={styles.unskewContent}>{presetKey}</span>
             </button>
           ))}
         </div>
       </div>
 
       <div className={styles.mainInputBox}>
-        {/* TOMBOL MEMBULAT DI SISI KIRI DALAM INPUT BAR */}
         <button
           type="button"
           onClick={() => setIsSingleChat(!isSingleChat)}
           className={`${styles.circleModeBtn} ${isSingleChat ? styles.circleModeSingleActive : ''}`}
-          title={isSingleChat ? "Mode Aktif: Single Chat (Klik untuk Multi Chat)" : "Mode Aktif: Multi Chat (Klik untuk Single Chat)"}
+          title={isSingleChat ? "Mode Aktif: Single Chat" : "Mode Aktif: Multi Chat"}
         >
           {isSingleChat ? <IconSingleChat /> : <IconMultiChat />}
         </button>

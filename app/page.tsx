@@ -12,6 +12,7 @@ type ActiveReaction = 'kepala' | 'perut' | 'kaki' | 'peluk' | 'marah' | null;
 interface RippleEffect { id: number; x: number; y: number; }
 
 const TRIAL_PRESETS: Record<string, TrialPreset> = {
+  'Hari apa?': { reply: (name: string) => `Hari ini hari ${['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][new Date().getDay()]}, ${name}!`, emotion: 'neutral' },
   'Peluk boleh?': { reply: (name: string) => `Boleh ${name}, sini saya peluk erat kamu dengan sepenuh jiwa raga.`, emotion: 'romantic' },
   'Temani saya mengobrol': { reply: (name: string) => `Tentu ${name}, saya akan mengobrol dan menemani hari-harimu.`, emotion: 'neutral' },
   'Coba kata kasar': { reply: (name: string) => `Maaf ${name}, jangan berkata kasar ya. No no no!`, emotion: 'angry' },
@@ -39,7 +40,6 @@ const IconTrashOrange = () => (
   </svg>
 );
 
-// Komponen Pembungkus Swipe untuk Mengubah/Menghapus Message
 function SwipeableMessage({ 
   children, 
   onDelete 
@@ -59,16 +59,12 @@ function SwipeableMessage({
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isSwiping) return;
     const diff = e.touches[0].clientX - startXRef.current;
-    if (Math.abs(diff) < 120) {
-      setTranslateX(diff);
-    }
+    if (Math.abs(diff) < 120) setTranslateX(diff);
   };
 
   const handleTouchEnd = () => {
     setIsSwiping(false);
-    if (Math.abs(translateX) > 65) {
-      onDelete();
-    }
+    if (Math.abs(translateX) > 65) onDelete();
     setTranslateX(0);
   };
 
@@ -80,15 +76,11 @@ function SwipeableMessage({
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isSwiping) return;
     const diff = e.clientX - startXRef.current;
-    if (Math.abs(diff) < 120) {
-      setTranslateX(diff);
-    }
+    if (Math.abs(diff) < 120) setTranslateX(diff);
   };
 
   const handleMouseUp = () => {
-    if (isSwiping && Math.abs(translateX) > 65) {
-      onDelete();
-    }
+    if (isSwiping && Math.abs(translateX) > 65) onDelete();
     setIsSwiping(false);
     setTranslateX(0);
   };
@@ -491,6 +483,16 @@ export default function Home() {
       return;
     }
 
+    if (presetKey === 'Hari apa?') {
+      const reply = TRIAL_PRESETS['Hari apa?'].reply(name);
+      const userMsg: Message = { role: 'user', content: presetKey };
+      const aiMsg: Message = { role: 'assistant', content: reply };
+      const updatedMessages = [...messages, userMsg, aiMsg];
+      setMessages(updatedMessages);
+      if (autoVoice) startSyncSpeechAndTyping(reply, updatedMessages.length - 1);
+      return;
+    }
+
     if (userProfile) { handleSend(presetKey); return; }
     if (textTrialCount >= 2) { router.push('/login'); return; }
     const preset = TRIAL_PRESETS[presetKey];
@@ -632,7 +634,7 @@ export default function Home() {
                       title="Geser Kiri/Kanan untuk Hapus Pesan"
                     >
                       <div className={styles.roleHeader}>
-                        <span className={styles.roleLabel} style={{ color: !isUser || isSingleChat ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
+                        <span className={`${styles.roleLabel} ${isUser && !isSingleChat ? styles.blackUserText : styles.orangeLabelText}`}>
                           {isUser ? getUserName() : 'SukaChub Virtual Chat'}
                         </span>
                       </div>
@@ -730,27 +732,27 @@ export default function Home() {
 
           <div className={styles.avatarTouchGridBottom}>
             <span className={styles.gridGuideLabel}>Sentuh Ava:</span>
-            <div className={styles.gridGuideGroup}>
+            <div className={styles.gridGuideGroupSkewed}>
               <button
                 type="button"
                 onClick={() => triggerReactionByPart('kepala')}
-                className={`${styles.gridGuideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}
+                className={`${styles.gridGuideChipSkewed} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrangeSkewed : ''}`}
               >
-                Kepala
+                <span className={styles.unskewContent}>Kepala</span>
               </button>
               <button
                 type="button"
                 onClick={() => triggerReactionByPart('perut')}
-                className={`${styles.gridGuideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}
+                className={`${styles.gridGuideChipSkewed} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrangeSkewed : ''}`}
               >
-                Badan
+                <span className={styles.unskewContent}>Badan</span>
               </button>
               <button
                 type="button"
                 onClick={() => triggerReactionByPart('kaki')}
-                className={`${styles.gridGuideChip} ${activeReaction === 'kaki' ? styles.activeOrange : ''}`}
+                className={`${styles.gridGuideChipSkewed} ${activeReaction === 'kaki' ? styles.activeOrangeSkewed : ''}`}
               >
-                Kaki
+                <span className={styles.unskewContent}>Kaki</span>
               </button>
             </div>
           </div>
@@ -760,12 +762,14 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setIsVoiceDropdownOpen(!isVoiceDropdownOpen)}
-                className={styles.customVoiceTriggerBtn}
+                className={styles.skewedVoiceBtn}
               >
-                <span>{activeVoiceObj.label}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isVoiceDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                <div className={styles.unskewContent} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>{activeVoiceObj.label}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isVoiceDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
               </button>
 
               {isVoiceDropdownOpen && (
@@ -797,12 +801,14 @@ export default function Home() {
                 setAutoVoice(nextState);
                 if (!nextState) setDisplayedStatusText('');
               }} 
-              className={`${styles.textOnlyAutoVoiceBtn} ${
-                autoVoice ? styles.autoVoiceActive : styles.autoVoiceInactive
+              className={`${styles.skewedAutoVoiceBtn} ${
+                autoVoice ? styles.skewedAutoVoiceActive : styles.skewedAutoVoiceInactive
               } ${isSingleChat ? styles.disabledAutoVoiceBtn : ''}`}
               title={isSingleChat ? "Auto Voice selalu aktif di Mode Single Chat" : "Toggle Auto Voice"}
             >
-              {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
+              <span className={styles.unskewContent}>
+                {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
+              </span>
             </button>
           </div>
         </div>

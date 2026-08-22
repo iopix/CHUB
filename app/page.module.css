@@ -13,7 +13,7 @@
   --accent-orange-light: #fb923c;
   --accent-orange-subtle: rgba(249, 115, 22, 0.12);
   --accent-orange-border: rgba(249, 115, 22, 0.35);
-  --accent-orange-user-bubble: #ea580c;
+  --accent-orange-user-bubble: rgba(249, 115, 22, 0.35); /* USER BUBBLE WARNA LEBIH TIPIS */
   --bg-ai-bubble: #18181b;
   --shadow-bubble: rgba(0, 0, 0, 0.4);
 }
@@ -99,7 +99,7 @@
 .chatBox {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 16px 18px; /* PADDING DIPERBESAR AGAR OUTLINE TIDAK TERPOTONG */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -131,11 +131,10 @@
 
 .messageWrapper { display: flex; width: 100%; position: relative; }
 
-/* SWIPE ACTION CONTAINERS */
 .swipeContainer {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   user-select: none;
 }
 
@@ -166,9 +165,9 @@
   border-radius: 18px; 
   font-size: clamp(0.75rem, 2vw, 0.9rem); 
   backdrop-filter: blur(16px); 
-  box-shadow: 0 4px 12px var(--shadow-bubble); 
   word-break: break-word; 
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
 }
 
 .clickableBubble { cursor: pointer; }
@@ -180,6 +179,7 @@
 .userBubble { 
   background-color: var(--accent-orange-user-bubble); 
   color: var(--text-white); 
+  border: 1px solid var(--accent-orange-border);
   border-radius: 18px 18px 4px 18px; 
 }
 
@@ -197,10 +197,9 @@
   border-radius: 18px 18px 18px 4px !important; 
 }
 
-/* OUTLINE GLOW ORANGE UNTUK PESAN PILIHAN DI SINGLE MODE */
+/* OUTLINE SPREAD AGAR TIDAK TERPOTONG SISI TINGGI */
 .orangeOutlineGlow {
-  border: 2px solid var(--accent-orange) !important;
-  box-shadow: 0 0 12px rgba(249, 115, 22, 0.6) !important;
+  box-shadow: 0 0 0 2px var(--accent-orange), 0 0 12px rgba(249, 115, 22, 0.6) !important;
 }
 
 .roleHeader { 
@@ -211,7 +210,10 @@
   gap: 8px; 
 }
 
-.roleLabel { font-size: clamp(0.6rem, 1.8vw, 0.7rem); opacity: 0.9; }
+.roleLabel { font-size: clamp(0.6rem, 1.8vw, 0.7rem); }
+.blackUserText { color: #000000 !important; font-weight: 800 !important; }
+.orangeLabelText { color: var(--accent-orange-light) !important; font-weight: 700 !important; font-style: italic; }
+
 .textContent { white-space: pre-wrap; line-height: 1.4; word-break: break-word; }
 
 .loadingDots { display: inline-flex; align-items: center; gap: 4px; }
@@ -243,7 +245,7 @@
   padding: 4px;
 }
 
-/* BUBBLE STATUS AVA UKURAN FIXED TERKONTROL (110PX) */
+/* BUBBLE STATUS AVA DIPANJANGKAN KE BAWAH (HEIGHT: 140PX) */
 .dynamicStatusBubbleFixed {
   position: relative;
   display: flex;
@@ -256,10 +258,10 @@
   background-color: var(--accent-orange-subtle);
   backdrop-filter: blur(12px);
   margin-top: 4px;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   width: 96%;
   max-width: 380px;
-  height: 110px;
+  height: 140px; 
   box-sizing: border-box;
   z-index: 15;
   flex-shrink: 0;
@@ -398,12 +400,14 @@
   border-top: 7px solid var(--accent-orange-border);
 }
 
+/* CONTAINER AVA DITURUNKAN SEDIKIT (MARGIN-TOP 12PX) */
 .avatarContainer {
   position: relative;
   width: 100%;
-  height: 46vh;
-  min-height: 240px;
-  max-height: 430px;
+  height: 44vh;
+  min-height: 230px;
+  max-height: 410px;
+  margin-top: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -466,40 +470,46 @@
   opacity: 0.8;
 }
 
-.gridGuideGroup {
+/* BENTUK JAJAR GENJANG DENGAN CORNER ROUNDED DINAMIS (SKEWED) */
+.gridGuideGroupSkewed {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  gap: 6px;
   width: 100%;
-  background: rgba(39, 39, 42, 0.6);
-  border: 1px solid rgba(63, 63, 70, 0.5);
   padding: 3px;
-  border-radius: 12px;
   box-sizing: border-box;
 }
 
-.gridGuideChip {
-  background: transparent;
-  border: none;
+.gridGuideChipSkewed {
+  background: rgba(39, 39, 42, 0.8);
+  border: 1px solid rgba(63, 63, 70, 0.6);
   color: var(--text-muted);
   font-size: clamp(0.58rem, 1.5vw, 0.68rem);
   font-weight: 600;
-  padding: 4px 0;
+  padding: 5px 0;
   border-radius: 8px;
+  transform: skewX(-12deg);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
 }
 
-.gridGuideChip:hover {
+.gridGuideChipSkewed:hover {
   color: var(--accent-orange);
-  background: rgba(249, 115, 22, 0.1);
+  background: rgba(249, 115, 22, 0.15);
+  border-color: var(--accent-orange);
 }
 
-.activeOrange {
+.unskewContent {
+  display: inline-block;
+  transform: skewX(12deg);
+}
+
+.activeOrangeSkewed {
   color: #ffffff !important;
   font-weight: 700 !important;
   background: var(--accent-orange) !important;
+  border-color: var(--accent-orange) !important;
   box-shadow: 0 2px 6px rgba(249, 115, 22, 0.4);
 }
 
@@ -507,7 +517,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   padding: 4px 10px;
   width: 100%;
   margin-top: auto;
@@ -519,7 +529,8 @@
   display: inline-block;
 }
 
-.customVoiceTriggerBtn {
+/* PILL VOICE BERBENTUK JAJAR GENJANG ROUNDED */
+.skewedVoiceBtn {
   height: 32px;
   padding: 0 14px;
   font-size: clamp(0.6rem, 1.5vw, 0.7rem);
@@ -527,15 +538,15 @@
   color: #f4f4f5;
   background-color: #27272a;
   border: 1px solid #3f3f46;
-  border-radius: 9999px;
+  border-radius: 8px;
+  transform: skewX(-12deg);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   transition: all 0.2s ease;
 }
 
-.customVoiceTriggerBtn:hover {
+.skewedVoiceBtn:hover {
   border-color: #f97316;
   box-shadow: 0 0 8px rgba(249, 115, 22, 0.3);
 }
@@ -605,13 +616,15 @@
   box-shadow: 0 0 6px #f97316;
 }
 
-.textOnlyAutoVoiceBtn {
+/* PILL AUTO VOICE BERBENTUK JAJAR GENJANG ROUNDED */
+.skewedAutoVoiceBtn {
   height: 32px;
   padding: 0 14px;
   font-size: clamp(0.6rem, 1.5vw, 0.7rem);
   font-weight: 700;
   letter-spacing: 0.3px;
-  border-radius: 9999px;
+  border-radius: 8px;
+  transform: skewX(-12deg);
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
@@ -620,13 +633,13 @@
   justify-content: center;
 }
 
-.autoVoiceInactive {
+.skewedAutoVoiceInactive {
   background-color: #27272a !important;
   border: 1px solid #3f3f46 !important;
   color: #71717a !important;
 }
 
-.autoVoiceActive {
+.skewedAutoVoiceActive {
   background-color: rgba(249, 115, 22, 0.2) !important;
   border: 1.5px solid #f97316 !important;
   color: #f97316 !important;
@@ -649,7 +662,8 @@
   gap: 8px;
 }
 
-.capsuleRowWrapper {
+/* LAYOUT CAPSULE DENGAN PILL HAPUS CHAT FIXED & PILL CEPAT SCROLLABLE */
+.capsuleRowWrapperFixed {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -657,7 +671,34 @@
   overflow: hidden;
 }
 
-.capsuleRowScroll {
+/* PILL HAPUS CHAT STANDBY DIAM (ORANGE THEME JAJAR GENJANG) */
+.fixedOrangeDeleteBtn {
+  flex: 0 0 auto;
+  background-color: rgba(249, 115, 22, 0.2);
+  border: 1px solid var(--accent-orange);
+  color: #f97316;
+  padding: 6px 14px;
+  border-radius: 8px;
+  transform: skewX(-12deg);
+  font-size: clamp(0.68rem, 1.8vw, 0.78rem);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.fixedOrangeDeleteBtn:hover {
+  background-color: var(--accent-orange);
+  color: #ffffff;
+}
+
+.capsuleRowScrollable {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -673,17 +714,19 @@
   cursor: grab;
 }
 
-.capsuleRowScroll:active { cursor: grabbing; }
-.capsuleRowScroll::-webkit-scrollbar { display: none; }
-.capsuleRowScroll { -ms-overflow-style: none; scrollbar-width: none; }
+.capsuleRowScrollable:active { cursor: grabbing; }
+.capsuleRowScrollable::-webkit-scrollbar { display: none; }
+.capsuleRowScrollable { -ms-overflow-style: none; scrollbar-width: none; }
 
-.dynamicChipButton {
+/* PILL TEKS CEPAT JAJAR GENJANG ROUNDED */
+.skewedChipButton {
   flex: 0 0 auto;
   background-color: var(--bg-dark-1);
   border: 1px solid var(--border-zinc-subtle);
   color: var(--text-light);
   padding: 6px 14px;
-  border-radius: 9999px;
+  border-radius: 8px;
+  transform: skewX(-12deg);
   font-size: clamp(0.68rem, 1.8vw, 0.78rem);
   font-weight: 500;
   cursor: pointer;
@@ -697,24 +740,10 @@
   line-height: 1;
 }
 
-.dynamicChipButton:hover {
+.skewedChipButton:hover {
   background-color: var(--bg-dark-2);
-  color: var(--text-white);
-  border-color: var(--border-zinc);
-}
-
-.clearChipButton {
-  flex: 0 0 auto;
-  background-color: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #ef4444;
-  font-weight: 600;
-}
-
-.clearChipButton:hover {
-  background-color: rgba(239, 68, 68, 0.25);
-  border-color: #ef4444;
-  color: #ffffff;
+  color: var(--accent-orange);
+  border-color: var(--accent-orange);
 }
 
 .mainInputBox {
@@ -730,7 +759,6 @@
   width: 100%;
 }
 
-/* TOMBOL BULAT MODE LETAKNYA DI KIRI DALAM BARIS INPUT */
 .circleModeBtn {
   width: 36px;
   height: 36px;
