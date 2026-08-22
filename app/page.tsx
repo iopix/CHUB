@@ -17,6 +17,14 @@ const TRIAL_PRESETS: Record<string, TrialPreset> = {
   'Coba kata kasar': { reply: (name: string) => `Maaf ${name}, jangan berkata kasar ya. No no no!`, emotion: 'angry' },
 };
 
+const VOICE_OPTIONS = [
+  { id: 'voice1', label: 'Voice 1' },
+  { id: 'voice2', label: 'Voice 2' },
+  { id: 'voice3', label: 'Voice 3' },
+  { id: 'voice4', label: 'Voice 4' },
+  { id: 'voice5', label: 'Voice 5' },
+];
+
 export default function Home() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -36,7 +44,10 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [isAudioRendering, setIsAudioRendering] = useState<boolean>(false);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  
+  // Custom Voice Dropdown State
   const [selectedVoice, setSelectedVoice] = useState<string>('voice1');
+  const [isVoiceDropdownOpen, setIsVoiceDropdownOpen] = useState<boolean>(false);
   const [autoVoice, setAutoVoice] = useState<boolean>(false);
   
   const [remainingTokens, setRemainingTokens] = useState<number | null>(null);
@@ -58,6 +69,8 @@ export default function Home() {
 
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
+  
+  const voiceMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { activeReactionRef.current = activeReaction; }, [activeReaction]);
 
@@ -101,6 +114,7 @@ export default function Home() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setIsMenuOpen(false);
+      if (voiceMenuRef.current && !voiceMenuRef.current.contains(event.target as Node)) setIsVoiceDropdownOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -239,14 +253,7 @@ export default function Home() {
     }
   };
 
-  const handleAvatarSingleClick = (part: 'kepala' | 'perut' | 'kaki', e: React.MouseEvent) => {
-    if (avatarContainerRef.current) {
-      const rect = avatarContainerRef.current.getBoundingClientRect();
-      const id = Date.now();
-      setRipples(prev => [...prev, { id, x: e.clientX - rect.left, y: e.clientY - rect.top }]);
-      setTimeout(() => setRipples(prev => prev.filter(r => r.id !== id)), 600);
-    }
-
+  const triggerReactionByPart = (part: 'kepala' | 'perut' | 'kaki') => {
     if (part === 'kepala') {
       setActiveReaction('marah');
       startSyncSpeechAndTyping('Aduh! Jangan pegang-pegang kepala dong!', 0);
@@ -257,6 +264,16 @@ export default function Home() {
       setActiveReaction('kaki');
       startSyncSpeechAndTyping('Eh? Kenapa kamu pegang-pegang kakiku?', 0);
     }
+  };
+
+  const handleAvatarSingleClick = (part: 'kepala' | 'perut' | 'kaki', e: React.MouseEvent) => {
+    if (avatarContainerRef.current) {
+      const rect = avatarContainerRef.current.getBoundingClientRect();
+      const id = Date.now();
+      setRipples(prev => [...prev, { id, x: e.clientX - rect.left, y: e.clientY - rect.top }]);
+      setTimeout(() => setRipples(prev => prev.filter(r => r.id !== id)), 600);
+    }
+    triggerReactionByPart(part);
   };
 
   const handleClearChat = () => {
@@ -427,6 +444,8 @@ export default function Home() {
     else router.push('/login');
   };
 
+  const activeVoiceObj = VOICE_OPTIONS.find((v) => v.id === selectedVoice) || VOICE_OPTIONS[0];
+
   return (
     <div className={styles.container}>
       <Header
@@ -466,7 +485,7 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* Status Bubble Diperpanjang Responsif Ke Bawah */}
+          {/* Status Bubble Panjang Responsif Ke Bawah */}
           <div className={styles.dynamicStatusBubble}>
             {isWelcomeBubble ? (
               <div className={styles.welcomeContainer}>
@@ -508,30 +527,67 @@ export default function Home() {
             <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
           </div>
 
-          {/* Panduan Sentuh Ava Dipindah Ke Bawah Kaki Avatar */}
-          <div className={styles.avatarTouchGuideBottom}>
-            <span style={{ opacity: 0.8, fontWeight: '600' }}>Sentuh Ava:</span>
-            <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}>Kepala</span>
-            <span className={styles.dotSep}>•</span>
-            <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}>Badan</span>
-            <span className={styles.dotSep}>•</span>
-            <span className={`${styles.guideChip} ${activeReaction === 'kaki' ? styles.activeOrange : ''}`}>Kaki</span>
+          {/* Kolom Sentuh Ava Ke Bawah Grid (Kepala, Badan, Kaki) */}
+          <div className={styles.avatarTouchGridBottom}>
+            <span className={styles.gridGuideLabel}>Sentuh Ava:</span>
+            <div className={styles.gridGuideGroup}>
+              <button
+                type="button"
+                onClick={() => triggerReactionByPart('kepala')}
+                className={`${styles.gridGuideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}
+              >
+                Kepala
+              </button>
+              <button
+                type="button"
+                onClick={() => triggerReactionByPart('perut')}
+                className={`${styles.gridGuideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}
+              >
+                Badan
+              </button>
+              <button
+                type="button"
+                onClick={() => triggerReactionByPart('kaki')}
+                className={`${styles.gridGuideChip} ${activeReaction === 'kaki' ? styles.activeOrange : ''}`}
+              >
+                Kaki
+              </button>
+            </div>
           </div>
 
-          {/* Kontrol Voice & Auto Voice */}
+          {/* Kontrol Voice Roll Custom dengan Ekor & Auto Voice */}
           <div className={styles.bottomVoiceControlPanel}>
-            <div className={styles.voiceSelectWrapper}>
-              <select 
-                value={selectedVoice} 
-                onChange={(e) => setSelectedVoice(e.target.value)} 
-                className={styles.voiceRollSelect}
+            <div className={styles.customVoiceDropdownWrapper} ref={voiceMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsVoiceDropdownOpen(!isVoiceDropdownOpen)}
+                className={styles.customVoiceTriggerBtn}
               >
-                <option value="voice1">Voice 1</option>
-                <option value="voice2">Voice 2</option>
-                <option value="voice3">Voice 3</option>
-                <option value="voice4">Voice 4</option>
-                <option value="voice5">Voice 5</option>
-              </select>
+                <span>{activeVoiceObj.label}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isVoiceDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {/* Popover Menu Menggantung Dengan Ekor (Tail) */}
+              {isVoiceDropdownOpen && (
+                <div className={styles.voiceTailPopover}>
+                  {VOICE_OPTIONS.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedVoice(v.id);
+                        setIsVoiceDropdownOpen(false);
+                      }}
+                      className={`${styles.voiceOptionItem} ${selectedVoice === v.id ? styles.voiceOptionSelected : ''}`}
+                    >
+                      <span>{v.label}</span>
+                      {selectedVoice === v.id && <span className={styles.orangeDotGlow} />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <button 
