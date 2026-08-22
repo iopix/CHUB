@@ -248,8 +248,14 @@ export default function Home() {
         typeNextChar();
       };
 
-      audio.onended = () => stopAudio();
-      audio.onerror = () => stopAudio();
+      audio.onended = () => {
+        stopAudio();
+        setDisplayedStatusText(''); // Dikosongkan agar kembali ke status info
+      };
+      audio.onerror = () => {
+        stopAudio();
+        setDisplayedStatusText('');
+      };
 
       await audio.play();
     } catch {
@@ -318,12 +324,11 @@ export default function Home() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
-      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorderRef.current = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       audioChunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
-      mediaRecorder.onstop = async () => {
+      mediaRecorderRef.current.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
+      mediaRecorderRef.current.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
         if (audioBlob.size === 0) return;
@@ -344,7 +349,7 @@ export default function Home() {
         } catch (err) { console.error('STT Error:', err); }
         finally { setLoading(false); }
       };
-      mediaRecorder.start();
+      mediaRecorderRef.current.start();
       setIsRecording(true);
     } catch (err) { alert("Izin mic ditolak!"); console.error('Akses mikrofon ditolak:', err); }
   };
@@ -381,6 +386,7 @@ export default function Home() {
     const updatedMessages = [...messages, userMsg, aiMsg];
     setMessages(updatedMessages);
 
+    // DENGAN LOGIKA BARU: Teks AI TIDAK DITAMPILKAN di bubble ava kecuali autoVoice diset ON
     if (autoVoice) {
       startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
     } else {
@@ -437,6 +443,7 @@ export default function Home() {
         const updatedMessages = [...newMessages, aiMsg];
         setMessages(updatedMessages);
 
+        // HAPUS DUKUNGAN KELUAR TEKS AI DI BUBBLE AVA SAAT AUTO VOICE OFF
         if (autoVoice) {
           startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
         } else {
@@ -511,7 +518,7 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* Status Bubble Ava Bersih & Terbuka Tanpa Nutup Teks */}
+          {/* Status Bubble Ava dengan Info Mode Eksplisit */}
           <div className={styles.dynamicStatusBubble}>
             {isWelcomeBubble ? (
               <div className={styles.welcomeContainer}>
@@ -532,15 +539,14 @@ export default function Home() {
               </div>
             ) : (
               <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
-                {/* PEMBEDAAN EKSPLISIT INFO AUTO VOICE ON / OFF SAAT IDLE */}
                 {!isSpeaking && !displayedStatusText ? (
                   autoVoice ? (
                     <span className={styles.idlePromptText}>
-                      <strong style={{ color: '#f97316' }}>AUTO VOICE ON</strong> — Pesan balasan akan otomatis diputar suaranya oleh Ava.
+                      <strong style={{ color: '#f97316' }}>AUTO VOICE ON</strong> — Pesan balasan otomatis diputar suaranya oleh Ava.
                     </span>
                   ) : (
                     <span className={styles.idlePromptText}>
-                      <strong style={{ color: '#a1a1aa' }}>AUTO VOICE OFF</strong> — Sentuh/klik salah satu balon chat di kiri untuk memutar suaranya disini.
+                      <strong style={{ color: '#a1a1aa' }}>AUTO VOICE OFF</strong> — Sentuh/klik salah satu balon chat di kiri untuk diputar suaranya disini.
                     </span>
                   )
                 ) : (
@@ -552,8 +558,10 @@ export default function Home() {
               </div>
             )}
 
-            {/* Visualizer Mini */}
+            {/* Visualizer Dinamis dengan Wave Flow mengikuti Suara */}
             <div className={styles.bubbleBottomLeftVisualizer}>
+              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
               <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
