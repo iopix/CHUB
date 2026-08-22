@@ -13,18 +13,38 @@ interface HeaderProps {
   setIsMenuOpen: (open: boolean) => void;
   userProfile: UserProfile | null;
   userName: string;
-  activeModel: string;
+  activeModel?: string;
   remainingTokens: number | null;
   isMobile: boolean;
   handleAuthAction: () => void;
   menuRef: RefObject<HTMLDivElement | null>;
 }
 
-const IconMenu = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="3" y1="6" x2="21" y2="6" />
-    <line x1="3" y1="12" x2="21" y2="12" />
-    <line x1="3" y1="18" x2="21" y2="18" />
+// Ikon Dinamis (Hamburger -> X)
+const IconMenu = ({ isOpen }: { isOpen: boolean }) => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#f97316"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ transition: 'transform 0.3s ease' }}
+  >
+    {isOpen ? (
+      <>
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </>
+    ) : (
+      <>
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </>
+    )}
   </svg>
 );
 
@@ -33,7 +53,6 @@ export default function Header({
   setIsMenuOpen,
   userProfile,
   userName,
-  activeModel,
   remainingTokens,
   isMobile,
   handleAuthAction,
@@ -41,7 +60,65 @@ export default function Header({
 }: HeaderProps) {
   return (
     <header style={styles.header}>
+      {/* Dynamic Keyframes Styling */}
+      <style>{`
+        @keyframes waveMoveOne {
+          0% { transform: translateX(0); }
+          50% { transform: translateX(-25%); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes waveMoveTwo {
+          0% { transform: translateX(0); }
+          50% { transform: translateX(25%); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes floatLogo {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-4px) rotate(3deg); }
+        }
+        .chub-logo-anim {
+          animation: floatLogo 3s ease-in-out infinite;
+          transition: transform 0.2s ease;
+        }
+        .chub-logo-anim:hover {
+          transform: scale(1.15) rotate(-5deg) !important;
+        }
+        .dropdown-tail::before {
+          content: '';
+          position: absolute;
+          top: -8px;
+          left: 12px;
+          width: 0;
+          height: 0;
+          border-left: 8px solid transparent;
+          border-right: 8px solid transparent;
+          border-bottom: 8px solid #3f3f46;
+        }
+        .dropdown-tail::after {
+          content: '';
+          position: absolute;
+          top: -6px;
+          left: 13px;
+          width: 0;
+          height: 0;
+          border-left: 7px solid transparent;
+          border-right: 7px solid transparent;
+          border-bottom: 7px solid #18181b;
+        }
+      `}</style>
+
+      {/* 2 Gelombang Wave Dinamis Warna Orange Tipis */}
+      <div style={styles.waveContainer}>
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style={styles.waveSvgOne}>
+          <path d="M0,0 C150,90 350,-40 500,45 C650,130 900,10 1200,50 L1200,0 L0,0 Z" fill="rgba(249, 115, 22, 0.12)"></path>
+        </svg>
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style={styles.waveSvgTwo}>
+          <path d="M0,0 C200,30 400,100 600,40 C800,-20 1000,80 1200,20 L1200,0 L0,0 Z" fill="rgba(249, 115, 22, 0.07)"></path>
+        </svg>
+      </div>
+
       <div style={styles.headerTitleGroup}>
+        {/* Dropdown Roll Menu */}
         <div style={{ position: 'relative' }} ref={menuRef}>
           <button
             type="button"
@@ -49,11 +126,11 @@ export default function Header({
             style={styles.menuBtn}
             title="Buka Menu"
           >
-            <IconMenu />
+            <IconMenu isOpen={isMenuOpen} />
           </button>
 
           {isMenuOpen && (
-            <div style={styles.dropdownGrid}>
+            <div style={styles.dropdownGrid} className="dropdown-tail">
               <a href="https://ipix.my.id" target="_blank" rel="noopener noreferrer" style={styles.gridItem} onClick={() => setIsMenuOpen(false)}>ipix.my.id</a>
               <a href="https://ipixchat.my.id" target="_blank" rel="noopener noreferrer" style={styles.gridItem} onClick={() => setIsMenuOpen(false)}>ipixchat.my.id</a>
               <a href="https://sukachub.my.id" target="_blank" rel="noopener noreferrer" style={styles.gridItem} onClick={() => setIsMenuOpen(false)}>sukachub.my.id</a>
@@ -74,6 +151,7 @@ export default function Header({
           )}
         </div>
 
+        {/* Title dan Badge User */}
         <div style={styles.titleWrapper}>
           <h1 style={{ ...styles.title, fontStyle: 'italic', fontWeight: '700' }}>
             SukaChub your virtual chat
@@ -87,17 +165,27 @@ export default function Header({
             }}>
               {userName}
             </span>
-            <span style={styles.modelSubtitle}>
-              Model Aktif: {activeModel}
-            </span>
           </div>
         </div>
+      </div>
 
+      {/* Bagian Kanan Header: Token & Logo Chub Dinamis */}
+      <div style={styles.rightSection}>
         {userProfile && remainingTokens !== null && !isMobile && (
           <span style={styles.tokenBadge}>
             {Number(remainingTokens).toLocaleString('id-ID')} Tkn
           </span>
         )}
+
+        {/* Logo chub.webp dengan animasi mengapung */}
+        <div style={styles.logoWrapper}>
+          <img
+            src="/chub.webp"
+            alt="Chub Logo"
+            className="chub-logo-anim"
+            style={styles.logoImg}
+          />
+        </div>
       </div>
     </header>
   );
@@ -105,7 +193,8 @@ export default function Header({
 
 const styles: Record<string, CSSProperties> = {
   header: {
-    padding: '10px 12px',
+    position: 'relative',
+    padding: '10px 14px',
     margin: '8px 10px 0 10px',
     borderRadius: '16px',
     display: 'flex',
@@ -117,23 +206,47 @@ const styles: Record<string, CSSProperties> = {
     border: '1px solid rgba(63, 63, 70, 0.4)',
     zIndex: 20,
     flexShrink: 0,
-    gap: '6px',
-    flexWrap: 'wrap',
+    gap: '8px',
+    overflow: 'visible',
+  },
+  waveContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+    borderRadius: '16px',
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
+  waveSvgOne: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '200%',
+    height: '100%',
+    animation: 'waveMoveOne 12s ease-in-out infinite',
+  },
+  waveSvgTwo: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '200%',
+    height: '100%',
+    animation: 'waveMoveTwo 16s ease-in-out infinite',
   },
   headerTitleGroup: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 'auto',
-    minWidth: '120px',
+    zIndex: 1,
   },
   menuBtn: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '2px',
+    padding: '4px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -143,8 +256,8 @@ const styles: Record<string, CSSProperties> = {
   },
   dropdownGrid: {
     position: 'absolute',
-    top: 'calc(100% + 12px)',
-    left: 0,
+    top: 'calc(100% + 18px)',
+    left: '-4px',
     backgroundColor: '#18181b',
     border: '1px solid #3f3f46',
     borderRadius: '16px',
@@ -153,7 +266,7 @@ const styles: Record<string, CSSProperties> = {
     gridTemplateColumns: '1fr',
     gap: '8px',
     zIndex: 100,
-    boxShadow: '0 12px 32px rgba(0,0,0,0.8)',
+    boxShadow: '0 12px 32px rgba(0,0,0,0.85)',
     minWidth: '180px',
   },
   gridItem: {
@@ -194,10 +307,11 @@ const styles: Record<string, CSSProperties> = {
   },
   title: {
     fontSize: 'clamp(0.75rem, 3vw, 0.88rem)',
-    fontWeight: '600',
+    fontWeight: '700',
     margin: 0,
     letterSpacing: '-0.01em',
     whiteSpace: 'nowrap',
+    color: '#ffffff',
   },
   userBadge: {
     fontSize: '0.65rem',
@@ -209,22 +323,32 @@ const styles: Record<string, CSSProperties> = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  modelSubtitle: {
-    fontSize: '0.65rem',
-    color: '#a1a1aa',
-    fontWeight: '400',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    maxWidth: '180px',
+  rightSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    zIndex: 1,
   },
   tokenBadge: {
     fontSize: '0.6rem',
     backgroundColor: 'rgba(39, 39, 42, 0.9)',
     color: '#f97316',
-    padding: '2px 7px',
+    padding: '3px 8px',
     borderRadius: '12px',
     fontWeight: '600',
+    border: '1px solid rgba(249, 115, 22, 0.3)',
     flexShrink: 0,
+  },
+  logoWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+  },
+  logoImg: {
+    width: '32px',
+    height: '32px',
+    objectFit: 'contain',
+    filter: 'drop-shadow(0 2px 6px rgba(249, 115, 22, 0.3))',
   },
 };
