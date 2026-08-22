@@ -1,7 +1,34 @@
 /* ==========================================================================
-   PAGE.MODULE.CSS - Perfect Header Alignment & Synchronized Control Heights
+   PAGE.MODULE.CSS - FULL & COMPLETE (AUDIO VISUALIZER & TIMER SUPPORT)
    ========================================================================== */
 
+/* Variables Base Fallback */
+:root {
+  --bg-black: #09090b;
+  --bg-dark-1: #18181b;
+  --bg-dark-2: #27272a;
+  --border-zinc: #3f3f46;
+  --border-zinc-subtle: rgba(63, 63, 70, 0.4);
+  --border-zinc-divider: rgba(63, 63, 70, 0.2);
+  --border-input: #3f3f46;
+  --text-white: #ffffff;
+  --text-light: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+  --text-subtle: #52525b;
+  --accent-orange: #f97316;
+  --accent-orange-light: #fb923c;
+  --accent-orange-subtle: rgba(249, 115, 22, 0.15);
+  --accent-orange-border: rgba(249, 115, 22, 0.3);
+  --accent-orange-user-bubble: #ea580c;
+  --bg-ai-bubble: #18181b;
+  --shadow-bubble: rgba(0, 0, 0, 0.4);
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --color-success-shadow: rgba(34, 197, 94, 0.3);
+}
+
+/* Keyframe Animations */
 @keyframes orangeBlink {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.3; transform: scale(0.98); }
@@ -12,6 +39,17 @@
   50% { opacity: 0.1; }
 }
 
+@keyframes rippleEffect { 
+  0% { width: 0px; height: 0px; opacity: 1; } 
+  100% { width: 120px; height: 120px; opacity: 0; } 
+}
+
+@keyframes dotBounce { 
+  0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; } 
+  40% { transform: scale(1); opacity: 1; } 
+}
+
+/* Base Utility Classes */
 .blinkingOrangeLink {
   color: var(--accent-orange);
   font-weight: 700;
@@ -36,95 +74,7 @@
   font-style: italic;
 }
 
-.welcomeContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  text-align: center;
-  gap: 2px;
-}
-
-.welcomeTitle {
-  font-size: clamp(0.75rem, 2vw, 0.85rem);
-  font-weight: 800;
-  color: var(--text-white);
-  letter-spacing: 0.5px;
-}
-
-.welcomeSubtitle {
-  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.chatBox::-webkit-scrollbar,
-.suggestions::-webkit-scrollbar,
-.capsuleRow::-webkit-scrollbar,
-.dynamicStatusTextScroll::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-.chatBox::-webkit-scrollbar-track,
-.suggestions::-webkit-scrollbar-track,
-.capsuleRow::-webkit-scrollbar-track,
-.dynamicStatusTextScroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chatBox::-webkit-scrollbar-thumb,
-.suggestions::-webkit-scrollbar-thumb,
-.capsuleRow::-webkit-scrollbar-thumb,
-.dynamicStatusTextScroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-}
-
-.chatBox,
-.suggestions,
-.capsuleRow,
-.dynamicStatusTextScroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
-}
-
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-@keyframes rippleEffect { 0% { width: 0px; height: 0px; opacity: 1; } 100% { width: 120px; height: 120px; opacity: 0; } }
-@keyframes dotBounce { 0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
-@keyframes wavePulse { 0%, 100% { height: 6px; } 50% { height: 28px; } }
-
-.asmrRipple {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--accent-orange);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 20;
-  animation: rippleEffect 0.6s cubic-bezier(0, 0.2, 0.8, 1) forwards;
-}
-
-.loadingDots {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.loadingDots .dot {
-  width: 6px;
-  height: 6px;
-  background-color: var(--accent-orange);
-  border-radius: 50%;
-  animation: dotBounce 1.4s infinite ease-in-out both;
-}
-
-.loadingDots .dot:nth-child(1) { animation-delay: -0.32s; }
-.loadingDots .dot:nth-child(2) { animation-delay: -0.16s; }
-
+/* Layout Containers */
 .container {
   display: flex;
   flex-direction: column;
@@ -158,95 +108,7 @@
   z-index: 5;
 }
 
-/* PERBAIKAN BARIS HEADER KIRI & KANAN */
-.topControlPanel {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 8px 12px;
-  height: 48px;
-  box-sizing: border-box;
-  z-index: 10;
-  background-color: var(--bg-black);
-  width: 100%;
-}
-
-.topControlPanelRight {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
-  height: 48px;
-  box-sizing: border-box;
-  z-index: 10;
-  background-color: var(--bg-black);
-  width: 100%;
-}
-
-.voiceSelect,
-.autoVoiceBtn {
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 12px;
-  font-size: clamp(0.6rem, 1.8vw, 0.72rem);
-  border-radius: 9999px;
-  box-sizing: border-box;
-}
-
-.voiceSelect {
-  background-color: var(--bg-dark-1);
-  color: var(--text-light);
-  border: 1px solid var(--border-zinc);
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.autoVoiceBtn {
-  gap: 6px;
-  border: 1px solid;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.avatarTouchGuideTop {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: clamp(0.6rem, 1.6vw, 0.72rem);
-  color: var(--text-muted);
-  padding: 0 12px;
-  height: 32px;
-  background: var(--bg-dark-1);
-  border: 1px solid var(--border-zinc-subtle);
-  border-radius: 9999px;
-  box-sizing: border-box;
-  white-space: nowrap;
-}
-
-.guideChip {
-  transition: all 0.2s ease;
-  padding: 2px 6px;
-  border-radius: 9999px;
-}
-
-.dotSep {
-  opacity: 0.4;
-}
-
-.activeOrange {
-  color: var(--accent-orange);
-  font-weight: 700;
-  background: var(--accent-orange-subtle);
-  border: 1px solid var(--accent-orange-border);
-}
-
+/* Chat Box Area */
 .chatBox {
   flex-grow: 1;
   overflow-y: auto;
@@ -259,6 +121,95 @@
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%);
 }
 
+.chatBox::-webkit-scrollbar,
+.dynamicStatusTextScroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.chatBox::-webkit-scrollbar-track,
+.dynamicStatusTextScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatBox::-webkit-scrollbar-thumb,
+.dynamicStatusTextScroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+.chatBox,
+.dynamicStatusTextScroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* Message Bubbles */
+.messageWrapper { 
+  display: flex; 
+  width: 100%; 
+}
+
+.bubble { 
+  max-width: 90%; 
+  padding: 10px 14px; 
+  border-radius: 18px; 
+  font-size: clamp(0.75rem, 2vw, 0.9rem); 
+  backdrop-filter: blur(16px); 
+  box-shadow: 0 4px 12px var(--shadow-bubble); 
+  word-break: break-word; 
+}
+
+.userBubble { 
+  background-color: var(--accent-orange-user-bubble); 
+  color: var(--text-white); 
+  border-radius: 18px 18px 4px 18px; 
+}
+
+.aiBubble { 
+  background-color: var(--bg-ai-bubble); 
+  color: var(--text-light); 
+  border: 1px solid var(--border-zinc-subtle); 
+  border-radius: 18px 18px 18px 4px; 
+}
+
+.roleHeader { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 3px; 
+  gap: 4px; 
+}
+
+.roleLabel { 
+  font-size: clamp(0.6rem, 1.8vw, 0.7rem); 
+  opacity: 0.9; 
+}
+
+.textContent { 
+  white-space: pre-wrap; 
+  line-height: 1.4; 
+  word-break: break-word; 
+}
+
+.loadingDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.loadingDots .dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-orange);
+  border-radius: 50%;
+  animation: dotBounce 1.4s infinite ease-in-out both;
+}
+
+.loadingDots .dot:nth-child(1) { animation-delay: -0.32s; }
+.loadingDots .dot:nth-child(2) { animation-delay: -0.16s; }
+
+/* Avatar Panel Section */
 .avatarSection {
   width: min(50%, 520px);
   display: flex;
@@ -277,6 +228,58 @@
   padding: 0 4px 8px 4px;
 }
 
+.topControlPanelRight {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  height: 42px;
+  box-sizing: border-box;
+  z-index: 10;
+  background-color: var(--bg-black);
+  width: 100%;
+}
+
+.avatarTouchGuideTop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: clamp(0.6rem, 1.6vw, 0.72rem);
+  color: var(--text-muted);
+  padding: 0 12px;
+  height: 30px;
+  background: rgba(39, 39, 42, 0.6);
+  border: 1px solid rgba(63, 63, 70, 0.5);
+  border-radius: 9999px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.guideChip {
+  transition: all 0.2s ease;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+.guideChip:hover {
+  color: var(--accent-orange);
+  background: rgba(249, 115, 22, 0.1);
+}
+
+.dotSep {
+  opacity: 0.4;
+}
+
+.activeOrange {
+  color: var(--accent-orange);
+  font-weight: 700;
+  background: rgba(249, 115, 22, 0.2);
+  border: 1px solid rgba(249, 115, 22, 0.4);
+}
+
+/* Status Bubble Ava */
 .dynamicStatusBubble {
   position: relative;
   display: flex;
@@ -292,9 +295,49 @@
   margin-bottom: 8px;
   width: 95%;
   max-width: 360px;
-  height: 90px;
+  height: 85px;
   box-sizing: border-box;
   z-index: 15;
+}
+
+.welcomeContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  gap: 2px;
+}
+
+.welcomeTitle {
+  font-size: clamp(0.75rem, 2vw, 0.85rem);
+  font-weight: 800;
+  color: var(--text-white);
+  letter-spacing: 0.5px;
+}
+
+.welcomeSubtitle {
+  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.audioRenderingBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.renderingText {
+  font-size: clamp(0.68rem, 1.8vw, 0.78rem);
+  color: var(--accent-orange);
+  font-weight: 600;
+  font-style: italic;
 }
 
 .dynamicStatusTextScroll {
@@ -323,12 +366,13 @@
   border-top: 7px solid var(--accent-orange-border);
 }
 
+/* Avatar Canvas & Hitbox */
 .avatarContainer {
   position: relative;
   width: 100%;
-  height: 60vh;
-  min-height: 320px;
-  max-height: 560px;
+  height: 52vh;
+  min-height: 280px;
+  max-height: 500px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -362,14 +406,101 @@
   pointer-events: none;
 }
 
-.messageWrapper { display: flex; width: 100%; }
-.bubble { max-width: 90%; padding: 10px 14px; border-radius: 18px; font-size: clamp(0.75rem, 2vw, 0.9rem); backdrop-filter: blur(16px); box-shadow: 0 4px 12px var(--shadow-bubble); word-break: break-word; }
-.userBubble { background-color: var(--accent-orange-user-bubble); color: var(--text-white); border-radius: 18px 18px 4px 18px; }
-.aiBubble { background-color: var(--bg-ai-bubble); color: var(--text-light); border: 1px solid var(--border-zinc-subtle); border-radius: 18px 18px 18px 4px; }
-.roleHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; gap: 4px; }
-.roleLabel { font-size: clamp(0.6rem, 1.8vw, 0.7rem); opacity: 0.9; }
-.speakerBtn { background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; }
-.textContent { white-space: pre-wrap; line-height: 1.4; word-break: break-word; }
+.asmrRipple {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--accent-orange);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 20;
+  animation: rippleEffect 0.6s cubic-bezier(0, 0.2, 0.8, 1) forwards;
+}
+
+/* Voice Panel Under Avatar */
+.bottomVoiceControlPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 10px;
+  width: 100%;
+  margin-top: auto;
+  z-index: 15;
+}
+
+.voiceSelectWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.voiceRollSelect {
+  height: 30px;
+  padding: 0 24px 0 12px;
+  font-size: clamp(0.6rem, 1.6vw, 0.7rem);
+  font-weight: 600;
+  color: #f4f4f5;
+  background-color: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: all 0.2s ease;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 12px;
+}
+
+.voiceRollSelect:focus,
+.voiceRollSelect:hover {
+  border-color: #f97316;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.25);
+}
+
+.voiceRollSelect option {
+  background-color: #18181b;
+  color: #f4f4f5;
+  padding: 8px;
+}
+
+.textOnlyAutoVoiceBtn {
+  height: 30px;
+  padding: 0 12px;
+  font-size: clamp(0.58rem, 1.5vw, 0.68rem);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border-radius: 9999px;
+  border: 1px solid #3f3f46;
+  background-color: #27272a;
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.textOnlyAutoVoiceBtn:hover {
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.autoVoiceActive {
+  background-color: rgba(249, 115, 22, 0.15) !important;
+  border-color: #f97316 !important;
+  color: #f97316 !important;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.3);
+}
+
+/* ==========================================================================
+   FOOTER & INPUT SECTION (REAL-TIME VISUALIZER & DYNAMIC TIMER)
+   ========================================================================== */
 
 .footerWrapper {
   display: flex;
@@ -382,35 +513,64 @@
   gap: 8px;
 }
 
-.capsuleRow {
+/* Row Pembungkus Hapus Chat & Pill Scroll */
+.capsuleRowWrapper {
   display: flex;
+  align-items: center;
   gap: 8px;
   width: 100%;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  overflow: hidden;
 }
 
-.dynamicChipButton {
-  flex: 1 1 0px;
+/* Area Scroll Pill Geser Kiri-Kanan (Support Mouse Drag & Touch) */
+.capsuleRowScroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
   min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.capsuleRowScroll:active {
+  cursor: grabbing;
+}
+
+.capsuleRowScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.capsuleRowScroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Base Dynamic Pill Chip Button */
+.dynamicChipButton {
+  flex: 0 0 auto;
   background-color: var(--bg-dark-1);
   border: 1px solid var(--border-zinc-subtle);
-  color: var(--text-dim);
-  padding: 6px 8px;
+  color: var(--text-light);
+  padding: 6px 14px;
   border-radius: 9999px;
-  font-size: clamp(0.65rem, 1.8vw, 0.75rem);
+  font-size: clamp(0.68rem, 1.8vw, 0.78rem);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  touch-action: manipulation;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  gap: 6px;
+  transition: all 0.2s ease;
+  line-height: 1;
 }
 
 .dynamicChipButton:hover {
@@ -419,79 +579,22 @@
   border-color: var(--border-zinc);
 }
 
+/* Tombol Hapus Chat Tetap Diam Di Kiri */
 .clearChipButton {
   flex: 0 0 auto;
-  padding: 6px 12px;
-  background-color: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: var(--color-danger);
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  font-weight: 600;
 }
 
 .clearChipButton:hover {
-  background-color: rgba(239, 68, 68, 0.2);
-  border-color: var(--color-danger);
-  color: #fff;
+  background-color: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #ffffff;
 }
 
-.recordingOverlay {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  background-color: rgba(24, 24, 27, 0.95);
-  border: 1px solid var(--border-zinc-subtle);
-  border-radius: 9999px;
-  transition: all 0.2s ease;
-}
-
-.recordingOverlayCancel {
-  border-color: var(--color-danger);
-  background-color: rgba(239, 68, 68, 0.15);
-}
-
-.recordingText {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.recordingOverlayCancel .recordingText {
-  color: var(--color-danger);
-}
-
-.waveformContainer {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 30px;
-}
-
-.waveBar {
-  width: 3px;
-  height: 6px;
-  background-color: var(--accent-orange);
-  border-radius: 3px;
-  animation: wavePulse 1s infinite ease-in-out;
-}
-
-.recordingOverlayCancel .waveBar {
-  background-color: var(--color-danger);
-}
-
-.waveBar:nth-child(1) { animation-delay: 0.1s; }
-.waveBar:nth-child(2) { animation-delay: 0.3s; }
-.waveBar:nth-child(3) { animation-delay: 0.2s; }
-.waveBar:nth-child(4) { animation-delay: 0.4s; }
-.waveBar:nth-child(5) { animation-delay: 0.15s; }
-.waveBar:nth-child(6) { animation-delay: 0.35s; }
-.waveBar:nth-child(7) { animation-delay: 0.25s; }
-.waveBar:nth-child(8) { animation-delay: 0.45s; }
-.waveBar:nth-child(9) { animation-delay: 0.2s; }
-.waveBar:nth-child(10) { animation-delay: 0.1s; }
-
+/* Main Input Box */
 .mainInputBox {
   display: flex;
   align-items: center;
@@ -500,8 +603,9 @@
   border: 1px solid var(--border-input);
   border-radius: 9999px;
   padding: 4px 6px 4px 12px;
-  min-height: 48px;
+  min-height: 46px;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .inputBodyContainer {
@@ -509,28 +613,6 @@
   min-width: 0;
   display: flex;
   align-items: center;
-}
-
-.holdToTalkButton {
-  width: 100%;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-  color: var(--text-white);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
-}
-
-.disabledHold {
-  cursor: not-allowed;
-  opacity: 0.5;
-  color: var(--text-muted);
 }
 
 .textForm {
@@ -542,15 +624,13 @@
 
 .inputField {
   width: 100%;
-  height: 40px;
+  height: 38px;
   border: none;
   background: transparent;
   color: var(--text-white);
   outline: none;
   font-size: 0.85rem;
   padding-right: 45px;
-  appearance: none;
-  -webkit-appearance: none;
 }
 
 .charCounter {
@@ -561,16 +641,40 @@
   pointer-events: none;
 }
 
+/* Tombol Tahan untuk Berbicara (Mouse & Touch Enabled) */
+.holdToTalkButton {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: var(--text-white);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  border: none;
+}
+
+.holdToTalkButton:active {
+  background-color: rgba(249, 115, 22, 0.1);
+  border-radius: 9999px;
+}
+
 .rightActionGroup {
   display: flex;
   align-items: center;
+  gap: 4px;
   flex-shrink: 0;
 }
 
 .modeToggleButton,
 .sendIconButton {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   display: flex;
@@ -597,16 +701,72 @@
   box-shadow: 0 2px 8px var(--accent-orange-border);
 }
 
-.loginSubmitButton {
-  background-color: var(--color-success);
-  color: var(--text-white);
-  border: none;
+/* State Merekam Suara & Audio Visualizer Real-Time */
+.recordingOverlay {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  background-color: rgba(24, 24, 27, 0.95);
   border-radius: 9999px;
-  padding: 0 14px;
-  height: 36px;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 0.78rem;
-  box-shadow: 0 2px 8px var(--color-success-shadow);
+  box-sizing: border-box;
+  transition: background-color 0.2s ease;
+}
+
+.recordingOverlayCancel {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.waveformContainer {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  width: 36px;
+  justify-content: center;
+}
+
+.waveBarRealtime {
+  width: 3px;
+  background-color: var(--accent-orange);
+  border-radius: 3px;
+  transition: height 0.05s ease;
+}
+
+.recordingOverlayCancel .waveBarRealtime {
+  background-color: var(--color-danger);
+}
+
+.recordingTimer {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-orange);
+  font-family: monospace;
+  background: rgba(249, 115, 22, 0.1);
+  padding: 2px 6px;
+  border-radius: 6px;
   flex-shrink: 0;
+}
+
+.recordingOverlayCancel .recordingTimer {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.recordingText {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recordingOverlayCancel .recordingText {
+  color: var(--color-danger);
 }

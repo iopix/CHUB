@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, ChangeEvent, RefObject } from 'react';
+import { useState, useRef, useEffect, RefObject } from 'react';
 import { useRouter } from 'next/navigation';
 import Header, { UserProfile } from './header';
 import InputSection from './input';
@@ -10,11 +10,6 @@ interface Message { role: 'user' | 'assistant'; content: string; }
 interface TrialPreset { reply: (name: string) => string; emotion: string; }
 type ActiveReaction = 'kepala' | 'perut' | 'kaki' | 'peluk' | 'marah' | null;
 interface RippleEffect { id: number; x: number; y: number; }
-
-const IconSpeaker = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>);
-const IconMute = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>);
-const IconAutoVoiceOn = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4" /><path d="M6 6v12" /><path d="M10 3v18" /><path d="M14 8v8" /><path d="M18 5v14" /><path d="M22 10v4" /></svg>);
-const IconAutoVoiceOff = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 10v4" /><path d="M6 6v12" /><line x1="2" y1="2" x2="22" y2="22" /></svg>);
 
 const TRIAL_PRESETS: Record<string, TrialPreset> = {
   'Peluk boleh?': { reply: (name: string) => `Boleh ${name}, sini saya peluk erat kamu dengan sepenuh jiwa raga.`, emotion: 'romantic' },
@@ -39,6 +34,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [isAudioRendering, setIsAudioRendering] = useState<boolean>(false);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<string>('voice1');
   const [autoVoice, setAutoVoice] = useState<boolean>(false);
@@ -61,8 +57,6 @@ export default function Home() {
   const bubbleScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
-
-  // Ref untuk Web Audio API Context
   const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => { activeReactionRef.current = activeReaction; }, [activeReaction]);
@@ -168,6 +162,7 @@ export default function Home() {
       audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
+    setIsAudioRendering(false);
     setPlayingIndex(null);
   };
 
@@ -178,6 +173,9 @@ export default function Home() {
 
     const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
+
+    // Tampilkan state loading suara pada pill status terlebih dahulu
+    setIsAudioRendering(true);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -194,7 +192,6 @@ export default function Home() {
       const audio = new Audio(URL.createObjectURL(blob));
       audioRef.current = audio;
 
-      // Penguatan Gain Audio jika diperlukan
       try {
         const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const audioCtx = new AudioContextClass();
@@ -202,16 +199,16 @@ export default function Home() {
 
         const source = audioCtx.createMediaElementSource(audio);
         const gainNode = audioCtx.createGain();
-
         gainNode.gain.value = 1.5;
 
         source.connect(gainNode);
         gainNode.connect(audioCtx.destination);
       } catch (e) {
-        console.warn('Web Audio API Gain Node failed, falling back to standard audio playback:', e);
+        console.warn('Web Audio API Gain Node fallback:', e);
       }
 
       audio.onplay = () => {
+        setIsAudioRendering(false);
         setPlayingIndex(index);
         let charIndex = 0;
         setDisplayedStatusText('');
@@ -237,6 +234,7 @@ export default function Home() {
 
       await audio.play();
     } catch {
+      setIsAudioRendering(false);
       setDisplayedStatusText(cleanText);
       stopAudio();
     }
@@ -440,25 +438,6 @@ export default function Home() {
 
       <div className={styles.mainContent}>
         <div className={styles.chatSection}>
-          <div className={styles.topControlPanel}>
-            <select 
-              value={selectedVoice} 
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedVoice(e.target.value)} 
-              className={styles.voiceSelect}
-            >
-              <option value="voice1">Voice 1</option>
-              <option value="voice2">Voice 2</option>
-              <option value="voice3">Voice 3</option>
-              <option value="voice4">Voice 4</option>
-              <option value="voice5">Voice 5</option>
-            </select>
-
-            <button type="button" onClick={() => setAutoVoice(!autoVoice)} className={styles.autoVoiceBtn} style={{ backgroundColor: autoVoice ? 'var(--accent-orange-subtle)' : 'var(--bg-dark-1)', borderColor: autoVoice ? 'var(--accent-orange)' : 'var(--border-zinc)', color: autoVoice ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
-              {autoVoice ? <IconAutoVoiceOn /> : <IconAutoVoiceOff />}
-              <span>{autoVoice ? 'Auto Voice ON' : 'Auto Voice OFF'}</span>
-            </button>
-          </div>
-
           <div className={styles.chatBox}>
             {messages.map((msg, index) => (
               <div key={index} className={styles.messageWrapper} style={{ justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -467,11 +446,6 @@ export default function Home() {
                     <span className={styles.roleLabel} style={{ color: msg.role === 'assistant' ? 'var(--accent-orange-light)' : 'var(--text-white)', fontWeight: '700', fontStyle: 'italic' }}>
                       {msg.role === 'user' ? getUserName() : 'SukaChub Virtual Chat'}
                     </span>
-                    {msg.role === 'assistant' && !msg.content?.startsWith('Error:') && msg.content && (
-                      <button onClick={() => startSyncSpeechAndTyping(msg.content, index)} className={styles.speakerBtn} style={{ color: playingIndex === index ? 'var(--accent-orange)' : 'var(--text-muted)' }}>
-                        {playingIndex === index ? <IconSpeaker /> : <IconMute />}
-                      </button>
-                    )}
                   </div>
                   <div className={styles.textContent}>
                     {msg.content}
@@ -495,7 +469,7 @@ export default function Home() {
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
           <div className={styles.topControlPanelRight}>
             <div className={styles.avatarTouchGuideTop}>
-              <span style={{ opacity: 0.7, fontWeight: '500' }}>Sentuh ava:</span>
+              <span style={{ opacity: 0.8, fontWeight: '600' }}>Sentuh Ava:</span>
               <span className={`${styles.guideChip} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrange : ''}`}>Kepala</span>
               <span className={styles.dotSep}>•</span>
               <span className={`${styles.guideChip} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrange : ''}`}>Badan</span>
@@ -512,6 +486,15 @@ export default function Home() {
                   sukachub.my.id
                 </a>
                 <div className={styles.welcomeSubtitle}>sukachub virtual chat</div>
+              </div>
+            ) : isAudioRendering ? (
+              <div className={styles.audioRenderingBox}>
+                <div className={styles.loadingDots}>
+                  <span className={styles.dot} />
+                  <span className={styles.dot} />
+                  <span className={styles.dot} />
+                </div>
+                <span className={styles.renderingText}>Menyiapkan suara...</span>
               </div>
             ) : (
               <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
@@ -534,6 +517,31 @@ export default function Home() {
             <video ref={videoMarahRef} src="/Marah.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'marah' ? 1 : 0 }} />
             <video ref={videoPelukRef} src="/Peluk.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'peluk' || activeReaction === 'perut' ? 1 : 0 }} />
             <video ref={videoKepalaRef} src="/Kepala.webm" muted playsInline preload="auto" onEnded={() => setActiveReaction(null)} className={styles.avatarVideo} style={{ opacity: activeReaction === 'kepala' || activeReaction === 'kaki' ? 1 : 0 }} />
+          </div>
+
+          {/* Pengaturan Voice & Auto Voice dipindah ke Bawah Kaki Avatar */}
+          <div className={styles.bottomVoiceControlPanel}>
+            <div className={styles.voiceSelectWrapper}>
+              <select 
+                value={selectedVoice} 
+                onChange={(e) => setSelectedVoice(e.target.value)} 
+                className={styles.voiceRollSelect}
+              >
+                <option value="voice1">Voice 1</option>
+                <option value="voice2">Voice 2</option>
+                <option value="voice3">Voice 3</option>
+                <option value="voice4">Voice 4</option>
+                <option value="voice5">Voice 5</option>
+              </select>
+            </div>
+
+            <button 
+              type="button" 
+              onClick={() => setAutoVoice(!autoVoice)} 
+              className={`${styles.textOnlyAutoVoiceBtn} ${autoVoice ? styles.autoVoiceActive : ''}`}
+            >
+              {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
+            </button>
           </div>
         </div>
       </div>
