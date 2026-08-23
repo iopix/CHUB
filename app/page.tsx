@@ -12,7 +12,7 @@ type ActiveReaction = 'kepala' | 'perut' | 'kaki' | 'peluk' | 'marah' | null;
 interface RippleEffect { id: number; x: number; y: number; }
 
 const TRIAL_PRESETS: Record<string, TrialPreset> = {
-  'Hari apa?': { reply: (name: string) => `Hari ini hari ${['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][new Date().getDay()]}, ${name}!`, emotion: 'neutral' },
+  'tgl berapa?': { reply: (name: string) => `Hari ini hari ${['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][new Date().getDay()]}, ${name}!`, emotion: 'neutral' },
   'Peluk boleh?': { reply: (name: string) => `Boleh ${name}, sini saya peluk erat kamu dengan sepenuh jiwa raga.`, emotion: 'romantic' },
   'Temani saya mengobrol': { reply: (name: string) => `Tentu ${name}, saya akan mengobrol dan menemani hari-harimu.`, emotion: 'neutral' },
   'Coba kata kasar': { reply: (name: string) => `Maaf ${name}, jangan berkata kasar ya. No no no!`, emotion: 'angry' },
@@ -37,6 +37,46 @@ const IconTrashOrange = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  </svg>
+);
+
+/* SVG Aksen HUD Futuristik untuk Bubble Chat */
+const SciFiHudDecoration = ({ isUser }: { isUser: boolean }) => (
+  <svg
+    style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      pointerEvents: 'none',
+      zIndex: 1,
+    }}
+    preserveAspectRatio="none"
+    viewBox="0 0 100 100"
+  >
+    {/* Sudut Chamfered Outer Border */}
+    <path
+      d={isUser ? "M 8,0 L 92,0 L 100,12 L 100,88 L 92,100 L 0,100 L 0,12 Z" : "M 0,0 L 92,0 L 100,12 L 100,100 L 8,100 L 0,88 Z"}
+      fill="none"
+      stroke={isUser ? "#f97316" : "#fb923c"}
+      strokeWidth="1.5"
+      vectorEffect="non-scaling-stroke"
+    />
+    {/* Aksen Strip Futuristik Atas/Bawah */}
+    {isUser ? (
+      <>
+        <line x1="15" y1="3" x2="35" y2="3" stroke="#f97316" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+        <line x1="85" y1="97" x2="95" y2="97" stroke="#f97316" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+        <rect x="2" y="30" width="3" height="12" fill="#f97316" />
+      </>
+    ) : (
+      <>
+        <line x1="65" y1="3" x2="85" y2="3" stroke="#f97316" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+        <line x1="5" y1="97" x2="20" y2="97" stroke="#f97316" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+        <rect x="95" y="30" width="3" height="12" fill="#f97316" />
+      </>
+    )}
   </svg>
 );
 
@@ -485,9 +525,9 @@ export default function Home() {
       return;
     }
 
-    if (presetKey === 'Hari apa?') {
-      const reply = TRIAL_PRESETS['Hari apa?'].reply(name);
-      const userMsg: Message = { role: 'user', content: presetKey };
+    if (presetKey === 'Hari apa?' || presetKey === 'tgl berapa?') {
+      const reply = TRIAL_PRESETS['tgl berapa?'].reply(name);
+      const userMsg: Message = { role: 'user', content: 'tgl berapa?' };
       const aiMsg: Message = { role: 'assistant', content: reply };
       const updatedMessages = [...messages, userMsg, aiMsg];
       setMessages(updatedMessages);
@@ -628,20 +668,22 @@ export default function Home() {
                   <SwipeableMessage onDelete={() => handleRemoveSingleMessage(index)}>
                     <div 
                       onClick={() => handleChatMessageClick(msg, index)}
-                      className={`${styles.bubbleSkewed} ${
-                        isSingleChat 
-                          ? styles.blackSingleBubble 
-                          : (isUser ? styles.userBubbleRight : styles.aiBubble)
-                      } ${isSelectedActive ? styles.orangeOutlineGlow : ''} ${styles.clickableBubble}`}
+                      className={`${styles.futuristicHudFrame} ${
+                        isUser ? styles.userHudFrame : styles.aiHudFrame
+                      } ${isSelectedActive ? styles.orangeOutlineGlow : ''}`}
                       title="Klik untuk putar suara / Geser Kiri-Kanan untuk hapus"
                     >
-                      <div className={isUser && !isSingleChat ? styles.roleHeaderRight : styles.roleHeader}>
-                        <span className={styles.orangeBrightLabelText}>
-                          {isUser ? getUserName() : 'SukaChub Virtual Chat'}
-                        </span>
-                      </div>
-                      <div className={styles.textContent}>
-                        {msg.content}
+                      <SciFiHudDecoration isUser={isUser} />
+                      
+                      <div className={styles.hudInnerContent}>
+                        <div className={isUser && !isSingleChat ? styles.roleHeaderRight : styles.roleHeader}>
+                          <span className={styles.orangeBrightLabelText}>
+                            {isUser ? getUserName() : 'SukaChub Virtual Chat'}
+                          </span>
+                        </div>
+                        <div className={styles.textContent}>
+                          {msg.content}
+                        </div>
                       </div>
                     </div>
                   </SwipeableMessage>
@@ -651,9 +693,12 @@ export default function Home() {
 
             {loading && (
               <div className={styles.messageWrapper} style={{ justifyContent: 'flex-start' }}>
-                <div className={`${styles.bubbleSkewed} ${styles.aiBubble}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className={styles.loadingDots}><span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} /></div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>sedang mikir...</span>
+                <div className={`${styles.futuristicHudFrame} ${styles.aiHudFrame}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <SciFiHudDecoration isUser={false} />
+                  <div className={styles.hudInnerContent} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className={styles.loadingDots}><span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} /></div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>MEMPROSES DATA...</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -662,58 +707,63 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          <div className={styles.dynamicStatusBubbleFixed}>
-            {isWelcomeBubble ? (
-              <div className={styles.welcomeContainer}>
-                <div className={styles.welcomeTitle}>SELAMAT DATANG</div>
-                <a href="https://sukachub.my.id" target="_blank" rel="noopener noreferrer" className={styles.blinkingOrangeLink}>
-                  sukachub.my.id
-                </a>
-                <div className={styles.welcomeSubtitle}>sukachub virtual chat</div>
-              </div>
-            ) : (
-              <div className={styles.bubbleStatusBox}>
-                <div className={styles.bubbleStatusHeader}>
-                  {autoVoice ? (
-                    <span className={styles.idlePromptText}>
-                      <strong style={{ color: '#f97316' }}>AUTO VOICE ON</strong> — Pesan balasan otomatis diputar suaranya oleh Ava.
-                    </span>
-                  ) : (
-                    <span className={styles.idlePromptText}>
-                      <strong style={{ color: '#a1a1aa' }}>AUTO VOICE OFF</strong> — Sentuh/klik salah satu balon chat di kiri untuk diputar suaranya disini.
-                    </span>
-                  )}
+          {/* Status Ava dalam Frame HUD Futuristic Orange Hitam */}
+          <div className={styles.dynamicStatusBubbleFixedHud}>
+            <SciFiHudDecoration isUser={false} />
+
+            <div className={styles.hudInnerContentBox}>
+              {isWelcomeBubble ? (
+                <div className={styles.welcomeContainer}>
+                  <div className={styles.welcomeTitle}>SELAMAT DATANG</div>
+                  <a href="https://sukachub.my.id" target="_blank" rel="noopener noreferrer" className={styles.blinkingOrangeLink}>
+                    sukachub.my.id
+                  </a>
+                  <div className={styles.welcomeSubtitle}>sukachub virtual chat</div>
                 </div>
+              ) : (
+                <div className={styles.bubbleStatusBox}>
+                  <div className={styles.bubbleStatusHeader}>
+                    {autoVoice ? (
+                      <span className={styles.idlePromptText}>
+                        <strong style={{ color: '#f97316' }}>AUTO VOICE ON</strong> — Balasan otomatis diputar.
+                      </span>
+                    ) : (
+                      <span className={styles.idlePromptText}>
+                        <strong style={{ color: '#a1a1aa' }}>AUTO VOICE OFF</strong> — Sentuh balon chat untuk mendengarkan.
+                      </span>
+                    )}
+                  </div>
 
-                <div className={styles.dynamicDividerLine} />
+                  <div className={styles.dynamicDividerLine} />
 
-                <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
-                  {displayedStatusText && (
-                    <>
-                      <span className={styles.italicText}>{displayedStatusText}</span>
-                      <span className={styles.blinkingOrangeSlash}> /</span>
-                    </>
-                  )}
+                  <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
+                    {displayedStatusText && (
+                      <>
+                        <span className={styles.italicText}>{displayedStatusText}</span>
+                        <span className={styles.blinkingOrangeSlash}> /</span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className={styles.bubbleBottomLeftVisualizer}>
-              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
-              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
-              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
-              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
-              <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+              <div className={styles.bubbleBottomLeftVisualizer}>
+                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleBubbleSpeakerClick}
+                className={`${styles.bubbleSpeakerBtn} ${autoVoice || isSpeaking ? styles.bubbleSpeakerActive : ''}`}
+                title="Dengarkan Suara"
+              >
+                <IconSpeaker />
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleBubbleSpeakerClick}
-              className={`${styles.bubbleSpeakerBtn} ${autoVoice || isSpeaking ? styles.bubbleSpeakerActive : ''}`}
-              title="Dengarkan Suara"
-            >
-              <IconSpeaker />
-            </button>
 
             <div className={styles.speechTailDinamis} />
           </div>
@@ -738,23 +788,23 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => triggerReactionByPart('kepala')}
-                className={`${styles.gridGuideChipSkewed} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrangeSkewed : ''}`}
+                className={`${styles.futuristicHudBtn} ${activeReaction === 'marah' || activeReaction === 'kepala' ? styles.activeOrangeHud : ''}`}
               >
-                <span className={styles.unskewContent}>Kepala</span>
+                Kepala
               </button>
               <button
                 type="button"
                 onClick={() => triggerReactionByPart('perut')}
-                className={`${styles.gridGuideChipSkewed} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrangeSkewed : ''}`}
+                className={`${styles.futuristicHudBtn} ${activeReaction === 'perut' || activeReaction === 'peluk' ? styles.activeOrangeHud : ''}`}
               >
-                <span className={styles.unskewContent}>Badan</span>
+                Badan
               </button>
               <button
                 type="button"
                 onClick={() => triggerReactionByPart('kaki')}
-                className={`${styles.gridGuideChipSkewed} ${activeReaction === 'kaki' ? styles.activeOrangeSkewed : ''}`}
+                className={`${styles.futuristicHudBtn} ${activeReaction === 'kaki' ? styles.activeOrangeHud : ''}`}
               >
-                <span className={styles.unskewContent}>Kaki</span>
+                Kaki
               </button>
             </div>
           </div>
@@ -764,9 +814,9 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setIsVoiceDropdownOpen(!isVoiceDropdownOpen)}
-                className={styles.skewedVoiceBtn}
+                className={styles.futuristicVoiceBtn}
               >
-                <div className={styles.unskewContent} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>{activeVoiceObj.label}</span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isVoiceDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
                     <polyline points="6 9 12 15 18 9" />
@@ -803,14 +853,12 @@ export default function Home() {
                 setAutoVoice(nextState);
                 if (!nextState) setDisplayedStatusText('');
               }} 
-              className={`${styles.skewedAutoVoiceBtn} ${
-                autoVoice ? styles.skewedAutoVoiceActive : styles.skewedAutoVoiceInactive
+              className={`${styles.futuristicAutoVoiceBtn} ${
+                autoVoice ? styles.futuristicAutoVoiceActive : styles.futuristicAutoVoiceInactive
               } ${isSingleChat ? styles.disabledAutoVoiceBtn : ''}`}
               title={isSingleChat ? "Auto Voice selalu aktif di Mode Single Chat" : "Toggle Auto Voice"}
             >
-              <span className={styles.unskewContent}>
-                {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
-              </span>
+              {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
             </button>
           </div>
         </div>

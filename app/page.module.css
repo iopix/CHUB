@@ -1,26 +1,23 @@
 :root {
   --bg-black: #000000;
-  --bg-dark-1: #121214;
-  --bg-dark-2: #1e1e22;
+  --bg-dark-1: #0a0a0c;
+  --bg-dark-2: #141418;
   --border-zinc: #3f3f46;
   --border-zinc-subtle: rgba(63, 63, 70, 0.4);
-  --border-zinc-divider: rgba(63, 63, 70, 0.2);
+  --border-zinc-divider: rgba(63, 63, 70, 0.25);
   --border-input: #3f3f46;
   --text-white: #ffffff;
   --text-light: #f4f4f5;
   --text-muted: #a1a1aa;
   --accent-orange: #f97316;
   --accent-orange-light: #fb923c;
-  --accent-orange-subtle: rgba(249, 115, 22, 0.12);
-  --accent-orange-border: rgba(249, 115, 22, 0.35);
-  --accent-orange-user-bubble: rgba(249, 115, 22, 0.3);
-  --bg-ai-bubble: #18181b;
-  --shadow-bubble: rgba(0, 0, 0, 0.4);
+  --accent-orange-glow: rgba(249, 115, 22, 0.4);
+  --bg-hud-dark: rgba(18, 18, 20, 0.85);
 }
 
 @keyframes orangeBlink {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.3; transform: scale(0.98); }
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 6px var(--accent-orange)); }
+  50% { opacity: 0.3; filter: drop-shadow(0 0 1px var(--accent-orange)); }
 }
 
 @keyframes slashBlink {
@@ -44,7 +41,7 @@
 }
 
 @keyframes slideArrowPulse {
-  0%, 100% { transform: translateX(0); opacity: 0.5; }
+  0%, 100% { transform: translateX(0); opacity: 0.6; }
   50% { transform: translateX(4px); opacity: 1; }
 }
 
@@ -79,6 +76,7 @@
   color: var(--text-light);
   overflow: hidden;
   position: relative;
+  font-family: monospace, sans-serif;
 }
 
 .mainContent {
@@ -109,7 +107,7 @@
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   -webkit-overflow-scrolling: touch;
   mask-image: linear-gradient(to bottom, transparent 0%, black 16px, black calc(100% - 16px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 16px, black calc(100% - 16px), transparent 100%);
@@ -126,14 +124,8 @@
 
 .chatBox::-webkit-scrollbar-thumb,
 .dynamicStatusTextScroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-}
-
-.chatBox,
-.dynamicStatusTextScroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  background: var(--accent-orange);
+  border-radius: 2px;
 }
 
 .messageWrapper { display: flex; width: 100%; position: relative; }
@@ -155,10 +147,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  background-color: rgba(249, 115, 22, 0.1);
-  border-radius: 18px;
+  background-color: rgba(249, 115, 22, 0.15);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   pointer-events: none;
-  transition: opacity 0.2s ease;
   z-index: 1;
 }
 
@@ -168,56 +159,45 @@
   width: 100%;
 }
 
-.bubbleSkewed { 
-  max-width: 90%; 
-  padding: 10px 16px; 
-  border-radius: 12px; 
-  transform: skewX(-8deg); /* TEKS DI DALAM IKUT MIRING SESUAI JENIS GENJANG */
-  font-size: clamp(0.75rem, 2vw, 0.9rem); 
-  backdrop-filter: blur(16px); 
-  word-break: break-word; 
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+/* KOTAK HUD FUTURISTIK */
+.futuristicHudFrame {
+  position: relative;
+  max-width: 90%;
+  padding: 12px 18px;
+  background-color: var(--bg-hud-dark);
+  font-size: clamp(0.75rem, 2vw, 0.88rem);
+  backdrop-filter: blur(12px);
+  word-break: break-word;
+  transition: all 0.2s ease;
   box-sizing: border-box;
+  cursor: pointer;
 }
 
-.clickableBubble { cursor: pointer; }
-.clickableBubble:hover {
-  transform: skewX(-8deg) scale(1.012);
-  border-color: var(--accent-orange);
-}
-
-.userBubbleRight { 
-  background-color: var(--accent-orange-user-bubble); 
-  color: var(--text-white); 
-  border: 1px solid var(--accent-orange-border);
-  text-align: right;
+/* BENTUK CUT-OUT CORNER (CHAMFERED HUD) */
+.userHudFrame {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   margin-left: auto;
 }
 
-.aiBubble { 
-  background-color: var(--bg-ai-bubble); 
-  color: var(--text-light); 
-  border: 1px solid var(--border-zinc-subtle); 
-  text-align: left;
+.aiHudFrame {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  margin-right: auto;
 }
 
-.blackSingleBubble {
-  background-color: var(--bg-ai-bubble) !important; 
-  color: var(--text-light) !important; 
-  border: 1px solid var(--border-zinc-subtle) !important; 
-  text-align: left;
+.hudInnerContent {
+  position: relative;
+  z-index: 3;
 }
 
 .orangeOutlineGlow {
-  border: 1.8px solid var(--accent-orange) !important;
-  box-shadow: 0 0 0 1px var(--accent-orange), 0 0 14px rgba(249, 115, 22, 0.75) !important;
+  filter: drop-shadow(0 0 8px var(--accent-orange));
 }
 
 .roleHeader { 
   display: flex; 
   justify-content: flex-start; 
   align-items: center; 
-  margin-bottom: 3px; 
+  margin-bottom: 4px; 
   gap: 8px; 
 }
 
@@ -225,19 +205,24 @@
   display: flex; 
   justify-content: flex-end; 
   align-items: center; 
-  margin-bottom: 3px; 
+  margin-bottom: 4px; 
   gap: 8px; 
 }
-
-.roleLabel { font-size: clamp(0.6rem, 1.8vw, 0.7rem); }
 
 .orangeBrightLabelText { 
   color: var(--accent-orange-light) !important; 
   font-weight: 800 !important; 
-  font-style: italic; 
+  letter-spacing: 0.5px;
+  font-family: monospace, sans-serif;
+  text-transform: uppercase;
 }
 
-.textContent { white-space: pre-wrap; line-height: 1.4; word-break: break-word; }
+.textContent { 
+  white-space: pre-wrap; 
+  line-height: 1.45; 
+  word-break: break-word; 
+  color: var(--text-light);
+}
 
 .loadingDots { display: inline-flex; align-items: center; gap: 4px; }
 .loadingDots .dot {
@@ -258,7 +243,7 @@
   justify-content: flex-start;
   padding: 6px 8px 8px 8px;
   background-color: var(--bg-black);
-  border-left: 1px solid var(--border-zinc-divider);
+  border-left: 1px stroke var(--border-zinc-divider);
   flex-shrink: 0;
   position: relative;
 }
@@ -268,19 +253,16 @@
   padding: 4px;
 }
 
-/* BUBBLE AVA BERBENTUK JAJAR GENJANG ROUNDED DENGAN TEKS TERIKUT MIRING */
-.dynamicStatusBubbleFixed {
+/* STATUS AVA DALAM CONTAINER HUD FUTURISTIK */
+.dynamicStatusBubbleFixedHud {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 10px 14px 20px 14px;
-  border-radius: 12px;
-  transform: skewX(-8deg); /* KEMIRINGAN JAJAR GENJANG DINAMIS */
-  border: 1px solid var(--accent-orange);
-  background-color: rgba(24, 24, 27, 0.85);
-  backdrop-filter: blur(12px);
+  padding: 12px 14px 20px 14px;
+  background-color: var(--bg-hud-dark);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   margin-top: 4px;
   margin-bottom: 2px;
   width: 96%;
@@ -289,6 +271,15 @@
   box-sizing: border-box;
   z-index: 15;
   flex-shrink: 0;
+}
+
+.hudInnerContentBox {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .welcomeContainer {
@@ -306,13 +297,14 @@
   font-size: clamp(0.75rem, 2vw, 0.85rem);
   font-weight: 800;
   color: var(--text-white);
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
 }
 
 .welcomeSubtitle {
   font-size: clamp(0.62rem, 1.6vw, 0.72rem);
   font-weight: 500;
   color: var(--text-muted);
+  text-transform: uppercase;
 }
 
 .bubbleStatusBox {
@@ -331,7 +323,7 @@
 .dynamicDividerLine {
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, rgba(249, 115, 22, 0.8) 0%, rgba(63, 63, 70, 0.4) 100%);
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.9) 0%, rgba(63, 63, 70, 0.3) 100%);
   margin: 4px 0;
   flex-shrink: 0;
 }
@@ -353,14 +345,13 @@
   font-size: clamp(0.62rem, 1.6vw, 0.72rem);
   color: var(--text-muted);
   line-height: 1.35;
-  font-style: italic;
   display: block;
 }
 
 .bubbleBottomLeftVisualizer {
   position: absolute;
-  bottom: 8px;
-  left: 12px;
+  bottom: 0px;
+  left: 2px;
   display: flex;
   align-items: flex-end;
   gap: 2.5px;
@@ -372,7 +363,6 @@
   width: 2.5px;
   height: 3px;
   background-color: var(--accent-orange);
-  border-radius: 2px;
   opacity: 0.35;
   transition: all 0.2s ease;
 }
@@ -382,14 +372,10 @@
   animation: wavePulseSmall 0.8s infinite ease-in-out;
 }
 
-.bubbleWaveActive:nth-child(1) { animation-delay: 0.1s; }
-.bubbleWaveActive:nth-child(2) { animation-delay: 0.3s; }
-.bubbleWaveActive:nth-child(3) { animation-delay: 0.2s; }
-
 .bubbleSpeakerBtn {
   position: absolute;
-  bottom: 6px;
-  right: 12px;
+  bottom: -4px;
+  right: 2px;
   background: transparent;
   border: none;
   color: #71717a;
@@ -398,18 +384,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
   transition: all 0.2s ease;
 }
 
 .bubbleSpeakerBtn:hover {
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--accent-orange);
 }
 
 .bubbleSpeakerActive {
   color: #f97316 !important;
-  filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.6));
+  filter: drop-shadow(0 0 6px var(--accent-orange));
 }
 
 .speechTailDinamis {
@@ -437,8 +421,6 @@
   cursor: pointer;
   touch-action: none;
   user-select: none;
-  -webkit-user-select: none;
-  outline: none;
   background-color: var(--bg-black);
 }
 
@@ -492,7 +474,7 @@
   font-size: clamp(0.58rem, 1.5vw, 0.65rem);
   color: var(--text-muted);
   font-weight: 600;
-  opacity: 0.8;
+  text-transform: uppercase;
 }
 
 .gridGuideGroupSkewed {
@@ -504,37 +486,32 @@
   box-sizing: border-box;
 }
 
-.gridGuideChipSkewed {
-  background: rgba(39, 39, 42, 0.8);
-  border: 1px solid rgba(63, 63, 70, 0.6);
+/* TOMBOL AKSEN SENTUH HUD */
+.futuristicHudBtn {
+  background: var(--bg-dark-2);
+  border: 1px solid var(--border-zinc);
   color: var(--text-muted);
   font-size: clamp(0.58rem, 1.5vw, 0.68rem);
-  font-weight: 600;
-  padding: 5px 0;
-  border-radius: 8px;
-  transform: skewX(-8deg);
+  font-weight: 700;
+  padding: 6px 0;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
+  text-transform: uppercase;
 }
 
-.gridGuideChipSkewed:hover {
-  color: var(--accent-orange);
-  background: rgba(249, 115, 22, 0.15);
+.futuristicHudBtn:hover {
+  color: var(--text-white);
   border-color: var(--accent-orange);
+  background: rgba(249, 115, 22, 0.2);
 }
 
-.unskewContent {
-  display: inline-block;
-  transform: skewX(8deg);
-}
-
-.activeOrangeSkewed {
+.activeOrangeHud {
   color: #ffffff !important;
-  font-weight: 700 !important;
   background: var(--accent-orange) !important;
   border-color: var(--accent-orange) !important;
-  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.4);
+  filter: drop-shadow(0 0 6px var(--accent-orange));
 }
 
 .bottomVoiceControlPanel {
@@ -553,25 +530,24 @@
   display: inline-block;
 }
 
-.skewedVoiceBtn {
+.futuristicVoiceBtn {
   height: 32px;
-  padding: 0 16px;
+  padding: 0 14px;
   font-size: clamp(0.6rem, 1.5vw, 0.7rem);
   font-weight: 700;
   color: #f4f4f5;
-  background-color: #27272a;
-  border: 1px solid #3f3f46;
-  border-radius: 8px;
-  transform: skewX(-8deg);
+  background-color: var(--bg-dark-2);
+  border: 1px solid var(--border-zinc);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   transition: all 0.2s ease;
 }
 
-.skewedVoiceBtn:hover {
-  border-color: #f97316;
-  box-shadow: 0 0 8px rgba(249, 115, 22, 0.3);
+.futuristicVoiceBtn:hover {
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 8px var(--accent-orange-glow);
 }
 
 .voiceTailPopover {
@@ -579,29 +555,15 @@
   bottom: calc(100% + 10px);
   left: 50%;
   transform: translateX(-50%);
-  background-color: #18181b;
-  border: 1px solid #3f3f46;
-  border-radius: 12px;
+  background-color: #121214;
+  border: 1px solid var(--accent-orange);
   padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 110px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
   z-index: 100;
-}
-
-.voiceTailPopover::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 6px solid #18181b;
 }
 
 .voiceOptionItem {
@@ -611,7 +573,6 @@
   padding: 6px 10px;
   font-size: 0.72rem;
   font-weight: 600;
-  border-radius: 8px;
   text-align: left;
   cursor: pointer;
   display: flex;
@@ -627,26 +588,25 @@
 
 .voiceOptionSelected {
   background-color: rgba(249, 115, 22, 0.15) !important;
-  color: #f97316 !important;
+  color: var(--accent-orange) !important;
   font-weight: 700 !important;
 }
 
 .orangeDotGlow {
   width: 6px;
   height: 6px;
-  background-color: #f97316;
+  background-color: var(--accent-orange);
   border-radius: 50%;
-  box-shadow: 0 0 6px #f97316;
+  box-shadow: 0 0 6px var(--accent-orange);
 }
 
-.skewedAutoVoiceBtn {
+.futuristicAutoVoiceBtn {
   height: 32px;
-  padding: 0 16px;
+  padding: 0 14px;
   font-size: clamp(0.6rem, 1.5vw, 0.7rem);
   font-weight: 700;
-  letter-spacing: 0.3px;
-  border-radius: 8px;
-  transform: skewX(-8deg);
+  letter-spacing: 0.5px;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
@@ -655,17 +615,17 @@
   justify-content: center;
 }
 
-.skewedAutoVoiceInactive {
-  background-color: #27272a !important;
-  border: 1px solid #3f3f46 !important;
+.futuristicAutoVoiceInactive {
+  background-color: var(--bg-dark-2) !important;
+  border: 1px solid var(--border-zinc) !important;
   color: #71717a !important;
 }
 
-.skewedAutoVoiceActive {
-  background-color: rgba(249, 115, 22, 0.2) !important;
-  border: 1.5px solid #f97316 !important;
-  color: #f97316 !important;
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);
+.futuristicAutoVoiceActive {
+  background-color: rgba(249, 115, 22, 0.25) !important;
+  border: 1px solid var(--accent-orange) !important;
+  color: var(--accent-orange) !important;
+  filter: drop-shadow(0 0 6px var(--accent-orange));
 }
 
 .disabledAutoVoiceBtn {
@@ -699,8 +659,7 @@
   border: 1px solid var(--accent-orange);
   color: #f97316;
   padding: 6px 16px;
-  border-radius: 8px;
-  transform: skewX(-8deg);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
   font-size: clamp(0.68rem, 1.8vw, 0.78rem);
   font-weight: 700;
   cursor: pointer;
@@ -711,7 +670,6 @@
   justify-content: center;
   gap: 6px;
   transition: all 0.2s ease;
-  line-height: 1;
 }
 
 .fixedOrangeDeleteBtn:hover {
@@ -728,18 +686,6 @@
   position: relative;
 }
 
-/* ANIMASI GESER DI UJUNG PALING KANAN DENGAN UKURAN LEBIH BESAR */
-.slideArrowIndicatorRight {
-  color: var(--accent-orange);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: slideArrowPulse 1.2s infinite ease-in-out;
-  flex-shrink: 0;
-  padding-left: 2px;
-  padding-right: 2px;
-}
-
 .capsuleRowScrollable {
   display: flex;
   align-items: center;
@@ -751,12 +697,8 @@
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   padding: 2px 4px;
-  user-select: none;
-  -webkit-user-select: none;
-  cursor: grab;
 }
 
-.capsuleRowScrollable:active { cursor: grabbing; }
 .capsuleRowScrollable::-webkit-scrollbar { display: none; }
 .capsuleRowScrollable { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -766,19 +708,16 @@
   border: 1px solid var(--border-zinc-subtle);
   color: var(--text-light);
   padding: 6px 18px;
-  border-radius: 8px;
-  transform: skewX(-8deg); /* TEKS SKEWED MENGIKUTI GENJANG */
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
   font-size: clamp(0.68rem, 1.8vw, 0.78rem);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   transition: all 0.2s ease;
-  line-height: 1;
 }
 
 .skewedChipButton:hover {
@@ -824,7 +763,7 @@
   background-color: rgba(249, 115, 22, 0.2) !important;
   border-color: var(--accent-orange) !important;
   color: var(--accent-orange) !important;
-  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+  box-shadow: 0 0 8px var(--accent-orange-glow);
 }
 
 .inputBodyContainer {
@@ -887,7 +826,7 @@
 .sendIconButton {
   background-color: var(--accent-orange);
   color: var(--text-white);
-  box-shadow: 0 2px 8px var(--accent-orange-border);
+  box-shadow: 0 2px 8px var(--accent-orange-glow);
 }
 
 .recordingOverlay {
@@ -902,7 +841,6 @@
   background-color: rgba(24, 24, 27, 0.95);
   border-radius: 9999px;
   box-sizing: border-box;
-  transition: background-color 0.2s ease;
 }
 
 .waveformContainer {
