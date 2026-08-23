@@ -553,7 +553,7 @@
 .voiceTailPopover {
   position: absolute;
   bottom: calc(100% + 10px);
-  left: 50%;
+  left: 65%;
   transform: translateX(-50%);
   background-color: #121214;
   border: 1px solid var(--accent-orange);
