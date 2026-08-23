@@ -65,18 +65,18 @@ const SciFiHudFrame = ({
       style={{
         position: 'relative',
         width: '100%',
-        padding: '10px 14px',
+        padding: '6px 8px', // Padding dipraktiskan agar lebih ringkas
         backgroundColor: isLogout
           ? 'rgba(239, 68, 68, 0.2)'
           : isLogin
           ? 'rgba(34, 197, 94, 0.2)'
           : 'rgba(20, 20, 26, 0.85)',
         backdropFilter: 'blur(10px)',
-        clipPath: 'polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px))',
+        clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))',
         border: 'none',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center', // Mengatur teks tepat di tengah
+        justifyContent: 'center',
         cursor: 'pointer',
         boxSizing: 'border-box',
       }}
@@ -117,12 +117,15 @@ const SciFiHudFrame = ({
           zIndex: 3,
           color: isLogout ? '#ef4444' : isLogin ? '#22c55e' : '#ffffff',
           fontWeight: 800,
-          fontSize: '0.78rem',
+          fontSize: 'clamp(0.62rem, 1.8vw, 0.72rem)', // Font responsif kecil di mobile
           fontFamily: 'monospace, sans-serif',
-          letterSpacing: '0.8px',
+          letterSpacing: '0.5px',
           textTransform: isLogout || isLogin ? 'uppercase' : 'lowercase',
-          textAlign: 'center', // Mengatur alignment teks rata tengah
+          textAlign: 'center',
           width: '100%',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
         }}
       >
         {children}
@@ -230,15 +233,15 @@ export default function Header({
           box-shadow: 0 0 7px rgba(34, 197, 94, 0.8);
         }
         .dropdown-kicker {
-          padding: 0 4px 8px;
+          padding: 0 2px 4px;
           color: #71717a;
           border-bottom: 1px solid rgba(249, 115, 22, 0.3);
-          font-size: 0.58rem;
+          font-size: clamp(0.5rem, 1.5vw, 0.56rem);
           font-weight: 800;
-          letter-spacing: 1.5px;
+          letter-spacing: 1px;
           text-transform: uppercase;
-          margin-bottom: 4px;
-          text-align: center; // Judul kicker rata tengah
+          margin-bottom: 2px;
+          text-align: center;
         }
         .hud-menu-button:hover svg {
           filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.8));
@@ -297,12 +300,11 @@ export default function Header({
                   vectorEffect="non-scaling-stroke"
                 />
                 <line x1="65" y1="3" x2="85" y2="3" stroke="#f97316" strokeWidth="3" vectorEffect="non-scaling-stroke" />
-                {/* Garis aksen oranye di bawah diubah tepat ke tengah (x1=40 x2=60) */}
                 <line x1="40" y1="97" x2="60" y2="97" stroke="#f97316" strokeWidth="3" vectorEffect="non-scaling-stroke" />
                 <rect x="95" y="30" width="3" height="12" fill="#f97316" />
               </svg>
 
-              <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 <div className="dropdown-kicker">External network</div>
 
                 <SciFiHudFrame href="https://ipix.my.id" onClick={() => setIsMenuOpen(false)}>
@@ -449,15 +451,14 @@ const styles: Record<string, CSSProperties> = {
     backgroundColor: 'rgba(14, 14, 18, 0.95)',
     backdropFilter: 'blur(14px)',
     WebkitBackdropFilter: 'blur(14px)',
-    padding: '14px',
+    padding: '8px 10px 10px 10px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
+    gap: '4px',
     zIndex: 999999,
     boxShadow: '0 0 18px rgba(249, 115, 22, 0.35)',
-    minWidth: 'min(210px, calc(100vw - 32px))',
-    width: 'min(240px, calc(100vw - 32px))',
-    clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px))',
+    width: 'min(170px, 48vw)', // Maksimal 48vw (~setengah layar) agar seukuran kolom chat
+    clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))',
   },
   titleWrapper: {
     display: 'flex',
