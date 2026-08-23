@@ -36,8 +36,8 @@
 }
 
 @keyframes wavePulseSmall {
-  0%, 100% { height: 3px; }
-  50% { height: 12px; }
+  0%, 100% { height: 4px; }
+  50% { height: 18px; }
 }
 
 @keyframes marqueeText {
@@ -61,6 +61,7 @@
   font-weight: 800;
   animation: slashBlink 0.8s infinite step-start;
   display: inline-block;
+  margin-left: 4px;
 }
 
 .italicText { font-style: italic; }
@@ -159,6 +160,7 @@
   width: 100%;
 }
 
+/* KOTAK HUD FUTURISTIK BUBBLE CHAT */
 .futuristicHudFrame {
   position: relative;
   max-width: 90%;
@@ -246,25 +248,30 @@
   position: relative;
 }
 
-/* === BUBBLE AVA UNTUK MOBILE === */
+.avatarSectionMobile {
+  width: 50%;
+  padding: 4px;
+}
+
+/* === BUBBLE STATUS AVA (HUD) === */
 .dynamicStatusBubbleFixedHud {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 8px 10px 10px 10px;
+  padding: 10px 12px 12px 12px;
   background-color: var(--bg-hud-dark);
+  /* Chamfer presisi 10px selaras penuh dengan SVG tanpa garis memotong keluar */
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   margin-top: 2px;
   margin-bottom: 2px;
   width: 100%;
   max-width: 100%;
-  height: 160px; 
+  height: 165px; 
   box-sizing: border-box;
   z-index: 15;
   flex-shrink: 0;
-  border: 1.5px solid var(--accent-orange);
   overflow: hidden;
 }
 
@@ -333,39 +340,57 @@
   flex-shrink: 0;
 }
 
-/* MARQUEE TEKS DI MOBILE */
+/* CONTAINER RUNNING TEKS DENGAN BLOK PEMBATAS ORANYE DI KANAN */
 .marqueeContainer {
   width: 100%;
   overflow: hidden;
   white-space: nowrap;
   position: relative;
-  margin: 2px 0;
+  margin: 4px 0;
   display: flex;
   align-items: center;
-  background: rgba(20, 20, 26, 0.6);
-  padding: 3px 0;
-  border-left: none;
-  border-right: none;
+  background: transparent;
+  padding: 2px 20px 2px 0; /* Padding kanan untuk ruang aman pembatas */
+  box-sizing: border-box;
 }
 
-.marqueeText {
+/* Aksen Blok Oranye Dinamis di Sisi Kanan Tempat Teks Keluar */
+.marqueeContainer::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 20px;
+  background-color: var(--accent-orange);
+  box-shadow: 0 0 10px var(--accent-orange-glow);
+  z-index: 10;
+}
+
+/* TEKS BERJALAN HORISONTAL DARI KANAN KE KIRI */
+.typewriterText {
   display: inline-block;
-  padding-left: 100%;
-  animation: marqueeText 12s linear infinite;
-  font-size: clamp(0.65rem, 1.6vw, 0.75rem);
+  padding-left: 100%; /* Memulai posisi teks dari luar sisi kanan */
+  white-space: nowrap; /* Mencegah teks patah ke bawah */
+  animation: marqueeText 12s linear infinite; /* Animasi berjalan horisontal */
+  font-size: clamp(0.70rem, 1.8vw, 0.80rem);
   font-weight: 700;
+  font-style: italic; /* Teks miring */
   color: var(--text-white);
+  line-height: 1.35;
 }
 
-/* VISUALIZER DENGAN UKURAN LEBIH COMPACT */
+/* VISUALIZER DENGAN RENTANG PANJANG DI BAWAH (GARIS BIRU) */
 .centerVisualizerBox {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  height: 18px;
-  margin: 2px 0;
+  gap: 3px;
+  height: 22px;
+  margin-top: auto;
+  margin-bottom: 4px; /* Diposisikan di bawah sesuai garis biru */
 }
 
 .visDot {
@@ -376,7 +401,7 @@
 }
 
 .visBar {
-  width: 2.5px;
+  width: 3px;
   height: 6px;
   background-color: var(--accent-orange);
   border-radius: 2px;
@@ -387,7 +412,7 @@
   animation: wavePulseSmall 0.6s infinite ease-in-out;
 }
 
-/* TAMPILAN BAWAH BUBBLE */
+/* CONTROL BAWAH BUBBLE STATUS AVA */
 .bubbleBottomControls {
   width: 100%;
   display: flex;
@@ -400,12 +425,12 @@
 .loadingAudioDots {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .loadDot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background-color: #3f3f46;
   transition: all 0.3s ease;
@@ -418,8 +443,8 @@
 }
 
 .roundedSpeakerBtn {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: 1.5px solid #52525b;
   background: rgba(20, 20, 26, 0.9);
@@ -433,8 +458,8 @@
 }
 
 .roundedSpeakerBtnInner {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1px solid #52525b;
   display: flex;
@@ -468,7 +493,7 @@
   border-top: 8px solid var(--accent-orange);
 }
 
-/* AVATAR & TOMBOL AKSI */
+/* AVATAR & KONTROL BAWAH */
 .avatarContainer {
   position: relative;
   width: 100%;

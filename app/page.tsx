@@ -33,7 +33,6 @@ const IconTrashOrange = () => (
   </svg>
 );
 
-/* SVG Aksen HUD Futuristik untuk Bubble Chat */
 const SciFiHudDecoration = ({ isUser }: { isUser: boolean }) => (
   <svg
     style={{
@@ -71,13 +70,7 @@ const SciFiHudDecoration = ({ isUser }: { isUser: boolean }) => (
   </svg>
 );
 
-function SwipeableMessage({ 
-  children, 
-  onDelete 
-}: { 
-  children: React.ReactNode; 
-  onDelete: () => void;
-}) {
+function SwipeableMessage({ children, onDelete }: { children: React.ReactNode; onDelete: () => void; }) {
   const [translateX, setTranslateX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const startXRef = useRef(0);
@@ -116,8 +109,6 @@ function SwipeableMessage({
     setTranslateX(0);
   };
 
-  const isDraggingActive = Math.abs(translateX) > 15;
-
   return (
     <div 
       className={styles.swipeContainer}
@@ -129,7 +120,7 @@ function SwipeableMessage({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      {isDraggingActive && (
+      {Math.abs(translateX) > 15 && (
         <div className={styles.swipeTrashBackground}>
           <IconTrashOrange />
         </div>
@@ -187,9 +178,7 @@ export default function Home() {
   const [activeReaction, setActiveReaction] = useState<ActiveReaction>(null);
   const activeReactionRef = useRef<ActiveReaction>(null);
 
-  const [isWelcomeBubble, setIsWelcomeBubble] = useState<boolean>(true);
   const [displayedStatusText, setDisplayedStatusText] = useState<string>('');
-
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   
@@ -225,8 +214,8 @@ export default function Home() {
     const initialMsg: Message = { role: 'assistant', content: initialGreeting };
 
     setMessages([initialMsg]);
+    setDisplayedStatusText(initialGreeting);
     setIsInitialized(true);
-    setIsWelcomeBubble(true);
   }, []);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -313,7 +302,6 @@ export default function Home() {
 
   const startSyncSpeechAndTyping = async (text: string, index: number) => {
     if (!text) return;
-    setIsWelcomeBubble(false);
     stopAudio();
 
     const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
@@ -357,12 +345,8 @@ export default function Home() {
         setPlayingIndex(index);
       };
 
-      audio.onended = () => {
-        stopAudio();
-      };
-      audio.onerror = () => {
-        stopAudio();
-      };
+      audio.onended = () => { stopAudio(); };
+      audio.onerror = () => { stopAudio(); };
 
       await audio.play();
     } catch {
@@ -372,7 +356,6 @@ export default function Home() {
   };
 
   const handleChatMessageClick = (msg: Message, index: number) => {
-    setIsWelcomeBubble(false);
     setActiveSingleIndex(index);
     startSyncSpeechAndTyping(msg.content, index);
   };
@@ -414,13 +397,11 @@ export default function Home() {
     const initialGreeting = `Halo ${getUserName()}, haha Saya SukaChub virtual chat yang akan menemani kamu, merindukan kehangatan dan kehadiran kamu.`;
     const initialMsg: Message = { role: 'assistant', content: initialGreeting };
     setMessages([initialMsg]);
+    setDisplayedStatusText(initialGreeting);
     setActiveSingleIndex(null);
 
     if (autoVoice) {
       startSyncSpeechAndTyping(initialGreeting, 0);
-    } else {
-      setIsWelcomeBubble(true);
-      setDisplayedStatusText('');
     }
   };
 
@@ -428,7 +409,6 @@ export default function Home() {
     stopAudio();
     setMessages(prev => prev.filter((_, idx) => idx !== indexToRemove));
     if (activeSingleIndex === indexToRemove) setActiveSingleIndex(null);
-    setDisplayedStatusText('');
   };
 
   const startRecording = async () => {
@@ -437,7 +417,7 @@ export default function Home() {
     }
     if (loading || isRecording) return;
     stopAudio();
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert("Akses mic diblokir atau tidak didukung!"); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert("Akses mic diblokir!"); return; }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -469,7 +449,7 @@ export default function Home() {
       };
       mediaRecorderRef.current.start();
       setIsRecording(true);
-    } catch (err) { alert("Izin mic ditolak!"); console.error('Akses mikrofon ditolak:', err); }
+    } catch (err) { alert("Izin mic ditolak!"); console.error(err); }
   };
 
   const stopRecording = (cancel = false) => {
@@ -505,6 +485,7 @@ export default function Home() {
       const aiMsg: Message = { role: 'assistant', content: reply };
       const updatedMessages = [...messages, userMsg, aiMsg];
       setMessages(updatedMessages);
+      setDisplayedStatusText(reply);
       if (autoVoice) startSyncSpeechAndTyping(reply, updatedMessages.length - 1);
       return;
     }
@@ -524,12 +505,10 @@ export default function Home() {
 
     const updatedMessages = [...messages, userMsg, aiMsg];
     setMessages(updatedMessages);
+    setDisplayedStatusText(cleanedReply);
 
     if (autoVoice) {
       startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
-    } else {
-      setIsWelcomeBubble(false);
-      setDisplayedStatusText(cleanedReply);
     }
   };
 
@@ -562,12 +541,10 @@ export default function Home() {
       const aiMsg: Message = { role: 'assistant', content: timeReply };
       const updatedMessages = [...messages, userMsg, aiMsg];
       setMessages(updatedMessages);
+      setDisplayedStatusText(timeReply);
 
       if (autoVoice) {
         startSyncSpeechAndTyping(timeReply, updatedMessages.length - 1);
-      } else {
-        setIsWelcomeBubble(false);
-        setDisplayedStatusText(timeReply);
       }
       return;
     }
@@ -590,23 +567,19 @@ export default function Home() {
         const aiMsg: Message = { role: 'assistant', content: cleanedReply };
         const updatedMessages = [...newMessages, aiMsg];
         setMessages(updatedMessages);
+        setDisplayedStatusText(cleanedReply);
 
         if (autoVoice) {
           startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
-        } else {
-          setIsWelcomeBubble(false);
-          setDisplayedStatusText(cleanedReply);
         }
       } else {
         const errorMsg = `Maaf ${getUserName()}, ada masalah teknis: ${data.error || 'Gagal tersambung.'}`;
         setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
-        setIsWelcomeBubble(false);
         setDisplayedStatusText(errorMsg);
       }
     } catch (err: unknown) {
       const errorMsg = `Maaf ${getUserName()}, koneksi terputus (${err instanceof Error ? err.message : 'Unknown error'})`;
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
-      setIsWelcomeBubble(false);
       setDisplayedStatusText(errorMsg);
     } finally { setLoading(false); }
   };
@@ -645,7 +618,6 @@ export default function Home() {
                       className={`${styles.futuristicHudFrame} ${
                         isUser ? styles.userHudFrame : styles.aiHudFrame
                       } ${isSelectedActive ? styles.orangeOutlineGlow : ''}`}
-                      title="Klik untuk putar suara / Geser Kiri-Kanan untuk hapus"
                     >
                       <SciFiHudDecoration isUser={isUser} />
                       
@@ -681,12 +653,32 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* Status Ava dalam Frame HUD Futuristic Orange Hitam Sesuai Referensi Gambar */}
           <div className={styles.dynamicStatusBubbleFixedHud}>
-            <SciFiHudDecoration isUser={false} />
+            <svg
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: 1,
+              }}
+              preserveAspectRatio="none"
+              viewBox="0 0 100 100"
+            >
+              <path
+                d="M 0,0 L 90,0 L 100,10 L 100,100 L 10,100 L 0,90 Z"
+                fill="none"
+                stroke="#f97316"
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+              <line x1="65" y1="1.5" x2="85" y2="1.5" stroke="#f97316" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+              <line x1="15" y1="98.5" x2="35" y2="98.5" stroke="#f97316" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+            </svg>
 
             <div className={styles.hudInnerContentBox}>
-              {/* Header Info Status */}
               <div className={styles.bubbleStatusHeader}>
                 <span className={styles.idlePromptText}>
                   <strong style={{ color: autoVoice ? '#f97316' : '#a1a1aa' }}>
@@ -698,44 +690,45 @@ export default function Home() {
 
               <div className={styles.dynamicDividerLine} />
 
-              {/* 1. Teks Berjalan Horisontal */}
+              {/* RUNNING TEKS HORISONTAL KELUAR DARI PEMBATAS ORANYE */}
               <div className={styles.marqueeContainer}>
-                <div className={styles.marqueeText}>
-                  {displayedStatusText || 'Selamat datang di SukaChub Virtual Chat! Balasan chat akan muncul di sini...'}
-                </div>
+                <span className={styles.typewriterText}>
+                  {displayedStatusText || 'Selamat datang di SukaChub Virtual Chat!'}
+                  <span className={styles.blinkingOrangeSlash}> /</span>
+                </span>
               </div>
 
-              {/* 2. Visualizer Spektrum di Tengah */}
+              {/* VISUALIZER SPEKTRUM SEGARIS BIRU */}
               <div className={styles.centerVisualizerBox}>
                 <span className={styles.visDot} />
                 <span className={styles.visDot} />
-                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '10px' }} />
-                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '16px', animationDelay: '-0.2s' }} />
-                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '22px', animationDelay: '-0.4s' }} />
-                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '14px', animationDelay: '-0.1s' }} />
-                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '18px', animationDelay: '-0.3s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '6px' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '10px', animationDelay: '-0.1s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '16px', animationDelay: '-0.3s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '22px', animationDelay: '-0.5s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '14px', animationDelay: '-0.2s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '18px', animationDelay: '-0.4s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '10px', animationDelay: '-0.1s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '6px' }} />
                 <span className={styles.visDot} />
                 <span className={styles.visDot} />
               </div>
 
-              {/* Area Bawah: 3. Loading Dots & 4. Speaker Rounded */}
               <div className={styles.bubbleBottomControls}>
-                {/* 3. Loading Dots Render Suara */}
                 <div className={styles.loadingAudioDots}>
                   <span className={`${styles.loadDot} ${isAudioRendering ? styles.loadDotActive : ''}`} />
                   <span className={`${styles.loadDot} ${isAudioRendering ? styles.loadDotActive : ''}`} style={{ animationDelay: '-0.2s' }} />
                   <span className={`${styles.loadDot} ${isAudioRendering ? styles.loadDotActive : ''}`} style={{ animationDelay: '-0.4s' }} />
                 </div>
 
-                {/* 4. Speaker Rounded Double-Circle (On/Off Dinamis) */}
                 <button
                   type="button"
                   onClick={handleBubbleSpeakerClick}
                   className={`${styles.roundedSpeakerBtn} ${isSpeaking ? styles.roundedSpeakerActive : ''}`}
-                  title="Dengarkan Suara / Hentikan"
+                  title="Toggle Suara"
                 >
                   <div className={styles.roundedSpeakerBtnInner}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                       {isSpeaking && (
                         <>
@@ -753,9 +746,9 @@ export default function Home() {
           </div>
 
           <div ref={avatarContainerRef} className={styles.avatarContainer} onContextMenu={(e) => e.preventDefault()}>
-            <div className={styles.hitboxHead} title="Sentuh Kepala (Marah)" onClick={(e) => handleAvatarSingleClick('kepala', e)} />
-            <div className={styles.hitboxBelly} title="Sentuh Perut (Goyang)" onClick={(e) => handleAvatarSingleClick('perut', e)} />
-            <div className={styles.hitboxLegs} title="Sentuh Kaki (Bingung)" onClick={(e) => handleAvatarSingleClick('kaki', e)} />
+            <div className={styles.hitboxHead} title="Sentuh Kepala" onClick={(e) => handleAvatarSingleClick('kepala', e)} />
+            <div className={styles.hitboxBelly} title="Sentuh Perut" onClick={(e) => handleAvatarSingleClick('perut', e)} />
+            <div className={styles.hitboxLegs} title="Sentuh Kaki" onClick={(e) => handleAvatarSingleClick('kaki', e)} />
 
             {ripples.map((r) => (<span key={r.id} className={styles.asmrRipple} style={{ left: `${r.x}px`, top: `${r.y}px` }} />))}
 
@@ -835,12 +828,10 @@ export default function Home() {
                 if (isSingleChat) return;
                 const nextState = !autoVoice;
                 setAutoVoice(nextState);
-                if (!nextState) setDisplayedStatusText('');
               }} 
               className={`${styles.futuristicAutoVoiceBtn} ${
                 autoVoice ? styles.futuristicAutoVoiceActive : styles.futuristicAutoVoiceInactive
               } ${isSingleChat ? styles.disabledAutoVoiceBtn : ''}`}
-              title={isSingleChat ? "Auto Voice selalu aktif di Mode Single Chat" : "Toggle Auto Voice"}
             >
               {autoVoice ? 'AUTO VOICE ON' : 'AUTO VOICE OFF'}
             </button>
