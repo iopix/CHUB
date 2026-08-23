@@ -636,15 +636,13 @@ export default function Home() {
                       } ${isSelectedActive ? styles.orangeOutlineGlow : ''} ${styles.clickableBubble}`}
                       title="Klik untuk putar suara / Geser Kiri-Kanan untuk hapus"
                     >
-                      <div className={styles.unskewContent}>
-                        <div className={isUser && !isSingleChat ? styles.roleHeaderRight : styles.roleHeader}>
-                          <span className={styles.orangeBrightLabelText}>
-                            {isUser ? getUserName() : 'SukaChub Virtual Chat'}
-                          </span>
-                        </div>
-                        <div className={styles.textContent}>
-                          {msg.content}
-                        </div>
+                      <div className={isUser && !isSingleChat ? styles.roleHeaderRight : styles.roleHeader}>
+                        <span className={styles.orangeBrightLabelText}>
+                          {isUser ? getUserName() : 'SukaChub Virtual Chat'}
+                        </span>
+                      </div>
+                      <div className={styles.textContent}>
+                        {msg.content}
                       </div>
                     </div>
                   </SwipeableMessage>
@@ -655,10 +653,8 @@ export default function Home() {
             {loading && (
               <div className={styles.messageWrapper} style={{ justifyContent: 'flex-start' }}>
                 <div className={`${styles.bubbleSkewed} ${styles.aiBubble}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className={styles.unskewContent} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div className={styles.loadingDots}><span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} /></div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>sedang mikir...</span>
-                  </div>
+                  <div className={styles.loadingDots}><span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} /></div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>sedang mikir...</span>
                 </div>
               </div>
             )}

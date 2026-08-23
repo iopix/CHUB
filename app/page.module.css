@@ -45,7 +45,7 @@
 
 @keyframes slideArrowPulse {
   0%, 100% { transform: translateX(0); opacity: 0.5; }
-  50% { transform: translateX(3px); opacity: 1; }
+  50% { transform: translateX(4px); opacity: 1; }
 }
 
 .blinkingOrangeLink {
@@ -168,12 +168,11 @@
   width: 100%;
 }
 
-/* BUBBLE CHAT DENGAN BENTUK JAJAR GENJANG ROUNDED KE KANAN */
 .bubbleSkewed { 
   max-width: 90%; 
   padding: 10px 16px; 
   border-radius: 12px; 
-  transform: skewX(-8deg); /* KEMIRINGAN JAJAR GENJANG */
+  transform: skewX(-8deg); /* TEKS DI DALAM IKUT MIRING SESUAI JENIS GENJANG */
   font-size: clamp(0.75rem, 2vw, 0.9rem); 
   backdrop-filter: blur(16px); 
   word-break: break-word; 
@@ -269,17 +268,18 @@
   padding: 4px;
 }
 
-/* BUBBLE CHAT AVA DENGAN BACKGROUND ABU-ABU DENGAN OUTLINE ORANGE */
+/* BUBBLE AVA BERBENTUK JAJAR GENJANG ROUNDED DENGAN TEKS TERIKUT MIRING */
 .dynamicStatusBubbleFixed {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 10px 12px 20px 12px;
-  border-radius: 16px;
-  border: 1px solid var(--accent-orange); /* OUTLINE ORANGE */
-  background-color: rgba(24, 24, 27, 0.85); /* BACKGROUND ABU-ABU GELAP */
+  padding: 10px 14px 20px 14px;
+  border-radius: 12px;
+  transform: skewX(-8deg); /* KEMIRINGAN JAJAR GENJANG DINAMIS */
+  border: 1px solid var(--accent-orange);
+  background-color: rgba(24, 24, 27, 0.85);
   backdrop-filter: blur(12px);
   margin-top: 4px;
   margin-bottom: 2px;
@@ -357,7 +357,6 @@
   display: block;
 }
 
-/* KANAN DAN KIRI DIBUAT DENGAN PENYELARASAN SIMETRIS */
 .bubbleBottomLeftVisualizer {
   position: absolute;
   bottom: 8px;
@@ -413,7 +412,6 @@
   filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.6));
 }
 
-/* EKOR CHAT DINAMIS */
 .speechTailDinamis {
   position: absolute;
   bottom: -8px;
@@ -730,13 +728,16 @@
   position: relative;
 }
 
-.slideArrowIndicator {
+/* ANIMASI GESER DI UJUNG PALING KANAN DENGAN UKURAN LEBIH BESAR */
+.slideArrowIndicatorRight {
   color: var(--accent-orange);
   display: flex;
   align-items: center;
   justify-content: center;
   animation: slideArrowPulse 1.2s infinite ease-in-out;
   flex-shrink: 0;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 
 .capsuleRowScrollable {
@@ -766,7 +767,7 @@
   color: var(--text-light);
   padding: 6px 18px;
   border-radius: 8px;
-  transform: skewX(-8deg);
+  transform: skewX(-8deg); /* TEKS SKEWED MENGIKUTI GENJANG */
   font-size: clamp(0.68rem, 1.8vw, 0.78rem);
   font-weight: 500;
   cursor: pointer;

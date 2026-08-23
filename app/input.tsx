@@ -50,8 +50,9 @@ const IconTrash = () => (
   </svg>
 );
 
-const IconSlideArrow = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+/* IKON PANAH DI-RESIZE LEBIH BESAR (18x18) */
+const IconSlideArrowBig = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="13 17 18 12 13 7" />
     <polyline points="6 17 11 12 6 7" />
   </svg>
@@ -96,10 +97,6 @@ export default function InputSection({
         </button>
 
         <div className={styles.scrollWithArrowContainer}>
-          <div className={styles.slideArrowIndicator} title="Geser pill untuk melihat opsi lain">
-            <IconSlideArrow />
-          </div>
-
           <div className={styles.capsuleRowScrollable} ref={scrollRef}>
             {Object.keys(trialPresets).map((presetKey) => (
               <button
@@ -109,9 +106,14 @@ export default function InputSection({
                 className={styles.skewedChipButton}
                 disabled={loading}
               >
-                <span className={styles.unskewContent}>{presetKey}</span>
+                {presetKey}
               </button>
             ))}
+          </div>
+
+          {/* INDIKATOR ANIMASI GESER DI PINDAH KE PALING KANAN & DIPERBESAR */}
+          <div className={styles.slideArrowIndicatorRight} title="Geser pill untuk melihat opsi lain">
+            <IconSlideArrowBig />
           </div>
         </div>
       </div>
