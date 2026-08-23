@@ -293,7 +293,7 @@ export default function Header({
               </svg>
 
               <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <div className="dropdown-kicker">External network</div>
+                <div className="dropdown-kicker">network</div>
 
                 <SciFiHudFrame href="https://ipix.my.id" onClick={() => setIsMenuOpen(false)}>
                   ipix.my.id
@@ -342,7 +342,7 @@ export default function Header({
               {userName}
             </span>
           </div>
-          <div className="header-kicker">System online</div>
+          <div className="header-kicker">online</div>
         </div>
       </div>
 
