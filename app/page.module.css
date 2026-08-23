@@ -378,17 +378,31 @@
 
 .bubbleSpeakerBtn {
   position: absolute;
-  bottom: -4px;
-  right: 2px;
+  
+  /* --- 1. MENGATUR JARAK ATAS / BAWAH & KIRI / KANAN --- */
+  bottom: 4px;             /* Jarak dari batas bawah kotak */
+  right: 10px;             /* Jarak dari batas kanan (ubah angka ini untuk geser kiri/kanan) */
+  
+  /* --- 2. MENGATUR UKURAN CONTAINER BUTTON --- */
+  width: 20px;             /* Lebar tombol speaker */
+  height: 18px;            /* Tinggi tombol speaker */
+  
   background: transparent;
   border: none;
   color: #71717a;
   cursor: pointer;
-  padding: 3px;
+  padding: 0;              /* Reset padding agar ukuran presisi */
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  z-index: 10;
+}
+
+/* --- 3. MENGATUR UKURAN IKON SVG SPEAKER DI DALAMNYA --- */
+.bubbleSpeakerBtn svg {
+  width: 20px;             /* Ubah ukuran lebar ikon SVG (misal: 16px - 22px) */
+  height: 20px;            /* Ubah ukuran tinggi ikon SVG */
 }
 
 .bubbleSpeakerBtn:hover {
