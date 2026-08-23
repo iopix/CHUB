@@ -26,13 +26,6 @@ const VOICE_OPTIONS = [
   { id: 'voice5', label: 'Voice 5' },
 ];
 
-const IconSpeaker = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-  </svg>
-);
-
 const IconTrashOrange = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6" />
@@ -55,7 +48,6 @@ const SciFiHudDecoration = ({ isUser }: { isUser: boolean }) => (
     preserveAspectRatio="none"
     viewBox="0 0 100 100"
   >
-    {/* Sudut Chamfered Outer Border */}
     <path
       d={isUser ? "M 8,0 L 92,0 L 100,12 L 100,88 L 92,100 L 0,100 L 0,12 Z" : "M 0,0 L 92,0 L 100,12 L 100,100 L 8,100 L 0,88 Z"}
       fill="none"
@@ -63,7 +55,6 @@ const SciFiHudDecoration = ({ isUser }: { isUser: boolean }) => (
       strokeWidth="1.5"
       vectorEffect="non-scaling-stroke"
     />
-    {/* Aksen Strip Futuristik Atas/Bawah */}
     {isUser ? (
       <>
         <line x1="15" y1="3" x2="35" y2="3" stroke="#f97316" strokeWidth="3" vectorEffect="non-scaling-stroke" />
@@ -198,8 +189,6 @@ export default function Home() {
 
   const [isWelcomeBubble, setIsWelcomeBubble] = useState<boolean>(true);
   const [displayedStatusText, setDisplayedStatusText] = useState<string>('');
-  const statusTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const bubbleScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [ripples, setRipples] = useState<RippleEffect[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -312,7 +301,6 @@ export default function Home() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
 
   const stopAudio = () => {
-    if (statusTypingTimeoutRef.current) clearTimeout(statusTypingTimeoutRef.current);
     if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; }
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; audioRef.current = null; }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
@@ -331,6 +319,7 @@ export default function Home() {
     const cleanText = sanitizeText(text).replace(/\[Error:.*?\]/g, '').replace(/[*_#]/g, '').trim();
     if (!cleanText) return;
 
+    setDisplayedStatusText(cleanText);
     setIsAudioRendering(true);
 
     const controller = new AbortController();
@@ -366,37 +355,18 @@ export default function Home() {
       audio.onplay = () => {
         setIsAudioRendering(false);
         setPlayingIndex(index);
-        let charIndex = 0;
-
-        const audioDurationMs = (audio.duration && !isNaN(audio.duration) && audio.duration > 0) ? audio.duration * 1000 : 3000;
-        const typingSpeed = Math.max(10, Math.floor(audioDurationMs / cleanText.length));
-
-        const typeNextChar = () => {
-          if (charIndex <= cleanText.length) {
-            setDisplayedStatusText(cleanText.slice(0, charIndex));
-            charIndex++;
-            if (bubbleScrollRef.current) {
-              bubbleScrollRef.current.scrollTop = bubbleScrollRef.current.scrollHeight;
-            }
-            statusTypingTimeoutRef.current = setTimeout(typeNextChar, typingSpeed);
-          }
-        };
-        typeNextChar();
       };
 
       audio.onended = () => {
         stopAudio();
-        setDisplayedStatusText('');
       };
       audio.onerror = () => {
         stopAudio();
-        setDisplayedStatusText('');
       };
 
       await audio.play();
     } catch {
       setIsAudioRendering(false);
-      setDisplayedStatusText(cleanText);
       stopAudio();
     }
   };
@@ -408,8 +378,12 @@ export default function Home() {
   };
 
   const handleBubbleSpeakerClick = () => {
-    if (!displayedStatusText || isWelcomeBubble) return;
-    startSyncSpeechAndTyping(displayedStatusText, 0);
+    if (isSpeaking) {
+      stopAudio();
+    } else {
+      const currentText = displayedStatusText || (messages.length > 0 ? messages[messages.length - 1].content : '');
+      if (currentText) startSyncSpeechAndTyping(currentText, activeSingleIndex ?? 0);
+    }
   };
 
   const triggerReactionByPart = (part: 'kepala' | 'perut' | 'kaki') => {
@@ -555,7 +529,7 @@ export default function Home() {
       startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
     } else {
       setIsWelcomeBubble(false);
-      setDisplayedStatusText('');
+      setDisplayedStatusText(cleanedReply);
     }
   };
 
@@ -593,7 +567,7 @@ export default function Home() {
         startSyncSpeechAndTyping(timeReply, updatedMessages.length - 1);
       } else {
         setIsWelcomeBubble(false);
-        setDisplayedStatusText('');
+        setDisplayedStatusText(timeReply);
       }
       return;
     }
@@ -621,7 +595,7 @@ export default function Home() {
           startSyncSpeechAndTyping(cleanedReply, updatedMessages.length - 1);
         } else {
           setIsWelcomeBubble(false);
-          setDisplayedStatusText('');
+          setDisplayedStatusText(cleanedReply);
         }
       } else {
         const errorMsg = `Maaf ${getUserName()}, ada masalah teknis: ${data.error || 'Gagal tersambung.'}`;
@@ -707,62 +681,72 @@ export default function Home() {
         </div>
 
         <div className={`${styles.avatarSection} ${isMobile ? styles.avatarSectionMobile : ''}`}>
-          {/* Status Ava dalam Frame HUD Futuristic Orange Hitam */}
+          {/* Status Ava dalam Frame HUD Futuristic Orange Hitam Sesuai Referensi Gambar */}
           <div className={styles.dynamicStatusBubbleFixedHud}>
             <SciFiHudDecoration isUser={false} />
 
             <div className={styles.hudInnerContentBox}>
-              {isWelcomeBubble ? (
-                <div className={styles.welcomeContainer}>
-                  <div className={styles.welcomeTitle}>SELAMAT DATANG</div>
-                  <a href="https://sukachub.my.id" target="_blank" rel="noopener noreferrer" className={styles.blinkingOrangeLink}>
-                    sukachub.my.id
-                  </a>
-                  <div className={styles.welcomeSubtitle}>sukachub virtual chat</div>
-                </div>
-              ) : (
-                <div className={styles.bubbleStatusBox}>
-                  <div className={styles.bubbleStatusHeader}>
-                    {autoVoice ? (
-                      <span className={styles.idlePromptText}>
-                        <strong style={{ color: '#f97316' }}>AUTO VOICE ON</strong> — Balasan otomatis diputar.
-                      </span>
-                    ) : (
-                      <span className={styles.idlePromptText}>
-                        <strong style={{ color: '#a1a1aa' }}>AUTO VOICE OFF</strong> — Sentuh balon chat untuk mendengarkan.
-                      </span>
-                    )}
-                  </div>
-
-                  <div className={styles.dynamicDividerLine} />
-
-                  <div ref={bubbleScrollRef} className={styles.dynamicStatusTextScroll}>
-                    {displayedStatusText && (
-                      <>
-                        <span className={styles.italicText}>{displayedStatusText}</span>
-                        <span className={styles.blinkingOrangeSlash}> /</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className={styles.bubbleBottomLeftVisualizer}>
-                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
-                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
-                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
-                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
-                <span className={`${styles.bubbleWaveBar} ${isSpeaking ? styles.bubbleWaveActive : ''}`} />
+              {/* Header Info Status */}
+              <div className={styles.bubbleStatusHeader}>
+                <span className={styles.idlePromptText}>
+                  <strong style={{ color: autoVoice ? '#f97316' : '#a1a1aa' }}>
+                    AUTO VOICE {autoVoice ? 'ON' : 'OFF'}
+                  </strong>
+                  {' — '}{autoVoice ? 'Balasan otomatis diputar.' : 'Sentuh balon chat untuk mendengarkan.'}
+                </span>
               </div>
 
-              <button
-                type="button"
-                onClick={handleBubbleSpeakerClick}
-                className={`${styles.bubbleSpeakerBtn} ${autoVoice || isSpeaking ? styles.bubbleSpeakerActive : ''}`}
-                title="Dengarkan Suara"
-              >
-                <IconSpeaker />
-              </button>
+              <div className={styles.dynamicDividerLine} />
+
+              {/* 1. Teks Berjalan Horisontal */}
+              <div className={styles.marqueeContainer}>
+                <div className={styles.marqueeText}>
+                  {displayedStatusText || 'Selamat datang di SukaChub Virtual Chat! Balasan chat akan muncul di sini...'}
+                </div>
+              </div>
+
+              {/* 2. Visualizer Spektrum di Tengah */}
+              <div className={styles.centerVisualizerBox}>
+                <span className={styles.visDot} />
+                <span className={styles.visDot} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '10px' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '16px', animationDelay: '-0.2s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '22px', animationDelay: '-0.4s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '14px', animationDelay: '-0.1s' }} />
+                <span className={`${styles.visBar} ${isSpeaking ? styles.visBarActive : ''}`} style={{ height: '18px', animationDelay: '-0.3s' }} />
+                <span className={styles.visDot} />
+                <span className={styles.visDot} />
+              </div>
+
+              {/* Area Bawah: 3. Loading Dots & 4. Speaker Rounded */}
+              <div className={styles.bubbleBottomControls}>
+                {/* 3. Loading Dots Render Suara */}
+                <div className={styles.loadingAudioDots}>
+                  <span className={`${styles.loadDot} ${isAudioRendering ? styles.loadDotActive : ''}`} />
+                  <span className={`${styles.loadDot} ${isAudioRendering ? styles.loadDotActive : ''}`} style={{ animationDelay: '-0.2s' }} />
+                  <span className={`${styles.loadDot} ${isAudioRendering ? styles.loadDotActive : ''}`} style={{ animationDelay: '-0.4s' }} />
+                </div>
+
+                {/* 4. Speaker Rounded Double-Circle (On/Off Dinamis) */}
+                <button
+                  type="button"
+                  onClick={handleBubbleSpeakerClick}
+                  className={`${styles.roundedSpeakerBtn} ${isSpeaking ? styles.roundedSpeakerActive : ''}`}
+                  title="Dengarkan Suara / Hentikan"
+                >
+                  <div className={styles.roundedSpeakerBtnInner}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      {isSpeaking && (
+                        <>
+                          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                        </>
+                      )}
+                    </svg>
+                  </div>
+                </button>
+              </div>
             </div>
 
             <div className={styles.speechTailDinamis} />

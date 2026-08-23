@@ -40,6 +40,11 @@
   50% { height: 12px; }
 }
 
+@keyframes marqueeText {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
 @keyframes slideArrowPulse {
   0%, 100% { transform: translateX(0); opacity: 0.6; }
   50% { transform: translateX(4px); opacity: 1; }
@@ -165,7 +170,7 @@
   max-width: 90%;
   padding: 12px 18px;
   background-color: var(--bg-hud-dark);
-  font-size: clamp(0.50rem, 2vw, 0.70rem);
+  font-size: clamp(0.70rem, 2vw, 0.85rem);
   backdrop-filter: blur(12px);
   word-break: break-word;
   transition: all 0.2s ease;
@@ -243,7 +248,7 @@
   justify-content: flex-start;
   padding: 6px 8px 8px 8px;
   background-color: var(--bg-black);
-  border-left: 1px stroke var(--border-zinc-divider);
+  border-left: 1px solid var(--border-zinc-divider);
   flex-shrink: 0;
   position: relative;
 }
@@ -260,7 +265,7 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 12px 14px 20px 14px;
+  padding: 10px 12px 12px 12px;
   background-color: var(--bg-hud-dark);
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
   margin-top: 4px;
@@ -271,6 +276,7 @@
   box-sizing: border-box;
   z-index: 15;
   flex-shrink: 0;
+  border: 1.5px solid var(--accent-orange);
 }
 
 .hudInnerContentBox {
@@ -280,6 +286,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
 .welcomeContainer {
@@ -328,90 +335,126 @@
   flex-shrink: 0;
 }
 
-.dynamicStatusTextScroll {
+/* 1. TEKS BERJALAN HORISONTAL (MARQUEE) */
+.marqueeContainer {
   width: 100%;
-  flex-grow: 1;
-  overflow-y: auto;
-  font-size: clamp(0.68rem, 1.8vw, 0.78rem);
-  font-weight: 600;
-  color: var(--text-white);
-  line-height: 1.35;
-  text-align: left;
-  word-break: break-word;
-  
-  /* --- TAMBAHKAN PADDING INI AGAR TEKS TIDAK NABRAK --- */
-  padding-bottom: 24px; /* Memberi ruang aman di bawah untuk visualizer */
-  padding-right: 28px;  /* Memberi ruang aman di kanan untuk tombol speaker */
-  box-sizing: border-box;
-}
-
-.idlePromptText {
-  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
-  color: var(--text-muted);
-  line-height: 1.35;
-  display: block;
-}
-
-.bubbleBottomLeftVisualizer {
-  position: absolute;
-  bottom: 0px;
-  left: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  margin: 4px 0;
   display: flex;
-  align-items: flex-end;
-  gap: 2.5px;
-  height: 14px;
-  pointer-events: none;
+  align-items: center;
+  background: rgba(20, 20, 26, 0.6);
+  padding: 4px 0;
+  border-left: 2px solid var(--accent-orange);
+  border-right: 2px solid var(--accent-orange);
 }
 
-.bubbleWaveBar {
-  width: 2.5px;
-  height: 3px;
-  background-color: var(--accent-orange);
-  opacity: 0.35;
-  transition: all 0.2s ease;
+.marqueeText {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marqueeText 12s linear infinite;
+  font-size: clamp(0.72rem, 1.8vw, 0.82rem);
+  font-weight: 700;
+  color: var(--text-white);
 }
 
-.bubbleWaveActive {
-  opacity: 1;
-  animation: wavePulseSmall 0.8s infinite ease-in-out;
-}
-
-.bubbleSpeakerBtn {
-  position: absolute;
-  
-  /* --- 1. MENGATUR JARAK ATAS / BAWAH & KIRI / KANAN --- */
-  bottom: 4px;             /* Jarak dari batas bawah kotak */
-  right: 10px;             /* Jarak dari batas kanan (ubah angka ini untuk geser kiri/kanan) */
-  
-  /* --- 2. MENGATUR UKURAN CONTAINER BUTTON --- */
-  width: 20px;             /* Lebar tombol speaker */
-  height: 18px;            /* Tinggi tombol speaker */
-  
-  background: transparent;
-  border: none;
-  color: #71717a;
-  cursor: pointer;
-  padding: 0;              /* Reset padding agar ukuran presisi */
+/* 2. VISUALIZER SPEKTRUM DI TENGAH */
+.centerVisualizerBox {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 3px;
+  height: 24px;
+  margin: 2px 0;
+}
+
+.visDot {
+  width: 4px;
+  height: 4px;
+  background-color: rgba(249, 115, 22, 0.4);
+  border-radius: 50%;
+}
+
+.visBar {
+  width: 3px;
+  height: 8px;
+  background-color: var(--accent-orange);
+  border-radius: 2px;
+  transition: height 0.15s ease;
+}
+
+.visBarActive {
+  animation: wavePulseSmall 0.6s infinite ease-in-out;
+}
+
+/* 3. AREA BAWAH: LOADING DOTS & 4. SPEAKER ROUNDED */
+.bubbleBottomControls {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 2px;
+}
+
+.loadingAudioDots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3f3f46;
+  transition: all 0.3s ease;
+}
+
+.loadDotActive {
+  background-color: var(--accent-orange) !important;
+  box-shadow: 0 0 8px var(--accent-orange);
+  animation: dotBounce 1.2s infinite ease-in-out;
+}
+
+.roundedSpeakerBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid #52525b;
+  background: rgba(20, 20, 26, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   transition: all 0.2s ease;
-  z-index: 10;
+  position: relative;
 }
 
-/* --- 3. MENGATUR UKURAN IKON SVG SPEAKER DI DALAMNYA --- */
-.bubbleSpeakerBtn svg {
-  width: 20px;             /* Ubah ukuran lebar ikon SVG (misal: 16px - 22px) */
-  height: 20px;            /* Ubah ukuran tinggi ikon SVG */
+.roundedSpeakerBtnInner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #52525b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.bubbleSpeakerBtn:hover {
-  color: var(--accent-orange);
+.roundedSpeakerActive {
+  border-color: var(--accent-orange) !important;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
 }
 
-.bubbleSpeakerActive {
-  color: #f97316 !important;
-  filter: drop-shadow(0 0 6px var(--accent-orange));
+.roundedSpeakerActive .roundedSpeakerBtnInner {
+  border-color: var(--accent-orange) !important;
+}
+
+.roundedSpeakerActive svg {
+  stroke: var(--accent-orange) !important;
+  filter: drop-shadow(0 0 4px var(--accent-orange));
 }
 
 .speechTailDinamis {
