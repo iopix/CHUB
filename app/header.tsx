@@ -65,7 +65,7 @@ const SciFiHudFrame = ({
       style={{
         position: 'relative',
         width: '100%',
-        padding: '6px 8px', // Padding dipraktiskan agar lebih ringkas
+        padding: '6px 8px',
         backgroundColor: isLogout
           ? 'rgba(239, 68, 68, 0.2)'
           : isLogin
@@ -117,7 +117,7 @@ const SciFiHudFrame = ({
           zIndex: 3,
           color: isLogout ? '#ef4444' : isLogin ? '#22c55e' : '#ffffff',
           fontWeight: 800,
-          fontSize: 'clamp(0.62rem, 1.8vw, 0.72rem)', // Font responsif kecil di mobile
+          fontSize: 'clamp(0.62rem, 1.8vw, 0.72rem)',
           fontFamily: 'monospace, sans-serif',
           letterSpacing: '0.5px',
           textTransform: isLogout || isLogin ? 'uppercase' : 'lowercase',
@@ -178,6 +178,7 @@ export default function Header({
 }: HeaderProps) {
   return (
     <header style={styles.header}>
+      {/* Bentuk Kotak Header Presisi Seperti Kotak Status Avatar */}
       <div style={styles.headerSurface} />
 
       <style>{`
@@ -195,25 +196,12 @@ export default function Header({
           0%, 100% { transform: translateY(0) rotate(0deg); }
           50% { transform: translateY(-4px) rotate(3deg); }
         }
-        @keyframes scanline {
-          0% { transform: translateY(-100%); }
-          100% { transform: translateY(100%); }
-        }
         .chub-logo-anim {
           animation: floatLogo 3s ease-in-out infinite;
           transition: transform 0.2s ease;
         }
         .chub-logo-anim:hover {
           transform: scale(1.15) rotate(-5deg) !important;
-        }
-        .header-scanline {
-          position: absolute;
-          inset: 0;
-          height: 45%;
-          pointer-events: none;
-          background: linear-gradient(180deg, transparent, rgba(249, 115, 22, 0.08), transparent);
-          animation: scanline 5s linear infinite;
-          z-index: 1;
         }
         .header-kicker {
           display: flex;
@@ -255,6 +243,7 @@ export default function Header({
         }
       `}</style>
 
+      {/* 2 Wave Dinamis Latar Belakang */}
       <div style={styles.waveContainer}>
         <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style={styles.waveSvgOne}>
           <path d="M0,0 C150,90 350,-40 500,45 C650,130 900,10 1200,50 L1200,0 L0,0 Z" fill="rgba(249, 115, 22, 0.12)"></path>
@@ -263,7 +252,6 @@ export default function Header({
           <path d="M0,0 C200,30 400,100 600,40 C800,-20 1000,80 1200,20 L1200,0 L0,0 Z" fill="rgba(249, 115, 22, 0.07)"></path>
         </svg>
       </div>
-      <div className="header-scanline" />
 
       <div style={styles.headerTitleGroup}>
         <div style={{ position: 'relative', zIndex: 99999 }} ref={menuRef}>
@@ -457,7 +445,7 @@ const styles: Record<string, CSSProperties> = {
     gap: '4px',
     zIndex: 999999,
     boxShadow: '0 0 18px rgba(249, 115, 22, 0.35)',
-    width: 'min(170px, 48vw)', // Maksimal 48vw (~setengah layar) agar seukuran kolom chat
+    width: 'min(170px, 48vw)',
     clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))',
   },
   titleWrapper: {
