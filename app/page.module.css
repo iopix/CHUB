@@ -45,11 +45,6 @@
   100% { transform: translateX(-100%); }
 }
 
-@keyframes slideArrowPulse {
-  0%, 100% { transform: translateX(0); opacity: 0.6; }
-  50% { transform: translateX(4px); opacity: 1; }
-}
-
 .blinkingOrangeLink {
   color: var(--accent-orange);
   font-weight: 700;
@@ -164,7 +159,6 @@
   width: 100%;
 }
 
-/* KOTAK HUD FUTURISTIK */
 .futuristicHudFrame {
   position: relative;
   max-width: 90%;
@@ -178,7 +172,6 @@
   cursor: pointer;
 }
 
-/* BENTUK CUT-OUT CORNER (CHAMFERED HUD) */
 .userHudFrame {
   clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   margin-left: auto;
@@ -253,30 +246,26 @@
   position: relative;
 }
 
-.avatarSectionMobile {
-  width: 50%;
-  padding: 4px;
-}
-
-/* STATUS AVA DALAM CONTAINER HUD FUTURISTIK */
+/* === BUBBLE AVA UNTUK MOBILE === */
 .dynamicStatusBubbleFixedHud {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 10px 12px 12px 12px;
+  padding: 8px 10px 10px 10px;
   background-color: var(--bg-hud-dark);
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
-  margin-top: 4px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  margin-top: 2px;
   margin-bottom: 2px;
-  width: 96%;
-  max-width: 380px;
-  height: 170px; 
+  width: 100%;
+  max-width: 100%;
+  height: 160px; 
   box-sizing: border-box;
   z-index: 15;
   flex-shrink: 0;
   border: 1.5px solid var(--accent-orange);
+  overflow: hidden;
 }
 
 .hudInnerContentBox {
@@ -301,14 +290,14 @@
 }
 
 .welcomeTitle {
-  font-size: clamp(0.75rem, 2vw, 0.85rem);
+  font-size: clamp(0.70rem, 2vw, 0.80rem);
   font-weight: 800;
   color: var(--text-white);
   letter-spacing: 1px;
 }
 
 .welcomeSubtitle {
-  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
+  font-size: clamp(0.58rem, 1.6vw, 0.68rem);
   font-weight: 500;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -325,61 +314,70 @@
 .bubbleStatusHeader {
   width: 100%;
   flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.idlePromptText {
+  font-size: clamp(0.55rem, 1.4vw, 0.65rem);
+  color: var(--text-muted);
+  line-height: 1.25;
+  display: block;
+  white-space: normal;
 }
 
 .dynamicDividerLine {
   width: 100%;
   height: 1px;
   background: linear-gradient(90deg, rgba(249, 115, 22, 0.9) 0%, rgba(63, 63, 70, 0.3) 100%);
-  margin: 4px 0;
+  margin: 3px 0;
   flex-shrink: 0;
 }
 
-/* 1. TEKS BERJALAN HORISONTAL (MARQUEE) */
+/* MARQUEE TEKS DI MOBILE */
 .marqueeContainer {
   width: 100%;
   overflow: hidden;
   white-space: nowrap;
   position: relative;
-  margin: 4px 0;
+  margin: 2px 0;
   display: flex;
   align-items: center;
   background: rgba(20, 20, 26, 0.6);
-  padding: 4px 0;
-  border-left: 2px solid var(--accent-orange);
-  border-right: 2px solid var(--accent-orange);
+  padding: 3px 0;
+  border-left: none;
+  border-right: none;
 }
 
 .marqueeText {
   display: inline-block;
   padding-left: 100%;
   animation: marqueeText 12s linear infinite;
-  font-size: clamp(0.72rem, 1.8vw, 0.82rem);
+  font-size: clamp(0.65rem, 1.6vw, 0.75rem);
   font-weight: 700;
   color: var(--text-white);
 }
 
-/* 2. VISUALIZER SPEKTRUM DI TENGAH */
+/* VISUALIZER DENGAN UKURAN LEBIH COMPACT */
 .centerVisualizerBox {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  height: 24px;
+  gap: 2px;
+  height: 18px;
   margin: 2px 0;
 }
 
 .visDot {
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   background-color: rgba(249, 115, 22, 0.4);
   border-radius: 50%;
 }
 
 .visBar {
-  width: 3px;
-  height: 8px;
+  width: 2.5px;
+  height: 6px;
   background-color: var(--accent-orange);
   border-radius: 2px;
   transition: height 0.15s ease;
@@ -389,7 +387,7 @@
   animation: wavePulseSmall 0.6s infinite ease-in-out;
 }
 
-/* 3. AREA BAWAH: LOADING DOTS & 4. SPEAKER ROUNDED */
+/* TAMPILAN BAWAH BUBBLE */
 .bubbleBottomControls {
   width: 100%;
   display: flex;
@@ -402,12 +400,12 @@
 .loadingAudioDots {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .loadDot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background-color: #3f3f46;
   transition: all 0.3s ease;
@@ -415,13 +413,13 @@
 
 .loadDotActive {
   background-color: var(--accent-orange) !important;
-  box-shadow: 0 0 8px var(--accent-orange);
+  box-shadow: 0 0 6px var(--accent-orange);
   animation: dotBounce 1.2s infinite ease-in-out;
 }
 
 .roundedSpeakerBtn {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1.5px solid #52525b;
   background: rgba(20, 20, 26, 0.9);
@@ -431,11 +429,12 @@
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  flex-shrink: 0;
 }
 
 .roundedSpeakerBtnInner {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 1px solid #52525b;
   display: flex;
@@ -445,7 +444,7 @@
 
 .roundedSpeakerActive {
   border-color: var(--accent-orange) !important;
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
 }
 
 .roundedSpeakerActive .roundedSpeakerBtnInner {
@@ -469,13 +468,14 @@
   border-top: 8px solid var(--accent-orange);
 }
 
+/* AVATAR & TOMBOL AKSI */
 .avatarContainer {
   position: relative;
   width: 100%;
-  height: 44vh;
-  min-height: 230px;
-  max-height: 410px;
-  margin-top: 12px;
+  height: 40vh;
+  min-height: 200px;
+  max-height: 380px;
+  margin-top: 6px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -523,16 +523,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
-  max-width: 240px;
-  margin-top: 4px;
-  margin-bottom: 6px;
+  max-width: 220px;
+  margin-top: 2px;
+  margin-bottom: 4px;
   z-index: 15;
 }
 
 .gridGuideLabel {
-  font-size: clamp(0.58rem, 1.5vw, 0.65rem);
+  font-size: clamp(0.52rem, 1.3vw, 0.60rem);
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
@@ -541,21 +541,20 @@
 .gridGuideGroupSkewed {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  padding: 3px;
+  padding: 2px;
   box-sizing: border-box;
 }
 
-/* TOMBOL AKSEN SENTUH HUD */
 .futuristicHudBtn {
   background: var(--bg-dark-2);
   border: 1px solid var(--border-zinc);
   color: var(--text-muted);
-  font-size: clamp(0.58rem, 1.5vw, 0.68rem);
+  font-size: clamp(0.52rem, 1.3vw, 0.62rem);
   font-weight: 700;
-  padding: 6px 0;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  padding: 4px 0;
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
@@ -579,8 +578,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 4px 10px;
+  gap: 6px;
+  padding: 2px 6px;
   width: 100%;
   margin-top: auto;
   z-index: 15;
@@ -592,14 +591,14 @@
 }
 
 .futuristicVoiceBtn {
-  height: 32px;
-  padding: 0 14px;
-  font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+  height: 28px;
+  padding: 0 10px;
+  font-size: clamp(0.55rem, 1.3vw, 0.65rem);
   font-weight: 700;
   color: #f4f4f5;
   background-color: var(--bg-dark-2);
   border: 1px solid var(--border-zinc);
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -613,16 +612,16 @@
 
 .voiceTailPopover {
   position: absolute;
-  bottom: calc(100% + 10px);
-  left: 65%;
+  bottom: calc(100% + 6px);
+  left: 50%;
   transform: translateX(-50%);
   background-color: #121214;
   border: 1px solid var(--accent-orange);
-  padding: 6px;
+  padding: 4px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  min-width: 110px;
+  gap: 2px;
+  min-width: 100px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
   z-index: 100;
 }
@@ -631,8 +630,8 @@
   background: transparent;
   border: none;
   color: #a1a1aa;
-  padding: 6px 10px;
-  font-size: 0.72rem;
+  padding: 4px 8px;
+  font-size: 0.65rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
@@ -654,20 +653,20 @@
 }
 
 .orangeDotGlow {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   background-color: var(--accent-orange);
   border-radius: 50%;
-  box-shadow: 0 0 6px var(--accent-orange);
+  box-shadow: 0 0 5px var(--accent-orange);
 }
 
 .futuristicAutoVoiceBtn {
-  height: 32px;
-  padding: 0 14px;
-  font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+  height: 28px;
+  padding: 0 10px;
+  font-size: clamp(0.55rem, 1.3vw, 0.65rem);
   font-weight: 700;
   letter-spacing: 0.5px;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
@@ -701,14 +700,14 @@
   background-color: var(--bg-black);
   z-index: 15;
   box-sizing: border-box;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)) 12px;
-  gap: 8px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom)) 8px;
+  gap: 6px;
 }
 
 .capsuleRowWrapperFixed {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   overflow: hidden;
   padding: 2px 2px;
@@ -719,17 +718,17 @@
   background-color: rgba(249, 115, 22, 0.2);
   border: 1px solid var(--accent-orange);
   color: #f97316;
-  padding: 6px 16px;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
-  font-size: clamp(0.68rem, 1.8vw, 0.78rem);
+  padding: 4px 12px;
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  height: 34px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   transition: all 0.2s ease;
 }
 
@@ -741,7 +740,7 @@
 .scrollWithArrowContainer {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 1 1 auto;
   min-width: 0;
   position: relative;
@@ -750,14 +749,14 @@
 .capsuleRowScrollable {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
   overflow-x: auto;
   white-space: nowrap;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  padding: 2px 4px;
+  padding: 2px 2px;
 }
 
 .capsuleRowScrollable::-webkit-scrollbar { display: none; }
@@ -768,13 +767,13 @@
   background-color: var(--bg-dark-1);
   border: 1px solid var(--border-zinc-subtle);
   color: var(--text-light);
-  padding: 6px 18px;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
-  font-size: clamp(0.68rem, 1.8vw, 0.78rem);
+  padding: 4px 14px;
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  height: 34px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -790,19 +789,19 @@
 .mainInputBox {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background-color: var(--bg-dark-1);
   border: 1px solid var(--border-input);
   border-radius: 9999px;
-  padding: 4px 6px 4px 6px;
-  min-height: 46px;
+  padding: 4px 6px;
+  min-height: 42px;
   box-sizing: border-box;
   width: 100%;
 }
 
 .circleModeBtn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 1px solid var(--border-zinc);
   background-color: var(--bg-dark-2);
@@ -843,14 +842,14 @@
 
 .inputField {
   width: 100%;
-  height: 38px;
+  height: 34px;
   border: none;
   background: transparent;
   color: var(--text-white);
   outline: none;
-  font-size: 0.85rem;
-  padding-right: 45px;
-  padding-left: 4px;
+  font-size: 0.80rem;
+  padding-right: 38px;
+  padding-left: 2px;
 }
 
 .rightActionGroup {
@@ -862,8 +861,8 @@
 
 .modeToggleButton,
 .sendIconButton {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: none;
   display: flex;
@@ -895,10 +894,10 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  height: 38px;
-  padding: 0 6px 0 12px;
+  height: 34px;
+  padding: 0 4px 0 8px;
   background-color: rgba(24, 24, 27, 0.95);
   border-radius: 9999px;
   box-sizing: border-box;
@@ -907,22 +906,22 @@
 .waveformContainer {
   display: flex;
   align-items: center;
-  gap: 3px;
-  height: 28px;
-  width: 36px;
+  gap: 2px;
+  height: 24px;
+  width: 30px;
   justify-content: center;
   flex-shrink: 0;
 }
 
 .waveBarRealtime {
-  width: 3px;
+  width: 2.5px;
   background-color: var(--accent-orange);
   border-radius: 3px;
   transition: height 0.05s ease;
 }
 
 .recordingText {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
@@ -934,13 +933,13 @@
 .cancelRecordBtn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   background-color: rgba(239, 68, 68, 0.2);
   color: #ef4444;
   border: 1px solid rgba(239, 68, 68, 0.4);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 9999px;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
