@@ -50,7 +50,6 @@ const IconTrash = () => (
   </svg>
 );
 
-/* IKON PANAH DI-RESIZE LEBIH BESAR (18x18) */
 const IconSlideArrowBig = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="13 17 18 12 13 7" />
@@ -97,21 +96,53 @@ export default function InputSection({
         </button>
 
         <div className={styles.scrollWithArrowContainer}>
+          {/* PEMBATAS KIRI MIRING JAJAR GENJANG */}
+          <div 
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: 0,
+              width: '16px',
+              zIndex: 10,
+              background: 'linear-gradient(to right, #000000 0%, transparent 100%)',
+              transform: 'skewX(-8deg)',
+              pointerEvents: 'none'
+            }} 
+          />
+
           <div className={styles.capsuleRowScrollable} ref={scrollRef}>
-            {Object.keys(trialPresets).map((presetKey) => (
-              <button
-                key={presetKey}
-                type="button"
-                onClick={() => handlePillClick(presetKey)}
-                className={styles.skewedChipButton}
-                disabled={loading}
-              >
-                {presetKey}
-              </button>
-            ))}
+            {Object.keys(trialPresets).map((presetKey) => {
+              const displayLabel = presetKey === 'Hari apa?' ? 'tgl berapa?' : presetKey;
+              return (
+                <button
+                  key={presetKey}
+                  type="button"
+                  onClick={() => handlePillClick(presetKey)}
+                  className={styles.skewedChipButton}
+                  disabled={loading}
+                >
+                  {displayLabel}
+                </button>
+              );
+            })}
           </div>
 
-          {/* INDIKATOR ANIMASI GESER DI PINDAH KE PALING KANAN & DIPERBESAR */}
+          {/* PEMBATAS KANAN MIRING JAJAR GENJANG */}
+          <div 
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              right: '24px',
+              width: '16px',
+              zIndex: 10,
+              background: 'linear-gradient(to left, #000000 0%, transparent 100%)',
+              transform: 'skewX(-8deg)',
+              pointerEvents: 'none'
+            }} 
+          />
+
           <div className={styles.slideArrowIndicatorRight} title="Geser pill untuk melihat opsi lain">
             <IconSlideArrowBig />
           </div>
