@@ -338,7 +338,11 @@
   line-height: 1.35;
   text-align: left;
   word-break: break-word;
-  padding-right: 2px;
+  
+  /* --- TAMBAHKAN PADDING INI AGAR TEKS TIDAK NABRAK --- */
+  padding-bottom: 24px; /* Memberi ruang aman di bawah untuk visualizer */
+  padding-right: 28px;  /* Memberi ruang aman di kanan untuk tombol speaker */
+  box-sizing: border-box;
 }
 
 .idlePromptText {
