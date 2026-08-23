@@ -85,7 +85,7 @@ function SwipeableMessage({
     setTranslateX(0);
   };
 
-  const isVisibleTrash = Math.abs(translateX) > 10;
+  const isDraggingActive = Math.abs(translateX) > 15;
 
   return (
     <div 
@@ -98,12 +98,11 @@ function SwipeableMessage({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div 
-        className={styles.swipeTrashBackground}
-        style={{ opacity: isVisibleTrash ? 1 : 0 }}
-      >
-        <IconTrashOrange />
-      </div>
+      {isDraggingActive && (
+        <div className={styles.swipeTrashBackground}>
+          <IconTrashOrange />
+        </div>
+      )}
       <div 
         className={styles.swipeContent} 
         style={{ 

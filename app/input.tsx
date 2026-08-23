@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import styles from './page.module.css';
 
 interface TrialPreset {
@@ -50,8 +50,21 @@ const IconTrash = () => (
   </svg>
 );
 
-const IconSlideArrowBig = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+const IconSlideArrowBig = ({ isEnd }: { isEnd: boolean }) => (
+  <svg 
+    width="18" 
+    height="18" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="#f97316" 
+    strokeWidth="2.8" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    style={{
+      transform: isEnd ? 'rotate(180deg)' : 'rotate(0deg)',
+      transition: 'transform 0.3s ease'
+    }}
+  >
     <polyline points="13 17 18 12 13 7" />
     <polyline points="6 17 11 12 6 7" />
   </svg>
@@ -72,6 +85,35 @@ export default function InputSection({
   stopRecording,
 }: InputSectionProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [isScrolledToEnd, setIsScrolledToEnd] = useState(false);
+
+  const checkScrollPosition = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setIsScrolledToEnd(scrollLeft + clientWidth >= scrollWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    const currentRef = scrollRef.current;
+    if (currentRef) {
+      currentRef.addEventListener('scroll', checkScrollPosition);
+      checkScrollPosition();
+    }
+    return () => {
+      if (currentRef) currentRef.removeEventListener('scroll', checkScrollPosition);
+    };
+  }, []);
+
+  const handleArrowClick = () => {
+    if (scrollRef.current) {
+      if (isScrolledToEnd) {
+        scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        scrollRef.current.scrollTo({ left: scrollRef.current.scrollWidth, behavior: 'smooth' });
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,16 +138,15 @@ export default function InputSection({
         </button>
 
         <div className={styles.scrollWithArrowContainer}>
-          {/* PEMBATAS KIRI MIRING JAJAR GENJANG */}
           <div 
             style={{
               position: 'absolute',
               top: 0,
               bottom: 0,
               left: 0,
-              width: '16px',
+              width: '8px',
               zIndex: 10,
-              background: 'linear-gradient(to right, #000000 0%, transparent 100%)',
+              background: 'linear-gradient(to right, rgba(0,0,0,0.8) 0%, transparent 100%)',
               transform: 'skewX(-8deg)',
               pointerEvents: 'none'
             }} 
@@ -128,24 +169,40 @@ export default function InputSection({
             })}
           </div>
 
-          {/* PEMBATAS KANAN MIRING JAJAR GENJANG */}
           <div 
             style={{
               position: 'absolute',
               top: 0,
               bottom: 0,
-              right: '24px',
-              width: '16px',
+              right: '28px',
+              width: '8px',
               zIndex: 10,
-              background: 'linear-gradient(to left, #000000 0%, transparent 100%)',
+              background: 'linear-gradient(to left, rgba(0,0,0,0.8) 0%, transparent 100%)',
               transform: 'skewX(-8deg)',
               pointerEvents: 'none'
             }} 
           />
 
-          <div className={styles.slideArrowIndicatorRight} title="Geser pill untuk melihat opsi lain">
-            <IconSlideArrowBig />
-          </div>
+          {/* TOMBOL DENGAN BACKGROUND HITAM & PANAH ORANGE */}
+          <button
+            type="button"
+            onClick={handleArrowClick}
+            style={{
+              backgroundColor: '#000000',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              padding: '4px',
+              borderRadius: '6px',
+              zIndex: 15
+            }}
+            title={isScrolledToEnd ? "Kembali ke awal" : "Geser ke ujung"}
+          >
+            <IconSlideArrowBig isEnd={isScrolledToEnd} />
+          </button>
         </div>
       </div>
 
