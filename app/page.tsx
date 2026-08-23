@@ -690,13 +690,8 @@ export default function Home() {
 
               <div className={styles.dynamicDividerLine} />
 
-              {/* RUNNING TEKS HORISONTAL KELUAR DARI PEMBATAS ORANYE */}
-              <div className={styles.marqueeContainer}>
-                <span className={styles.typewriterText}>
-                  {displayedStatusText || 'Selamat datang di SukaChub Virtual Chat!'}
-                  <span className={styles.blinkingOrangeSlash}> /</span>
-                </span>
-              </div>
+              {/* AREA PEMBATAS ORANYE KANAN (TANPA RUNNING TEKS) */}
+              <div className={styles.marqueeContainer} />
 
               {/* VISUALIZER SPEKTRUM SEGARIS BIRU */}
               <div className={styles.centerVisualizerBox}>

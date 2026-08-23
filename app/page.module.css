@@ -40,11 +40,6 @@
   50% { height: 18px; }
 }
 
-@keyframes marqueeText {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
-}
-
 .blinkingOrangeLink {
   color: var(--accent-orange);
   font-weight: 700;
@@ -114,17 +109,14 @@
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 16px, black calc(100% - 16px), transparent 100%);
 }
 
-.chatBox::-webkit-scrollbar,
-.dynamicStatusTextScroll::-webkit-scrollbar {
+.chatBox::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 
-.chatBox::-webkit-scrollbar-track,
-.dynamicStatusTextScroll::-webkit-scrollbar-track { background: transparent; }
+.chatBox::-webkit-scrollbar-track { background: transparent; }
 
-.chatBox::-webkit-scrollbar-thumb,
-.dynamicStatusTextScroll::-webkit-scrollbar-thumb {
+.chatBox::-webkit-scrollbar-thumb {
   background: var(--accent-orange);
   border-radius: 2px;
 }
@@ -160,7 +152,6 @@
   width: 100%;
 }
 
-/* KOTAK HUD FUTURISTIK BUBBLE CHAT */
 .futuristicHudFrame {
   position: relative;
   max-width: 90%;
@@ -253,7 +244,7 @@
   padding: 4px;
 }
 
-/* === BUBBLE STATUS AVA (HUD) === */
+/* KOTAK HUD STATUS AVA */
 .dynamicStatusBubbleFixedHud {
   position: relative;
   display: flex;
@@ -262,7 +253,6 @@
   justify-content: space-between;
   padding: 10px 12px 12px 12px;
   background-color: var(--bg-hud-dark);
-  /* Chamfer presisi 10px selaras penuh dengan SVG tanpa garis memotong keluar */
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   margin-top: 2px;
   margin-bottom: 2px;
@@ -283,39 +273,6 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-}
-
-.welcomeContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  text-align: center;
-  gap: 2px;
-}
-
-.welcomeTitle {
-  font-size: clamp(0.70rem, 2vw, 0.80rem);
-  font-weight: 800;
-  color: var(--text-white);
-  letter-spacing: 1px;
-}
-
-.welcomeSubtitle {
-  font-size: clamp(0.58rem, 1.6vw, 0.68rem);
-  font-weight: 500;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.bubbleStatusBox {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
 .bubbleStatusHeader {
@@ -340,21 +297,18 @@
   flex-shrink: 0;
 }
 
-/* CONTAINER RUNNING TEKS DENGAN BLOK PEMBATAS ORANYE DI KANAN */
+/* PEMBATAS ORANYE DI SISI KANAN (TANPA TEKS) */
 .marqueeContainer {
   width: 100%;
-  overflow: hidden;
-  white-space: nowrap;
+  height: 24px;
   position: relative;
   margin: 4px 0;
   display: flex;
   align-items: center;
   background: transparent;
-  padding: 2px 20px 2px 0; /* Padding kanan untuk ruang aman pembatas */
   box-sizing: border-box;
 }
 
-/* Aksen Blok Oranye Dinamis di Sisi Kanan Tempat Teks Keluar */
 .marqueeContainer::after {
   content: '';
   position: absolute;
@@ -368,20 +322,7 @@
   z-index: 10;
 }
 
-/* TEKS BERJALAN HORISONTAL DARI KANAN KE KIRI */
-.typewriterText {
-  display: inline-block;
-  padding-left: 100%; /* Memulai posisi teks dari luar sisi kanan */
-  white-space: nowrap; /* Mencegah teks patah ke bawah */
-  animation: marqueeText 12s linear infinite; /* Animasi berjalan horisontal */
-  font-size: clamp(0.70rem, 1.8vw, 0.80rem);
-  font-weight: 700;
-  font-style: italic; /* Teks miring */
-  color: var(--text-white);
-  line-height: 1.35;
-}
-
-/* VISUALIZER DENGAN RENTANG PANJANG DI BAWAH (GARIS BIRU) */
+/* VISUALIZER SEGARIS AREA BIRU */
 .centerVisualizerBox {
   width: 100%;
   display: flex;
@@ -390,7 +331,7 @@
   gap: 3px;
   height: 22px;
   margin-top: auto;
-  margin-bottom: 4px; /* Diposisikan di bawah sesuai garis biru */
+  margin-bottom: 4px;
 }
 
 .visDot {
@@ -412,7 +353,6 @@
   animation: wavePulseSmall 0.6s infinite ease-in-out;
 }
 
-/* CONTROL BAWAH BUBBLE STATUS AVA */
 .bubbleBottomControls {
   width: 100%;
   display: flex;
@@ -828,7 +768,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid var(--border-zinc);
+  border: 1.5px solid var(--border-zinc);
   background-color: var(--bg-dark-2);
   color: var(--text-muted);
   display: flex;
