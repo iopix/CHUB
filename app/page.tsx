@@ -85,6 +85,8 @@ function SwipeableMessage({
     setTranslateX(0);
   };
 
+  const isVisibleTrash = Math.abs(translateX) > 10;
+
   return (
     <div 
       className={styles.swipeContainer}
@@ -96,7 +98,10 @@ function SwipeableMessage({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div className={styles.swipeTrashBackground}>
+      <div 
+        className={styles.swipeTrashBackground}
+        style={{ opacity: isVisibleTrash ? 1 : 0 }}
+      >
         <IconTrashOrange />
       </div>
       <div 
@@ -359,9 +364,7 @@ export default function Home() {
 
   const handleChatMessageClick = (msg: Message, index: number) => {
     setIsWelcomeBubble(false);
-    if (isSingleChat) {
-      setActiveSingleIndex(index);
-    }
+    setActiveSingleIndex(index);
     startSyncSpeechAndTyping(msg.content, index);
   };
 
@@ -615,7 +618,7 @@ export default function Home() {
           <div className={styles.chatBox}>
             {messages.map((msg, index) => {
               const isUser = msg.role === 'user';
-              const isSelectedInSingle = isSingleChat && activeSingleIndex === index;
+              const isSelectedActive = activeSingleIndex === index;
 
               return (
                 <div 
@@ -626,20 +629,22 @@ export default function Home() {
                   <SwipeableMessage onDelete={() => handleRemoveSingleMessage(index)}>
                     <div 
                       onClick={() => handleChatMessageClick(msg, index)}
-                      className={`${styles.bubble} ${
+                      className={`${styles.bubbleSkewed} ${
                         isSingleChat 
                           ? styles.blackSingleBubble 
-                          : (isUser ? styles.userBubble : styles.aiBubble)
-                      } ${isSelectedInSingle ? styles.orangeOutlineGlow : ''} ${styles.clickableBubble}`}
-                      title="Geser Kiri/Kanan untuk Hapus Pesan"
+                          : (isUser ? styles.userBubbleRight : styles.aiBubble)
+                      } ${isSelectedActive ? styles.orangeOutlineGlow : ''} ${styles.clickableBubble}`}
+                      title="Klik untuk putar suara / Geser Kiri-Kanan untuk hapus"
                     >
-                      <div className={styles.roleHeader}>
-                        <span className={`${styles.roleLabel} ${isUser && !isSingleChat ? styles.blackUserText : styles.orangeLabelText}`}>
-                          {isUser ? getUserName() : 'SukaChub Virtual Chat'}
-                        </span>
-                      </div>
-                      <div className={styles.textContent}>
-                        {msg.content}
+                      <div className={styles.unskewContent}>
+                        <div className={isUser && !isSingleChat ? styles.roleHeaderRight : styles.roleHeader}>
+                          <span className={styles.orangeBrightLabelText}>
+                            {isUser ? getUserName() : 'SukaChub Virtual Chat'}
+                          </span>
+                        </div>
+                        <div className={styles.textContent}>
+                          {msg.content}
+                        </div>
                       </div>
                     </div>
                   </SwipeableMessage>
@@ -649,9 +654,11 @@ export default function Home() {
 
             {loading && (
               <div className={styles.messageWrapper} style={{ justifyContent: 'flex-start' }}>
-                <div className={`${styles.bubble} ${styles.aiBubble}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className={styles.loadingDots}><span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} /></div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>sedang mikir...</span>
+                <div className={`${styles.bubbleSkewed} ${styles.aiBubble}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className={styles.unskewContent} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className={styles.loadingDots}><span className={styles.dot} /><span className={styles.dot} /><span className={styles.dot} /></div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>sedang mikir...</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -713,7 +720,7 @@ export default function Home() {
               <IconSpeaker />
             </button>
 
-            <div className={styles.speechTail} />
+            <div className={styles.speechTailDinamis} />
           </div>
 
           <div ref={avatarContainerRef} className={styles.avatarContainer} onContextMenu={(e) => e.preventDefault()}>

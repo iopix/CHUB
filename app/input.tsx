@@ -50,6 +50,13 @@ const IconTrash = () => (
   </svg>
 );
 
+const IconSlideArrow = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="13 17 18 12 13 7" />
+    <polyline points="6 17 11 12 6 7" />
+  </svg>
+);
+
 export default function InputSection({
   input,
   setInput,
@@ -76,7 +83,6 @@ export default function InputSection({
   return (
     <div className={styles.footerWrapper}>
       <div className={styles.capsuleRowWrapperFixed}>
-        {/* PILL HAPUS CHAT STANDBY DIAM DI SEBELAH KIRI */}
         <button
           type="button"
           onClick={handleClearChat}
@@ -89,19 +95,24 @@ export default function InputSection({
           </span>
         </button>
 
-        {/* PILL TEKS CEPAT BISA DIGESER DENGAN BENTUK JAJAR GENJANG */}
-        <div className={styles.capsuleRowScrollable} ref={scrollRef}>
-          {Object.keys(trialPresets).map((presetKey) => (
-            <button
-              key={presetKey}
-              type="button"
-              onClick={() => handlePillClick(presetKey)}
-              className={styles.skewedChipButton}
-              disabled={loading}
-            >
-              <span className={styles.unskewContent}>{presetKey}</span>
-            </button>
-          ))}
+        <div className={styles.scrollWithArrowContainer}>
+          <div className={styles.slideArrowIndicator} title="Geser pill untuk melihat opsi lain">
+            <IconSlideArrow />
+          </div>
+
+          <div className={styles.capsuleRowScrollable} ref={scrollRef}>
+            {Object.keys(trialPresets).map((presetKey) => (
+              <button
+                key={presetKey}
+                type="button"
+                onClick={() => handlePillClick(presetKey)}
+                className={styles.skewedChipButton}
+                disabled={loading}
+              >
+                <span className={styles.unskewContent}>{presetKey}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

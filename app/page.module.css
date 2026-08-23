@@ -1,7 +1,7 @@
 :root {
-  --bg-black: #09090b;
-  --bg-dark-1: #18181b;
-  --bg-dark-2: #27272a;
+  --bg-black: #000000;
+  --bg-dark-1: #121214;
+  --bg-dark-2: #1e1e22;
   --border-zinc: #3f3f46;
   --border-zinc-subtle: rgba(63, 63, 70, 0.4);
   --border-zinc-divider: rgba(63, 63, 70, 0.2);
@@ -13,7 +13,7 @@
   --accent-orange-light: #fb923c;
   --accent-orange-subtle: rgba(249, 115, 22, 0.12);
   --accent-orange-border: rgba(249, 115, 22, 0.35);
-  --accent-orange-user-bubble: rgba(249, 115, 22, 0.35); /* USER BUBBLE WARNA LEBIH TIPIS */
+  --accent-orange-user-bubble: rgba(249, 115, 22, 0.3);
   --bg-ai-bubble: #18181b;
   --shadow-bubble: rgba(0, 0, 0, 0.4);
 }
@@ -41,6 +41,11 @@
 @keyframes wavePulseSmall {
   0%, 100% { height: 3px; }
   50% { height: 12px; }
+}
+
+@keyframes slideArrowPulse {
+  0%, 100% { transform: translateX(0); opacity: 0.5; }
+  50% { transform: translateX(3px); opacity: 1; }
 }
 
 .blinkingOrangeLink {
@@ -85,6 +90,7 @@
   overflow: hidden;
   position: relative;
   width: 100%;
+  background-color: var(--bg-black);
 }
 
 .chatSection {
@@ -94,12 +100,13 @@
   overflow: hidden;
   position: relative;
   z-index: 5;
+  background-color: var(--bg-black);
 }
 
 .chatBox {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 16px 18px; /* PADDING DIPERBESAR AGAR OUTLINE TIDAK TERPOTONG */
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -148,9 +155,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  background-color: rgba(249, 115, 22, 0.08);
+  background-color: rgba(249, 115, 22, 0.1);
   border-radius: 18px;
   pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 1;
 }
 
 .swipeContent {
@@ -159,10 +168,12 @@
   width: 100%;
 }
 
-.bubble { 
+/* BUBBLE CHAT DENGAN BENTUK JAJAR GENJANG ROUNDED KE KANAN */
+.bubbleSkewed { 
   max-width: 90%; 
-  padding: 10px 14px; 
-  border-radius: 18px; 
+  padding: 10px 16px; 
+  border-radius: 12px; 
+  transform: skewX(-8deg); /* KEMIRINGAN JAJAR GENJANG */
   font-size: clamp(0.75rem, 2vw, 0.9rem); 
   backdrop-filter: blur(16px); 
   word-break: break-word; 
@@ -172,47 +183,60 @@
 
 .clickableBubble { cursor: pointer; }
 .clickableBubble:hover {
-  transform: scale(1.012);
+  transform: skewX(-8deg) scale(1.012);
   border-color: var(--accent-orange);
 }
 
-.userBubble { 
+.userBubbleRight { 
   background-color: var(--accent-orange-user-bubble); 
   color: var(--text-white); 
   border: 1px solid var(--accent-orange-border);
-  border-radius: 18px 18px 4px 18px; 
+  text-align: right;
+  margin-left: auto;
 }
 
 .aiBubble { 
   background-color: var(--bg-ai-bubble); 
   color: var(--text-light); 
   border: 1px solid var(--border-zinc-subtle); 
-  border-radius: 18px 18px 18px 4px; 
+  text-align: left;
 }
 
 .blackSingleBubble {
   background-color: var(--bg-ai-bubble) !important; 
   color: var(--text-light) !important; 
   border: 1px solid var(--border-zinc-subtle) !important; 
-  border-radius: 18px 18px 18px 4px !important; 
+  text-align: left;
 }
 
-/* OUTLINE SPREAD AGAR TIDAK TERPOTONG SISI TINGGI */
 .orangeOutlineGlow {
-  box-shadow: 0 0 0 2px var(--accent-orange), 0 0 12px rgba(249, 115, 22, 0.6) !important;
+  border: 1.8px solid var(--accent-orange) !important;
+  box-shadow: 0 0 0 1px var(--accent-orange), 0 0 14px rgba(249, 115, 22, 0.75) !important;
 }
 
 .roleHeader { 
   display: flex; 
-  justify-content: space-between; 
+  justify-content: flex-start; 
+  align-items: center; 
+  margin-bottom: 3px; 
+  gap: 8px; 
+}
+
+.roleHeaderRight {
+  display: flex; 
+  justify-content: flex-end; 
   align-items: center; 
   margin-bottom: 3px; 
   gap: 8px; 
 }
 
 .roleLabel { font-size: clamp(0.6rem, 1.8vw, 0.7rem); }
-.blackUserText { color: #000000 !important; font-weight: 800 !important; }
-.orangeLabelText { color: var(--accent-orange-light) !important; font-weight: 700 !important; font-style: italic; }
+
+.orangeBrightLabelText { 
+  color: var(--accent-orange-light) !important; 
+  font-weight: 800 !important; 
+  font-style: italic; 
+}
 
 .textContent { white-space: pre-wrap; line-height: 1.4; word-break: break-word; }
 
@@ -245,17 +269,17 @@
   padding: 4px;
 }
 
-/* BUBBLE STATUS AVA DIPANJANGKAN KE BAWAH (HEIGHT: 140PX) */
+/* BUBBLE CHAT AVA DENGAN BACKGROUND ABU-ABU DENGAN OUTLINE ORANGE */
 .dynamicStatusBubbleFixed {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 8px 12px 20px 12px;
+  padding: 10px 12px 20px 12px;
   border-radius: 16px;
-  border: 1px solid var(--accent-orange-border);
-  background-color: var(--accent-orange-subtle);
+  border: 1px solid var(--accent-orange); /* OUTLINE ORANGE */
+  background-color: rgba(24, 24, 27, 0.85); /* BACKGROUND ABU-ABU GELAP */
   backdrop-filter: blur(12px);
   margin-top: 4px;
   margin-bottom: 2px;
@@ -307,7 +331,7 @@
 .dynamicDividerLine {
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, rgba(249, 115, 22, 0.6) 0%, rgba(63, 63, 70, 0.4) 100%);
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.8) 0%, rgba(63, 63, 70, 0.4) 100%);
   margin: 4px 0;
   flex-shrink: 0;
 }
@@ -333,13 +357,14 @@
   display: block;
 }
 
+/* KANAN DAN KIRI DIBUAT DENGAN PENYELARASAN SIMETRIS */
 .bubbleBottomLeftVisualizer {
   position: absolute;
-  bottom: 6px;
-  left: 10px;
+  bottom: 8px;
+  left: 12px;
   display: flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: 2.5px;
   height: 14px;
   pointer-events: none;
 }
@@ -349,7 +374,7 @@
   height: 3px;
   background-color: var(--accent-orange);
   border-radius: 2px;
-  opacity: 0.3;
+  opacity: 0.35;
   transition: all 0.2s ease;
 }
 
@@ -364,8 +389,8 @@
 
 .bubbleSpeakerBtn {
   position: absolute;
-  bottom: 5px;
-  right: 8px;
+  bottom: 6px;
+  right: 12px;
   background: transparent;
   border: none;
   color: #71717a;
@@ -388,19 +413,19 @@
   filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.6));
 }
 
-.speechTail {
+/* EKOR CHAT DINAMIS */
+.speechTailDinamis {
   position: absolute;
-  bottom: -7px;
+  bottom: -8px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 7px solid var(--accent-orange-border);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid var(--accent-orange);
 }
 
-/* CONTAINER AVA DITURUNKAN SEDIKIT (MARGIN-TOP 12PX) */
 .avatarContainer {
   position: relative;
   width: 100%;
@@ -416,6 +441,7 @@
   user-select: none;
   -webkit-user-select: none;
   outline: none;
+  background-color: var(--bg-black);
 }
 
 .hitboxHead, .hitboxBelly, .hitboxLegs {
@@ -437,6 +463,7 @@
   object-fit: contain;
   transition: opacity 0.2s linear;
   pointer-events: none;
+  background-color: #000000;
 }
 
 .asmrRipple {
@@ -470,7 +497,6 @@
   opacity: 0.8;
 }
 
-/* BENTUK JAJAR GENJANG DENGAN CORNER ROUNDED DINAMIS (SKEWED) */
 .gridGuideGroupSkewed {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -488,7 +514,7 @@
   font-weight: 600;
   padding: 5px 0;
   border-radius: 8px;
-  transform: skewX(-12deg);
+  transform: skewX(-8deg);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
@@ -502,7 +528,7 @@
 
 .unskewContent {
   display: inline-block;
-  transform: skewX(12deg);
+  transform: skewX(8deg);
 }
 
 .activeOrangeSkewed {
@@ -529,17 +555,16 @@
   display: inline-block;
 }
 
-/* PILL VOICE BERBENTUK JAJAR GENJANG ROUNDED */
 .skewedVoiceBtn {
   height: 32px;
-  padding: 0 14px;
+  padding: 0 16px;
   font-size: clamp(0.6rem, 1.5vw, 0.7rem);
   font-weight: 700;
   color: #f4f4f5;
   background-color: #27272a;
   border: 1px solid #3f3f46;
   border-radius: 8px;
-  transform: skewX(-12deg);
+  transform: skewX(-8deg);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -616,15 +641,14 @@
   box-shadow: 0 0 6px #f97316;
 }
 
-/* PILL AUTO VOICE BERBENTUK JAJAR GENJANG ROUNDED */
 .skewedAutoVoiceBtn {
   height: 32px;
-  padding: 0 14px;
+  padding: 0 16px;
   font-size: clamp(0.6rem, 1.5vw, 0.7rem);
   font-weight: 700;
   letter-spacing: 0.3px;
   border-radius: 8px;
-  transform: skewX(-12deg);
+  transform: skewX(-8deg);
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
@@ -662,24 +686,23 @@
   gap: 8px;
 }
 
-/* LAYOUT CAPSULE DENGAN PILL HAPUS CHAT FIXED & PILL CEPAT SCROLLABLE */
 .capsuleRowWrapperFixed {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   overflow: hidden;
+  padding: 2px 2px;
 }
 
-/* PILL HAPUS CHAT STANDBY DIAM (ORANGE THEME JAJAR GENJANG) */
 .fixedOrangeDeleteBtn {
   flex: 0 0 auto;
   background-color: rgba(249, 115, 22, 0.2);
   border: 1px solid var(--accent-orange);
   color: #f97316;
-  padding: 6px 14px;
+  padding: 6px 16px;
   border-radius: 8px;
-  transform: skewX(-12deg);
+  transform: skewX(-8deg);
   font-size: clamp(0.68rem, 1.8vw, 0.78rem);
   font-weight: 700;
   cursor: pointer;
@@ -698,17 +721,35 @@
   color: #ffffff;
 }
 
+.scrollWithArrowContainer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+}
+
+.slideArrowIndicator {
+  color: var(--accent-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: slideArrowPulse 1.2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
 .capsuleRowScrollable {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1 1 auto;
   min-width: 0;
   overflow-x: auto;
   white-space: nowrap;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 2px;
+  padding: 2px 4px;
   user-select: none;
   -webkit-user-select: none;
   cursor: grab;
@@ -718,15 +759,14 @@
 .capsuleRowScrollable::-webkit-scrollbar { display: none; }
 .capsuleRowScrollable { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* PILL TEKS CEPAT JAJAR GENJANG ROUNDED */
 .skewedChipButton {
   flex: 0 0 auto;
   background-color: var(--bg-dark-1);
   border: 1px solid var(--border-zinc-subtle);
   color: var(--text-light);
-  padding: 6px 14px;
+  padding: 6px 18px;
   border-radius: 8px;
-  transform: skewX(-12deg);
+  transform: skewX(-8deg);
   font-size: clamp(0.68rem, 1.8vw, 0.78rem);
   font-weight: 500;
   cursor: pointer;
